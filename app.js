@@ -1804,6 +1804,7 @@ function renderHourlyProjection(rows) {
 
   summary.innerHTML = `
     <div class="pace-board-grid">
+      ${neoGoalsSummary}
       <section class="pace-board pace-board-hero">
         <div class="pace-stream-tabs" role="tablist" aria-label="Pace tracker mode">
           ${validStreams.map((key) => `
@@ -1833,7 +1834,6 @@ function renderHourlyProjection(rows) {
           </table>
         </div>
       </section>
-      ${neoGoalsSummary}
     </div>
   `;
 
