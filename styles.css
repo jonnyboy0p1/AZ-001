@@ -2077,3 +2077,37 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   letter-spacing:.02em;
   margin-top:2px;
 }
+/* Shift Goal cell spanning all periods */
+.shift-goal-cell{
+  font-weight:700;
+  font-size:15px;
+  border-right:2px solid var(--blue) !important;
+  border-left:2px solid var(--blue) !important;
+  color:var(--text);
+}
+/* Per-row performance highlighting */
+.projection-table .projection-segment-row.perf-good td{
+  background:color-mix(in srgb,var(--green),var(--panel2) 88%);
+}
+.projection-table .projection-segment-row.perf-warn td{
+  background:color-mix(in srgb,var(--yellow),var(--panel2) 88%);
+}
+.projection-table .projection-segment-row.perf-bad td{
+  background:color-mix(in srgb,var(--red),var(--panel2) 88%);
+}
+/* Period total row performance highlighting */
+.projection-table .projection-period-total.perf-good td{
+  background:color-mix(in srgb,var(--green),var(--thead) 30%) !important;
+  border-top:2px solid var(--green);
+}
+.projection-table .projection-period-total.perf-bad td{
+  background:color-mix(in srgb,var(--red),var(--thead) 30%) !important;
+  border-top:2px solid var(--red);
+}
+/* Keep future rows dim regardless of perf class */
+.projection-table .projection-segment-row.is-future.perf-good td,
+.projection-table .projection-segment-row.is-future.perf-warn td,
+.projection-table .projection-segment-row.is-future.perf-bad td{
+  background:inherit;
+  color:var(--muted);
+}

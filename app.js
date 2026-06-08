@@ -1609,7 +1609,10 @@ function renderHourlyProjection(rows) {
   let elapsedStartedHours = 0;
   let accActual = 0;   // realized actual from completed/in-progress periods
   let accElapsed = 0;  // realized elapsed hours from completed/in-progress periods
+  // Shift Goal spans the entire table body — compute total row count up front
+  const totalShiftRowSpan = rows.reduce((sum, row) => sum + periodHourSegments(row.key).length + 1, 0);
   const tableBody = rows.map((row) => {
+    const isFirstPeriod = row === rows[0];
     const segments = periodTimedSegments(row.key);
     const effectiveHours = effectivePeriodHours(row);
     const periodTarget = stream.should(row);
@@ -1660,7 +1663,11 @@ function renderHourlyProjection(rows) {
           projected = Math.round(accActual / accElapsed * segHours);
         }
       }
-      const riskClass = cumulativeDiff == null ? '' : cumulativeDiff < -avgRate * 0.5 ? 'risk-bad' : cumulativeDiff < -avgRate * 0.25 ? 'risk-warn' : '';
+      const segExpected = rate * (segment.effectiveHours ?? segment.hours);
+      const perfClass = diff == null || segment.state === 'future' ? ''
+        : diff >= 0 ? 'perf-good'
+        : diff < -segExpected * 0.5 ? 'perf-bad'
+        : 'perf-warn';
       const stateLabel = segment.state === 'current' ? ` <span class="projection-now">now ${fmt(segment.elapsedHours, 1)}h active</span>` : '';
       const bypassLabel = segment.bypassApplied ? ` <span class="projection-now">${formatDowntime(segment.bypassApplied * 60)} bypass</span>` : '';
       const bypassTag = downtimeMinutes(row.key) ? `<span class="pace-bypass">${formatDowntime(downtimeMinutes(row.key))} bypass</span>` : '';
@@ -1670,13 +1677,13 @@ function renderHourlyProjection(rows) {
         `projection-segment-${index + 1}`,
         segment.state === 'current' ? 'is-current' : '',
         segment.state === 'future' ? 'is-future' : '',
-        riskClass
+        perfClass
       ].filter(Boolean).join(' ');
       return `
         <tr class="${rowClasses}">
           ${index === 0 ? `<td class="projection-period-label" rowspan="${rowSpanCount}"><b>${row.label}</b>${bypassTag}</td>` : ''}
           <td>${segment.label}${stateLabel}${bypassLabel}</td>
-          ${index === 0 ? `<td class="num" rowspan="${rowSpanCount}">${fmt(streamTotals.goal)}</td>` : ''}
+          ${index === 0 && isFirstPeriod ? `<td class="num shift-goal-cell" rowspan="${totalShiftRowSpan}">${fmt(streamTotals.goal)}</td>` : ''}
           ${index === 0 ? `<td class="num" rowspan="${rowSpanCount}">${fmt(periodTarget)}</td>` : ''}
           ${index === 0 ? `<td class="num" rowspan="${rowSpanCount}">${fmt(rate, 0)}/hr</td>` : ''}
           <td class="num"><b>${should > 0 ? fmt(should) : ''}</b></td>
@@ -1710,8 +1717,9 @@ function renderHourlyProjection(rows) {
     const periodReqRate = effectiveHours > 0 ? periodTarget / effectiveHours : 0;
     const elapsedInPeriod = segments.reduce((s, seg) => s + seg.elapsedHours, 0);
     const periodActRate = elapsedInPeriod > 0 && periodActual > 0 ? periodActual / elapsedInPeriod : null;
+    const periodPerfClass = periodDiff == null ? '' : periodDiff >= 0 ? 'perf-good' : 'perf-bad';
     const periodSubtotal = `
-      <tr class="projection-period-total projection-period-${row.key}">
+      <tr class="projection-period-total projection-period-${row.key} ${periodPerfClass}">
         <td><b>Period total</b></td>
         <td class="num">
           <b>${fmt(periodStartedExpected)}</b>
