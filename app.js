@@ -1308,17 +1308,26 @@ function projectionPeriodActual(row, stream) {
 
 function projectionActualSplit(row, segments, stream = null) {
   const periodActual = projectionPeriodActual(row, stream);
-  const totalHours = segments.reduce((sum, segment) => sum + (segment.effectiveHours ?? segment.hours), 0);
+  // Only distribute actual across elapsed segments — future hours stay empty until they happen
+  const elapsedEffective = segments.reduce((sum, s) => {
+    if (s.state === 'complete') return sum + (s.effectiveHours ?? s.hours);
+    if (s.state === 'current') return sum + s.elapsedHours;
+    return sum;
+  }, 0);
   let allocated = 0;
   return segments.map((segment, index) => {
     const id = `${row.key}_${stream?.key || 'ob'}_proj_actual_${index}`;
     const el = $(id);
     const raw = (el?.value || '').trim();
     if (raw !== '' && el?.dataset.projectionAuto !== 'true') return { id, actual: val(id), manual: true };
-    if (periodActual <= 0 || totalHours <= 0) return { id, actual: null, manual: false };
-    const last = index === segments.length - 1;
-    const hours = segment.effectiveHours ?? segment.hours;
-    const actual = last ? Math.round(periodActual - allocated) : Math.round(periodActual * hours / totalHours);
+    if (segment.state === 'future') return { id, actual: null, manual: false };
+    if (periodActual <= 0 || elapsedEffective <= 0) return { id, actual: null, manual: false };
+    const segElapsed = segment.state === 'current' ? segment.elapsedHours : (segment.effectiveHours ?? segment.hours);
+    // Last elapsed segment absorbs rounding remainder
+    const isLastElapsed = segments.slice(index + 1).every(s => s.state === 'future');
+    const actual = isLastElapsed
+      ? Math.round(periodActual - allocated)
+      : Math.round(periodActual * segElapsed / elapsedEffective);
     allocated += actual;
     return { id, actual, manual: false };
   });
@@ -1598,6 +1607,8 @@ function renderHourlyProjection(rows) {
   let cumulativeActual = 0;
   let cumulativeStartedExpected = 0;
   let elapsedStartedHours = 0;
+  let accActual = 0;   // realized actual from completed/in-progress periods
+  let accElapsed = 0;  // realized elapsed hours from completed/in-progress periods
   const tableBody = rows.map((row) => {
     const segments = periodTimedSegments(row.key);
     const effectiveHours = effectivePeriodHours(row);
@@ -1629,7 +1640,8 @@ function renderHourlyProjection(rows) {
         periodStartedExpected += should;
         periodHasActual = true;
         cumulativeDiff = cumulativeActual - cumulativeStartedExpected;
-        if (periodElapsedEffective > 0 && periodActual > 0) {
+        // Show projected only on the active segment — extrapolates current period to its end
+        if (segment.state === 'current' && periodElapsedEffective > 0 && periodActual > 0) {
           projected = Math.round(periodActual / periodElapsedEffective * effectiveHours);
         }
         projectionState.expectedToDate = cumulativeStartedExpected;
@@ -1638,6 +1650,15 @@ function renderHourlyProjection(rows) {
         projectionState.lastPeriod = row.label;
         projectionState.startedRows += 1;
         projectionState.worstStack = Math.min(projectionState.worstStack, cumulativeDiff);
+      } else if (segment.state === 'future') {
+        const segHours = segment.effectiveHours ?? segment.hours;
+        if (periodElapsedEffective > 0 && periodActual > 0) {
+          // Remaining hours of the active period — project at current period rate
+          projected = Math.round(periodActual / periodElapsedEffective * segHours);
+        } else if (accElapsed > 0) {
+          // Fully future period — recalibrate from shift's realized rate
+          projected = Math.round(accActual / accElapsed * segHours);
+        }
       }
       const riskClass = cumulativeDiff == null ? '' : cumulativeDiff < -avgRate * 0.5 ? 'risk-bad' : cumulativeDiff < -avgRate * 0.25 ? 'risk-warn' : '';
       const stateLabel = segment.state === 'current' ? ` <span class="projection-now">now ${fmt(segment.elapsedHours, 1)}h active</span>` : '';
@@ -1660,16 +1681,24 @@ function renderHourlyProjection(rows) {
           ${index === 0 ? `<td class="num" rowspan="${rowSpanCount}">${fmt(rate, 0)}/hr</td>` : ''}
           <td class="num"><b>${should > 0 ? fmt(should) : ''}</b></td>
           <td class="num">${projected != null ? fmt(projected) : ''}</td>
-          <td><input id="${actualItem.id}" class="projection-actual ${actualItem.manual ? '' : 'is-auto'}" value="${hasActual ? fmt(actual) : ''}" placeholder="${stream.label} actual" title="Actual from FL Utilization, spread across this period unless manually overridden" ${actualItem.manual ? '' : 'data-projection-auto="true"'} /></td>
+          <td><input id="${actualItem.id}" class="projection-actual ${actualItem.manual ? '' : 'is-auto'}" value="${hasActual ? fmt(actual) : ''}" placeholder="${stream.label} actual" title="Actual from FL Utilization — fills completed hours as the shift progresses; future hours stay blank until elapsed" ${actualItem.manual ? '' : 'data-projection-auto="true"'} /></td>
           <td class="num ${diff == null ? '' : colorClass(diff)}">${diff == null ? '' : signed(diff)}</td>
         </tr>
       `;
     }).join('');
 
+    // Lock in this period's realized actuals for future period recalibration
+    if (periodHasActual) {
+      accActual += periodActual;
+      accElapsed += periodElapsedEffective;
+    }
+
     const periodDiff = periodHasActual ? periodActual - periodStartedExpected : null;
     const periodProjected = periodElapsedEffective > 0 && periodActual > 0
       ? Math.round(periodActual / periodElapsedEffective * effectiveHours)
-      : null;
+      : accElapsed > 0
+        ? Math.round(accActual / accElapsed * effectiveHours)
+        : null;
     projectionState.periodResults.push({
       label: row.label,
       target: periodTarget,
