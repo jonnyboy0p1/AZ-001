@@ -103,6 +103,14 @@ function setText(id, text, cls = '') {
   if (cls) el.classList.add(cls);
 }
 
+function setHtml(id, html, cls = '') {
+  const el = $(id);
+  if (!el) return;
+  el.innerHTML = html;
+  el.classList.remove('good', 'bad', 'warn');
+  if (cls) el.classList.add(cls);
+}
+
 function on(id, event, handler) {
   const el = $(id);
   if (el) el.addEventListener(event, handler);
@@ -579,6 +587,37 @@ function plan() {
   });
 }
 
+function fluidRosterBalanceReco(groups) {
+  const find = (key) => groups.find((g) => g.label.toLowerCase().includes(key));
+  const west = find('west');
+  const east = find('east');
+  const floater = find('floater');
+  if (!west || !east) return null;
+  const wc = num(west.current), wt = num(west.target);
+  const ec = num(east.current), et = num(east.target);
+  const fc = floater ? num(floater.current) : 0;
+  const ft = floater ? num(floater.target) : 4;
+  const wGap = wc - wt, eGap = ec - et, fGap = fc - ft;
+  if (wGap >= 0 && eGap >= 0) return { text: 'Both sides at or above target.', tone: 'good' };
+  if (wGap > 0 && eGap < 0) {
+    const move = Math.min(wGap, Math.abs(eGap));
+    return { text: `Rebalance: move ${move} from West to East.`, tone: 'warn' };
+  }
+  if (eGap > 0 && wGap < 0) {
+    const move = Math.min(eGap, Math.abs(wGap));
+    return { text: `Rebalance: move ${move} from East to West.`, tone: 'warn' };
+  }
+  const wNeeds = Math.abs(wGap), eNeeds = Math.abs(eGap);
+  const floaterSurplus = Math.max(0, fGap);
+  if (floaterSurplus > 0) {
+    const priority = wNeeds >= eNeeds ? 'West' : 'East';
+    return { text: `Both short. Assign ${floaterSurplus} floater(s) to ${priority} Doors first.`, tone: 'bad' };
+  }
+  if (wNeeds > eNeeds) return { text: `Both short. Prioritize West (needs ${wNeeds} more vs East ${eNeeds}).`, tone: 'bad' };
+  if (eNeeds > wNeeds) return { text: `Both short. Prioritize East (needs ${eNeeds} more vs West ${wNeeds}).`, tone: 'bad' };
+  return { text: `Both short — West and East each need ${wNeeds} more.`, tone: 'bad' };
+}
+
 function renderGoals() {
   const ob = val('goalFluid') + val('goalMp') + val('goalRwc');
   const gap = ob - val('shipSortGoal');
@@ -593,23 +632,36 @@ function renderGoals() {
   const rosterGap = rosterFluidHc - compareTarget;
   const rosterSource = rosterTarget ? 'ZoneRA target' : 'planned';
   const rosterGroups = Array.isArray(rosterPayload.groups) ? rosterPayload.groups : [];
-  const groupText = rosterGroups.length
-    ? rosterGroups.map((group) => `${group.label} ${fmt(group.current)}${num(group.target) ? `/${fmt(group.target)} (${signed(num(group.current) - num(group.target))})` : ''}`).join(' | ')
-    : '';
+
+  const ROSTER_LABEL = { 'WEST-DOORS': 'West Doors', 'EAST-DOORS': 'East Doors', 'FLOATER': 'Floater' };
 
   setText('obCalc', fmt(ob));
   setText('divertGap', (gap >= 0 ? '+' : '') + fmt(gap), colorClass(gap));
   setText('avgCaptureRate', fmt(avgCapture, 2));
   setText('avgRequiredJplh', fmt(avgReqJplh, 2));
-  if (groupText) {
-    const groupTone = rosterGroups.some((group) => num(group.current) < num(group.target))
-      ? 'bad'
-      : rosterGroups.some((group) => num(group.current) > num(group.target))
-        ? 'warn'
-        : 'good';
-    setText('fluidRosterBreakdown', groupText, groupTone);
+  if (rosterGroups.length) {
+    const groupHtml = rosterGroups.map((group) => {
+      const g = num(group.current) - num(group.target);
+      const cls = g >= 0 ? 'good' : g < -(num(group.target) * 0.1) ? 'bad' : 'warn';
+      const label = ROSTER_LABEL[group.label] || group.label;
+      return `<div class="roster-group-row ${cls}"><span class="roster-group-label">${label}</span><span class="roster-group-count"><b>${fmt(group.current)}</b>/${fmt(group.target)}</span><span class="roster-group-gap">(${signed(g)})</span></div>`;
+    }).join('');
+    setHtml('fluidRosterBreakdown', groupHtml);
+    const recoEl = $('fluidRosterRecommendation');
+    if (recoEl) {
+      const reco = fluidRosterBalanceReco(rosterGroups);
+      if (reco) {
+        recoEl.textContent = reco.text;
+        recoEl.className = `goal-card-status ${reco.tone}`;
+        recoEl.style.display = '';
+      } else {
+        recoEl.style.display = 'none';
+      }
+    }
   } else {
     setText('fluidRosterBreakdown', 'ZoneRA HC breakdown pending.', 'warn');
+    const recoEl = $('fluidRosterRecommendation');
+    if (recoEl) recoEl.style.display = 'none';
   }
   if (!plannedFluidHc || !rosterFluidHc) {
     setText('fluidHcDifference', 'HC difference vs NEO pending.', 'warn');

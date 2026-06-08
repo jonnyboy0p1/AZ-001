@@ -2111,3 +2111,18 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   background:inherit;
   color:var(--muted);
 }
+/* Fluid Roster group breakdown rows */
+.roster-group-row{
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  gap:6px;
+  align-items:center;
+  font-size:13px;
+  padding:2px 0;
+}
+.roster-group-label{font-weight:700;}
+.roster-group-count,.roster-group-gap{font-variant-numeric:tabular-nums;}
+.roster-group-gap{text-align:right;}
+.roster-group-row.good{color:var(--green);}
+.roster-group-row.warn{color:var(--yellow);}
+.roster-group-row.bad{color:var(--red);}

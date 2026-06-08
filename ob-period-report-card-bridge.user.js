@@ -19,6 +19,7 @@
 // @connect      127.0.0.1
 // @connect      localhost
 // @connect      fclm-portal.amazon.com
+// @connect      zone-ra.amazon.dev
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -628,8 +629,8 @@
    * FLUID ROSTER COLLECTOR
    ******************************************************************/
 
-  function rosterSectionsFromText(){
-    const text=document.body?.innerText || document.body?.textContent || '';
+  function rosterSectionsFromText(doc=document){
+    const text=doc.body?.innerText || doc.body?.textContent || '';
     const sections=[];
     const seen=new Set();
     const linePattern=/\b([A-Z][A-Z0-9 -]{1,40}?)\s+(\d+)\s*\/\s*(\d+)\b/g;
@@ -756,6 +757,60 @@
 
     const saved=writeBridge(bridge);
     updatePanel(saved,target>0 ? `Fluid roster HC collected: ${fmt(headcount)}/${fmt(target)}` : `Fluid roster HC collected: ${fmt(headcount)}`);
+  }
+
+  async function pullFluidRosterInBackground(){
+    if(!isDashboard){
+      updatePanel(readBridge(),'Open the dashboard to use background Fluid Roster pull');
+      return;
+    }
+    if(typeof GM_xmlhttpRequest!=='function'){
+      updatePanel(readBridge(),'GM_xmlhttpRequest unavailable for Fluid Roster pull');
+      return;
+    }
+    updatePanel(readBridge(),'Pulling Fluid Roster in background...');
+    return new Promise((resolve)=>{
+      GM_xmlhttpRequest({
+        method:'GET',
+        url:CONFIG.fluidRosterUrl,
+        timeout:20000,
+        onload:(res)=>{
+          if(res.status<200||res.status>=300){
+            updatePanel(readBridge(),`Fluid Roster pull failed: HTTP ${res.status}`);
+            resolve(readBridge());
+            return;
+          }
+          const doc=new DOMParser().parseFromString(res.responseText||'','text/html');
+          const sections=rosterSectionsFromText(doc);
+          const groups=normalizeFluidRosterBuckets(sections.length?sections:[]);
+          const headcount=groups.reduce((sum,item)=>sum+item.current,0);
+          const target=groups.reduce((sum,item)=>sum+item.target,0);
+          const bridge=baseBridge();
+          bridge.roster=bridge.roster||{};
+          bridge.roster.fluid={
+            headcount,
+            target,
+            gap:headcount-target,
+            groups,
+            updatedAt:now(),
+            url:CONFIG.fluidRosterUrl
+          };
+          markLastPull(bridge,'roster',target>0?`${fmt(headcount)}/${fmt(target)} Fluid HC`:`${fmt(headcount)} Fluid HC`);
+          const saved=writeBridge(bridge);
+          fillDashboard(saved);
+          updatePanel(saved,target>0?`Fluid roster: ${fmt(headcount)}/${fmt(target)} HC collected`:`Fluid roster: ${fmt(headcount)} HC collected`);
+          resolve(saved);
+        },
+        onerror:()=>{
+          updatePanel(readBridge(),'Fluid Roster pull failed: request error');
+          resolve(readBridge());
+        },
+        ontimeout:()=>{
+          updatePanel(readBridge(),'Fluid Roster pull timed out');
+          resolve(readBridge());
+        }
+      });
+    });
   }
 
   /******************************************************************
@@ -1464,6 +1519,7 @@
           <button class="prcBtn blue" id="pullFclmOnly" style="grid-column:span 2;">Pull FCLM Now</button>
           <button class="prcBtn blue" id="pullFlUtilOnly" style="grid-column:span 2;">Pull FL Utilization Now</button>
           <button class="prcBtn blue" id="pullBeltOnly" style="grid-column:span 2;">Pull Battle of the Belt Now</button>
+          <button class="prcBtn blue" id="pullRosterOnly" style="grid-column:span 2;">Pull Fluid Roster Now</button>
           <button class="prcBtn blue" id="pullFclmPeriods" style="grid-column:span 2;">Pull All Sources Now</button>
           <button class="prcBtn blue" id="openFullSetup" style="grid-column:span 2;">Open Full Setup</button>
           <button class="prcBtn blue" id="collectNow" style="grid-column:span 2;">Collect / Pull Now</button>
@@ -1536,12 +1592,16 @@
     }));
     document.getElementById('pullFlUtilOnly')?.addEventListener('click', () => pullMonitorInBackground(undefined,['flUtil'],'flUtil'));
     document.getElementById('pullBeltOnly')?.addEventListener('click', () => pullMonitorInBackground(undefined,['belt'],'belt'));
-    document.getElementById('pullFclmPeriods')?.addEventListener('click', () => pullFclmInBackground(undefined,{
-      shiftDate: document.getElementById('shiftDate')?.value || '',
-      includeMET: document.getElementById('useMET')?.value === 'true',
-      includeMonitor: true,
-      source: 'all'
-    }));
+    document.getElementById('pullRosterOnly')?.addEventListener('click', () => pullFluidRosterInBackground());
+    document.getElementById('pullFclmPeriods')?.addEventListener('click', () => {
+      pullFluidRosterInBackground();
+      pullFclmInBackground(undefined,{
+        shiftDate: document.getElementById('shiftDate')?.value || '',
+        includeMET: document.getElementById('useMET')?.value === 'true',
+        includeMonitor: true,
+        source: 'all'
+      });
+    });
     document.getElementById('openFullSetup')?.addEventListener('click', openFullSetup);
     document.getElementById('collectNow')?.addEventListener('click', run);
 
