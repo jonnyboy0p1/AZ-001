@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OB Period Report Card - VS Code App</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="theme-midnight">
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>OB Period Report Card</h1>
+        <p class="sub">OB02 release — shift planner, merged pace tracker, bridge-powered FCLM / MonitorPortal</p>
+        <p id="miniStatus" class="mini">Ready.</p>
+        <p id="saveCounter" class="mini save-counter">Current not saved | Week 0/4</p>
+      </div>
+      <div class="btnrow">
+        <button id="toggleTopBtn" class="soft">Minimize</button>
+        <button id="saveBtn" class="primary">Save + Log</button>
+        <button id="resetShiftBtn" class="danger">Reset Shift</button>
+      </div>
+    </header>
+
+    <section id="topControls" class="panel setup-panel">
+      <div class="grid-4">
+        <div>
+          <label>Shift Date</label>
+          <input id="shiftDate" type="date" />
+        </div>
+        <div>
+          <label>Shift Mode</label>
+          <select id="useMET">
+            <option value="false">Regular Shift - P1/P2/P3</option>
+            <option value="true">MET Shift - P1/P2/P3 + MET</option>
+          </select>
+        </div>
+        <div>
+          <label>Theme</label>
+          <select id="themeSelect">
+            <option value="midnight">Midnight Dark</option>
+            <option value="light">Clean Light</option>
+            <option value="darkwhite">Dark White</option>
+            <option value="ice">Ice Blue</option>
+            <option value="forest">Forest Ops</option>
+          </select>
+        </div>
+        <div>
+          <label>Focus Mode</label>
+          <select id="focusMode">
+            <option value="false">Off</option>
+            <option value="true">On</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="chiprow setup-chips">
+        <span id="shiftModeChip" class="chip mode-chip">Regular Shift | 19:00 to 05:30 CT</span>
+        <span class="chip">P1 19:00 to 23:00 CT</span>
+        <span class="chip">P2 23:30 to 02:30 CT</span>
+        <span class="chip">P3 03:00 to 05:30 CT</span>
+        <span id="metChip" class="chip" data-met-only hidden>MET: Off</span>
+        <span class="chip">Local app</span>
+        <span id="themeChip" class="chip">Theme: Midnight Dark</span>
+      </div>
+    </section>
+
+    <nav class="view-tabs" aria-label="Dashboard views">
+      <button class="view-tab active" data-view-tab="overview" type="button">Overview</button>
+      <button class="view-tab" data-view-tab="goals" type="button">Goals</button>
+      <button class="view-tab" data-view-tab="periods" type="button">Periods</button>
+      <button class="view-tab" data-view-tab="pace" type="button">Pace</button>
+      <button class="view-tab" data-view-tab="handoff" type="button">Handoff</button>
+      <button class="view-tab" data-view-tab="logs" type="button">Logs</button>
+    </nav>
+
+    <main class="layout">
+      <section class="panel span-12 snapshot-panel" data-view="overview">
+        <div class="panel-head">
+          <div>
+            <h2>Quick Snapshot</h2>
+            <p class="panel-sub">One-glance whole-shift picture</p>
+          </div>
+        </div>
+        <div class="snapshot-stack">
+          <div class="snapshot-group">
+            <div class="snapshot-group-title">Shift</div>
+            <div class="kpi-grid">
+              <div class="kpi">
+                <div class="kpi-label">OB Goal</div>
+                <div id="snapObGoal" class="kpi-value">0</div>
+                <div class="kpi-sub">planned capture</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Capture Actual</div>
+                <div id="snapCapture" class="kpi-value">0</div>
+                <div id="snapCaptureGap" class="kpi-sub">gap 0</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Remaining Goal</div>
+                <div id="snapRemain" class="kpi-value">0</div>
+                <div id="snapBurned" class="kpi-sub">burned 0%</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Full Shift JPLH</div>
+                <div id="snapJplh" class="kpi-value">0.00</div>
+                <div id="snapJplhGap" class="kpi-sub">vs required 0.00</div>
+              </div>
+            </div>
+          </div>
+          <div class="snapshot-group stream-card stream-fluid">
+            <div class="snapshot-group-title">Fluid</div>
+            <div class="kpi-grid metric-row">
+              <div class="kpi">
+                <div class="kpi-label">Goal</div>
+                <div id="snapFluidGoal" class="kpi-value">0</div>
+                <div class="kpi-sub">FL capture target</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Captured</div>
+                <div id="snapFluidCaptured" class="kpi-value">0</div>
+                <div id="snapFluidCapturedSub" class="kpi-sub">0% of FL goal</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Left</div>
+                <div id="snapFluidLeft" class="kpi-value">0</div>
+                <div class="kpi-sub">remaining FL capture</div>
+              </div>
+            </div>
+          </div>
+          <div class="snapshot-group stream-card stream-mp">
+            <div class="snapshot-group-title">MP</div>
+            <div class="kpi-grid metric-row">
+              <div class="kpi">
+                <div class="kpi-label">Goal</div>
+                <div id="snapMpGoal" class="kpi-value">0</div>
+                <div class="kpi-sub">MP / DP capture target</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Captured</div>
+                <div id="snapMpCaptured" class="kpi-value">0</div>
+                <div id="snapMpCapturedSub" class="kpi-sub">0% of MP / DP goal</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Left</div>
+                <div id="snapMpLeft" class="kpi-value">0</div>
+                <div class="kpi-sub">remaining MP / DP capture</div>
+              </div>
+            </div>
+          </div>
+          <div class="snapshot-group stream-card stream-rwc">
+            <div class="snapshot-group-title">RWC</div>
+            <div class="kpi-grid metric-row">
+              <div class="kpi">
+                <div class="kpi-label">Goal</div>
+                <div id="snapRwcGoal" class="kpi-value">0</div>
+                <div class="kpi-sub">RWC capture target</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Captured</div>
+                <div id="snapRwcCaptured" class="kpi-value">0</div>
+                <div id="snapRwcCapturedSub" class="kpi-sub">0% of RWC goal</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-label">Left</div>
+                <div id="snapRwcLeft" class="kpi-value">0</div>
+                <div class="kpi-sub">remaining RWC capture</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel span-12 jplh-panel shift-source-panel" data-view="overview periods">
+        <div class="panel-head">
+          <div>
+            <h2>Shift Source Data</h2>
+            <p class="panel-sub">FCLM feeds jobs and JPLH; FL Utilization feeds FL, MP, RWC capture and pace</p>
+          </div>
+        </div>
+        <div class="jplh-source-body">
+          <div class="jplh-source-inputs">
+            <div class="grid-2">
+              <div><label>Full Totes</label><input id="fullTotes" value="0" /></div>
+              <div><label>Full Cases</label><input id="fullCases" value="0" /></div>
+              <div><label>Full Jobs</label><input id="fullJobs" value="0" /></div>
+              <div><label>Full WB Field</label><input id="fullWB" value="0" /></div>
+            </div>
+            <div class="note compact">
+              <div><b>Capture Target:</b> <span id="fullCaptureTarget">0</span></div>
+              <div><b>Source:</b> <span id="fullSource">period totals fallback</span></div>
+            </div>
+          </div>
+          <div class="jplh-hero">
+            <div>
+              <div class="kpi-label">Actual JPLH</div>
+              <div id="fullActualJplh" class="jplh-value">0.00</div>
+            </div>
+            <div>
+              <div class="kpi-label">Required</div>
+              <div id="fullRequiredJplh" class="jplh-small">0.00</div>
+            </div>
+            <div>
+              <div class="kpi-label">Gap</div>
+              <div id="fullJplhGap" class="jplh-small">0.00</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel span-12 insights-panel" data-view="overview">
+        <div class="panel-head">
+          <div>
+            <h2>Operations Insights</h2>
+            <p class="panel-sub">Fed by current dashboard data and saved shift logs</p>
+          </div>
+        </div>
+        <div class="insights-body">
+          <div id="insightAlerts" class="insight-alerts"></div>
+          <div id="insightCards" class="insight-grid"></div>
+        </div>
+      </section>
+
+      <section class="panel span-12 chart-panel overview-graph-panel" data-view="overview">
+        <div class="panel-head">
+          <div>
+            <h2>Pie Charts</h2>
+            <p class="panel-sub">Capture mix, belt split, total progress, and flow by period</p>
+          </div>
+        </div>
+        <div class="chart-grid">
+          <div class="chart-card">
+            <h3>FL Utilization</h3>
+            <div id="chartFlUtil" class="donut"></div>
+            <div id="legendFlUtil" class="legend"></div>
+          </div>
+          <div class="chart-card">
+            <h3>Battle of the Belt</h3>
+            <div id="chartBelt" class="donut"></div>
+            <div id="legendBelt" class="legend"></div>
+          </div>
+          <div class="chart-card">
+            <h3>OB Capture Progress</h3>
+            <div id="chartCapture" class="donut"></div>
+            <div id="legendCapture" class="legend"></div>
+          </div>
+          <div class="chart-card">
+            <h3>Flow by Period</h3>
+            <div id="chartPeriods" class="donut"></div>
+            <div id="legendPeriods" class="legend"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel span-12 monitor-panel advanced" data-view="goals">
+        <div class="panel-head">
+          <div>
+            <h2>MonitorPortal Windows</h2>
+            <p class="panel-sub">Per-period and full-window graph links with the two-hour display offset</p>
+          </div>
+        </div>
+        <div class="embed-controls">
+          <div>
+            <label>Monitor Period</label>
+            <select id="embeddedMonitorPeriod">
+              <option value="p1">P1</option>
+              <option value="p2">P2</option>
+              <option value="p3">P3</option>
+              <option value="met" data-met-only>MET</option>
+              <option value="full">Full Shift</option>
+            </select>
+          </div>
+          <button id="loadEmbeddedFlBtn" class="primary">Open FL Utilization</button>
+          <button id="loadEmbeddedBeltBtn" class="primary">Open Battle of the Belt</button>
+          <button id="loadEmbeddedBothBtn">Open Both</button>
+          <button id="collectMonitorBridgeBtn" class="primary">Collect Data From Bridge</button>
+        </div>
+        <div class="monitor-note embed-note">
+          Use "Pull All Sources" to fetch FL Utilization and Battle of the Belt data in the background without opening new tabs — the Tampermonkey bridge makes requests directly. "Open" buttons are for manual graph viewing only.
+        </div>
+        <div class="collapse-grid">
+          <details class="collapse-card" open>
+            <summary>Period Windows</summary>
+            <div id="monitorPeriodLinks" class="link-grid"></div>
+          </details>
+          <details class="collapse-card">
+            <summary>FL / MP / RWC Full Window</summary>
+            <div id="monitorFlLinks" class="link-grid"></div>
+          </details>
+          <details class="collapse-card">
+            <summary>East vs West Full Window</summary>
+            <div id="monitorBeltLinks" class="link-grid"></div>
+          </details>
+        </div>
+      </section>
+
+      <section class="panel span-4 shift-goals-panel" data-view="goals">
+        <div class="panel-head">
+          <div>
+            <h2>Shift Goals</h2>
+            <p class="panel-sub">NEO Start of Shift goals or manual</p>
+          </div>
+        </div>
+        <div class="goal-card-grid">
+          <div class="goal-input-card">
+            <h3>Fluid Load</h3>
+            <label>FL Jobs Goal</label>
+            <input id="goalFluid" value="0" />
+          </div>
+          <div class="goal-input-card">
+            <h3>MP / DP</h3>
+            <label>MP Jobs Goal</label>
+            <input id="goalMp" value="0" />
+          </div>
+          <div class="goal-input-card">
+            <h3>RWC</h3>
+            <label>RWC Jobs Goal</label>
+            <input id="goalRwc" value="0" />
+          </div>
+          <div class="goal-input-card goal-roster-card">
+            <h3>Fluid Roster</h3>
+            <label>Roster Fluid HC</label>
+            <input id="rosterFluidHC" value="0" />
+            <div id="fluidRosterBreakdown" class="goal-card-status">ZoneRA HC breakdown pending.</div>
+            <div id="fluidRosterStatus" class="goal-card-status warn">Open roster and enter Fluid HC to compare.</div>
+            <div id="fluidHcDifference" class="goal-card-status warn">HC difference vs NEO pending.</div>
+            <button id="openFluidRosterGoalBtn" class="soft" type="button">Open Fluid Roster</button>
+          </div>
+        </div>
+        <details class="inline-collapse">
+          <summary>Supporting goal details</summary>
+          <div class="grid-2">
+            <div><label>Ship Sort Diverts</label><input id="shipSortGoal" value="0" /></div>
+            <div><label>Fluid Rate</label><input id="fluidRate" value="0" /></div>
+            <div><label>Fluid HC</label><input id="fluidHC" value="0" /></div>
+          </div>
+        </details>
+        <div class="note compact">
+          <div><b>OB Diverts Calc:</b> <span id="obCalc">0</span></div>
+          <div><b>Divert Gap vs Ship Sort:</b> <span id="divertGap">0</span></div>
+          <div><b>Avg Required Capture / Hr:</b> <span id="avgCaptureRate">0.00</span></div>
+          <div><b>Avg Required JPLH:</b> <span id="avgRequiredJplh">0.00</span></div>
+        </div>
+        <div class="override-controls">
+          <label class="checkline"><input id="protectManualOverrides" type="checkbox" checked /> Protect numbers I type from bridge/FCLM auto-pulls</label>
+          <button id="clearManualOverridesBtn" class="soft" type="button">Clear Manual Locks</button>
+          <div id="manualOverrideStatus" class="tiny">Manual override protection ready.</div>
+        </div>
+      </section>
+
+      <section class="panel span-4 quick-tools-panel" data-view="goals">
+        <div class="panel-head">
+          <div>
+            <h2>Quick Tools</h2>
+            <p class="panel-sub">Useful stuff for the shift</p>
+          </div>
+        </div>
+        <div class="btnstack">
+          <button id="openNeoBtn">Open NEO Planning</button>
+          <button id="openFluidRosterBtn">Open Fluid Roster</button>
+          <button id="openFclmFullBtn">Open FCLM Full</button>
+          <button id="openFclmP1Btn">Open FCLM P1</button>
+          <button id="openFclmP2Btn">Open FCLM P2</button>
+          <button id="openFclmP3Btn">Open FCLM P3</button>
+          <button id="openFclmMetBtn" data-met-only hidden>Open FCLM MET</button>
+          <button id="pullFclmOnlyBtn">Pull FCLM</button>
+          <button id="pullFlUtilBtn">Pull FL Utilization</button>
+          <button id="pullBattleBeltBtn">Pull Battle of the Belt</button>
+          <button id="pullFclmPeriodsBtn" class="primary">Pull All Sources</button>
+          <button id="copyPeriodSummaryBtn" class="primary">Copy Period Summary</button>
+          <button id="copyEOSBtn" class="primary">Copy EOS Wash</button>
+        </div>
+        <div class="note compact">
+          <div><b>Tips</b></div>
+          <div>Use Collect Data From Bridge after the helper gathers graph totals.</div>
+          <div>Use the source-specific pull buttons when you only need FCLM, FL Utilization, or Battle of the Belt. Pull All Sources collects all three.</div>
+        </div>
+        <details class="source-panel source-panel-collapse" id="fclmSourcePanel" open>
+          <summary class="source-panel-summary">
+            <div class="source-panel-title">
+              <h3>FCLM Source</h3>
+              <p>Generated from the selected shift date and shift mode.</p>
+            </div>
+            <span class="source-panel-toggle">Collapse</span>
+          </summary>
+          <div class="source-panel-body">
+            <div class="source-panel-actions">
+              <label for="autoFclmRefresh">Auto Refresh</label>
+              <select id="autoFclmRefresh">
+                <option value="0">Off</option>
+                <option value="1">Every 1 min</option>
+                <option value="5" selected>Every 5 min</option>
+                <option value="10">Every 10 min</option>
+                <option value="15">Every 15 min</option>
+              </select>
+              <button id="refreshFclmSourcesBtn" class="soft">Refresh Sources</button>
+            </div>
+            <div id="autoFclmStatus" class="source-auto-status">Auto refresh ready.</div>
+            <div id="fclmSourceLinks" class="source-link-grid"></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="periods-shell span-12" data-view="periods">
+        <div class="periods-stack">
+          <section class="panel checklist-panel">
+            <details class="panel-collapse" id="periodChecklistPanel" open>
+              <summary class="panel-collapse-summary">
+                <div class="panel-collapse-title">
+                  <h2>Period Close Checklist</h2>
+                  <p class="panel-sub">Quick pass before copying notes or saving the shift</p>
+                </div>
+                <span class="panel-collapse-toggle">Collapse</span>
+              </summary>
+              <div id="periodChecklist" class="period-checklist"></div>
+            </details>
+          </section>
+
+          <section class="panel workboards-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Period Workboards</h2>
+                <p class="panel-sub">Detailed jobs, capture, and East vs West tables</p>
+              </div>
+            </div>
+            <div id="periodPulse" class="period-pulse"></div>
+            <div id="downtimeBypass" class="downtime-bypass"></div>
+            <details class="inline-collapse period-detail-collapse">
+              <summary>Open detailed period tables</summary>
+              <div id="periodBreakout" class="board-breakout summary-breakout"></div>
+              <div id="periodBoardSections" class="period-board-sections"></div>
+            </details>
+          </section>
+        </div>
+      </section>
+
+      <section class="panel span-12 projection-panel" data-view="pace">
+        <div class="panel-head">
+          <div>
+            <h2 id="paceTrackerTitle">Pace Tracker</h2>
+            <p id="paceTrackerSub" class="panel-sub">Clock target vs Actual from FL Utilization</p>
+          </div>
+        </div>
+        <div class="projection-body">
+          <div id="projectionSummary" class="projection-summary"></div>
+          <details class="panel-collapse projection-status-collapse" id="paceStatusPanel" open>
+            <summary class="panel-collapse-summary">
+              <div class="panel-collapse-title">
+                <h2>Pace Live Status</h2>
+                <p id="paceStatusSub" class="panel-sub">Live shift pace tiles and stream capture mix</p>
+              </div>
+              <span class="panel-collapse-toggle">Collapse</span>
+            </summary>
+            <div class="projection-status-body">
+              <div id="projectionStreamCompare" class="projection-stream-compare"></div>
+              <div id="projectionStatus" class="projection-status"></div>
+            </div>
+          </details>
+          <div id="projectionScript" class="projection-script"></div>
+          <div id="projectionNeeds" class="projection-needs"></div>
+        </div>
+      </section>
+
+      <textarea id="bridgeJson" class="hidden-field" aria-hidden="true"></textarea>
+
+      <section class="handoff-shell span-12" data-view="handoff">
+        <section class="panel output-panel advanced">
+          <div class="panel-head">
+            <div>
+              <h2>Generated Output</h2>
+              <p class="panel-sub">Period Summary stacked over EOS Wash</p>
+            </div>
+            <div class="btnrow">
+              <button id="refreshOutputBtn" class="soft">Refresh Output</button>
+            </div>
+          </div>
+          <div class="handoff-stack">
+            <div>
+              <label>Period Summary</label>
+              <textarea id="periodSummary"></textarea>
+            </div>
+            <div>
+              <label>EOS Wash</label>
+              <textarea id="eosSummary"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel simple-copy-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Simple Copy Summary</h2>
+              <p class="panel-sub">Short PA / OM update, editable before copy</p>
+            </div>
+            <div class="btnrow">
+              <button id="refreshGeneratedBlockBtn" class="soft">Refresh</button>
+              <button id="copyGeneratedBlockBtn" class="primary">Copy Summary</button>
+              <button id="toggleGeneratedBlockBtn" class="soft">Collapse</button>
+            </div>
+          </div>
+          <div id="generatedBlockWrap" class="copy-block-wrap">
+            <textarea id="generatedCopyBlock" class="copy-block"></textarea>
+          </div>
+        </section>
+      </section>
+
+      <section class="panel span-12 logs-panel" data-view="logs">
+        <div class="panel-head">
+          <div>
+            <h2>Shift Results Log</h2>
+            <p class="panel-sub">Saved shift results and Sun-Wed weekly rollup</p>
+          </div>
+          <div class="btnrow">
+            <button id="saveShiftLogBtn" class="primary">Save Shift Results</button>
+            <button id="updateShiftLogBtn" class="soft">Update Saved Shift</button>
+            <button id="copyWeekLogBtn" class="soft">Copy Week</button>
+            <button id="importShiftLogBtn" class="soft">Import Logs</button>
+            <button id="exportShiftLogBtn" class="soft">Export Logs</button>
+            <button id="clearShiftLogBtn" class="danger">Clear Log</button>
+            <input id="shiftLogFileInput" class="hidden-field" type="file" accept=".json,.csv,.txt,text/csv,application/json" />
+          </div>
+        </div>
+        <div class="shift-log-body">
+          <div id="shiftLogCurrent" class="shift-log-current"></div>
+          <div id="shiftLogWeek" class="shift-log-week"></div>
+          <div id="shiftLogList" class="shift-log-list"></div>
+          <div class="xbelt-log-panel">
+            <div class="log-section-title">X-belt Downtime Log</div>
+            <div class="xbelt-log-actions">
+              <button id="saveXbeltLogBtn" class="primary" type="button">Save X-belt Event</button>
+              <button id="copyXbeltLogBtn" class="soft" type="button">Copy X-belt Log</button>
+              <button id="clearXbeltLogBtn" class="danger" type="button">Clear X-belt Log</button>
+            </div>
+            <div id="xbeltLogList" class="xbelt-log-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
