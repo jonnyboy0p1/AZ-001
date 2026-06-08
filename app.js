@@ -111,6 +111,98 @@ function setHtml(id, html, cls = '') {
   if (cls) el.classList.add(cls);
 }
 
+function flashCopy(btn) {
+  if (!btn || btn.dataset.copying) return;
+  const orig = btn.textContent;
+  btn.textContent = '✓ Copied';
+  btn.dataset.copying = '1';
+  btn.classList.add('copy-success');
+  setTimeout(() => {
+    btn.textContent = orig;
+    delete btn.dataset.copying;
+    btn.classList.remove('copy-success');
+  }, 1500);
+}
+
+function updateLiveClock() {
+  const el = $('liveClock');
+  if (!el) return;
+  const now = new Date();
+  const ct = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Chicago'
+  }).format(now);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric', minute: 'numeric', hourCycle: 'h23', timeZone: 'America/Chicago'
+  }).formatToParts(now);
+  const h = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+  const m = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+  const t = h * 60 + m;
+  const isMetShift = $('useMET')?.value === 'true';
+  let label = '--', cls = '';
+  if (t >= 19 * 60 && t < 23 * 60) { label = 'P1'; cls = 'good'; }
+  else if (t >= 23 * 60 && t < 23 * 60 + 30) { label = 'Break'; cls = 'warn'; }
+  else if (t >= 23 * 60 + 30 || t < 2 * 60 + 30) { label = 'P2'; cls = 'good'; }
+  else if (t >= 2 * 60 + 30 && t < 3 * 60) { label = 'Break'; cls = 'warn'; }
+  else if (t >= 3 * 60 && t < 5 * 60 + 30) { label = 'P3'; cls = 'good'; }
+  else if (isMetShift && t >= 5 * 60 + 30 && t < 6 * 60 + 30) { label = 'MET'; cls = 'warn'; }
+  el.textContent = `${ct} CT · ${label}`;
+  el.className = `mini live-clock${cls ? ` ${cls}` : ''}`;
+}
+
+function updateShiftProgressBar(rows) {
+  const fill = $('shiftProgressFill');
+  if (!fill) return;
+  const totalHours = rows.reduce((sum, p) => sum + effectivePeriodHours(p), 0);
+  if (!totalHours) { fill.style.width = '0%'; return; }
+  let elapsed = 0;
+  for (const p of rows) {
+    for (const seg of periodHourSegments(p.key)) {
+      if (seg.state === 'complete') elapsed += seg.effectiveHours ?? seg.hours;
+      else if (seg.state === 'current') elapsed += seg.elapsedHours;
+    }
+  }
+  const pct = Math.min(100, elapsed / totalHours * 100);
+  fill.style.width = `${pct.toFixed(1)}%`;
+  const bar = $('shiftProgressBar');
+  if (bar) bar.title = `${Math.round(pct)}% through shift · ${fmt(elapsed, 1)} of ${fmt(totalHours, 1)} hrs elapsed`;
+}
+
+function renderBridgeSourceAges() {
+  const el = $('bridgeSourceAges');
+  if (!el) return;
+  const bridge = latestBridgePayload || readStoredBridgePayload();
+  if (!bridge) { el.innerHTML = '<span class="source-age-chip">No bridge data yet</span>'; return; }
+  const fclmTs = Math.max(
+    num(bridge.fclmFull?.updatedAt),
+    ...Object.values(bridge.fclmPeriods || {}).map((r) => num(r?.updatedAt))
+  );
+  const flUtilTs = Math.max(
+    num(bridge.monitorFull?.flUtil?.updatedAt),
+    ...Object.values(bridge.monitorPeriods || {}).map((r) => num(r?.flUtil?.updatedAt))
+  );
+  const beltTs = Math.max(
+    num(bridge.monitorFull?.belt?.updatedAt),
+    ...Object.values(bridge.monitorPeriods || {}).map((r) => num(r?.belt?.updatedAt))
+  );
+  const neoTs = num(bridge.neo?.updatedAt);
+  const rosterTs = num(bridge.roster?.fluid?.updatedAt);
+  const ageClass = (ts) => {
+    if (!ts) return '';
+    const min = (Date.now() - ts) / 60000;
+    return min <= 15 ? 'good' : min <= 60 ? 'warn' : 'bad';
+  };
+  const chips = [
+    { label: 'NEO', ts: neoTs },
+    { label: 'FCLM', ts: fclmTs },
+    { label: 'FL Util', ts: flUtilTs },
+    { label: 'Belt', ts: beltTs },
+    { label: 'Roster', ts: rosterTs }
+  ];
+  el.innerHTML = chips.map((c) =>
+    `<span class="source-age-chip ${ageClass(c.ts)}">${c.label}: ${c.ts ? formatBridgeAge(c.ts) : '—'}</span>`
+  ).join('');
+}
+
 function on(id, event, handler) {
   const el = $(id);
   if (el) el.addEventListener(event, handler);
@@ -3442,18 +3534,18 @@ function bind() {
   });
   on('clearManualOverridesBtn', 'click', clearManualLocks);
   on('pullBridgeBtn', 'click', importBridge);
-  on('copySummaryTopBtn', 'click', () => navigator.clipboard.writeText($('eosSummary').value));
+  on('copySummaryTopBtn', 'click', (e) => { navigator.clipboard.writeText($('eosSummary').value); flashCopy(e.currentTarget); });
   on('pullBridgeBtn2', 'click', importBridge);
   on('importBridgeBtn', 'click', importBridge);
   on('exportStateBtn', 'click', exportState);
-  on('copyPeriodSummaryBtn', 'click', () => navigator.clipboard.writeText($('periodSummary').value));
-  on('copyEOSBtn', 'click', () => navigator.clipboard.writeText($('eosSummary').value));
-  on('copyGeneratedBlockBtn', 'click', () => navigator.clipboard.writeText($('generatedCopyBlock').value || ''));
+  on('copyPeriodSummaryBtn', 'click', (e) => { navigator.clipboard.writeText($('periodSummary').value); flashCopy(e.currentTarget); });
+  on('copyEOSBtn', 'click', (e) => { navigator.clipboard.writeText($('eosSummary').value); flashCopy(e.currentTarget); });
+  on('copyGeneratedBlockBtn', 'click', (e) => { navigator.clipboard.writeText($('generatedCopyBlock').value || ''); flashCopy(e.currentTarget); });
   on('refreshGeneratedBlockBtn', 'click', refreshGeneratedCopyBlock);
   on('refreshOutputBtn', 'click', refreshGeneratedOutput);
   on('saveShiftLogBtn', 'click', () => saveCurrentShiftResults(false));
   on('updateShiftLogBtn', 'click', updateCurrentShiftResults);
-  on('copyWeekLogBtn', 'click', copyWeekLog);
+  on('copyWeekLogBtn', 'click', (e) => { copyWeekLog(); flashCopy(e.currentTarget); });
   on('importShiftLogBtn', 'click', () => $('shiftLogFileInput')?.click());
   on('shiftLogFileInput', 'change', (event) => {
     importShiftLogsFile(event.target.files?.[0]);
@@ -3462,11 +3554,12 @@ function bind() {
   on('exportShiftLogBtn', 'click', exportShiftLogs);
   on('clearShiftLogBtn', 'click', clearShiftLog);
   on('saveXbeltLogBtn', 'click', saveCurrentXbeltEvents);
-  on('copyXbeltLogBtn', 'click', copyXbeltLog);
+  on('copyXbeltLogBtn', 'click', (e) => { copyXbeltLog(); flashCopy(e.currentTarget); });
   on('clearXbeltLogBtn', 'click', clearXbeltLog);
-  on('copyBoardBtn', 'click', () => {
+  on('copyBoardBtn', 'click', (e) => {
     const text = `FULL BOARD SUMMARY\n${$('periodSummary').value}\n\n${$('eosSummary').value}`;
     navigator.clipboard.writeText(text);
+    flashCopy(e.currentTarget);
   });
   on('toggleGeneratedBlockBtn', 'click', toggleGeneratedCopyBlock);
   on('toggleNotesWashBtn', 'click', toggleNotesWash);
@@ -3530,10 +3623,12 @@ function bind() {
   });
 
   document.addEventListener('click', (event) => {
-    if (!event.target.closest('#copyProjectionUpdateBtn')) return;
+    const copyBtn = event.target.closest('#copyProjectionUpdateBtn');
+    if (!copyBtn) return;
     const text = $('projectionUpdateText')?.textContent || '';
     navigator.clipboard.writeText(text);
     updateMiniStatus('Projection update note copied.');
+    flashCopy(copyBtn);
   });
 
   window.addEventListener('message', (event) => {
@@ -3571,6 +3666,8 @@ function renderAll() {
   buildSummaries(board, full);
   renderShiftLog(board, full);
   renderOperationsInsights(board, full);
+  updateShiftProgressBar(rows);
+  renderBridgeSourceAges();
   saveState(false);
 }
 
@@ -3627,6 +3724,8 @@ function init() {
   renderAll();
   configureFclmAutoRefresh(true);
   startServerBridgePoll();
+  updateLiveClock();
+  setInterval(updateLiveClock, 10000);
 }
 
 init();

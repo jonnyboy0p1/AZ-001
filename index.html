@@ -14,6 +14,7 @@
         <p class="sub">OB02 release — shift planner, merged pace tracker, bridge-powered FCLM / MonitorPortal</p>
         <p id="miniStatus" class="mini">Ready.</p>
         <p id="saveCounter" class="mini save-counter">Current not saved | Week 0/4</p>
+        <p id="liveClock" class="mini live-clock">--:-- CT · --</p>
       </div>
       <div class="btnrow">
         <button id="toggleTopBtn" class="soft">Minimize</button>
@@ -64,6 +65,8 @@
         <span id="themeChip" class="chip">Theme: Midnight Dark</span>
       </div>
     </section>
+
+    <div id="shiftProgressBar" class="shift-progress-bar"><div id="shiftProgressFill" class="shift-progress-fill"></div></div>
 
     <nav class="view-tabs" aria-label="Dashboard views">
       <button class="view-tab active" data-view-tab="overview" type="button">Overview</button>
@@ -371,6 +374,7 @@
           <button id="copyPeriodSummaryBtn" class="primary">Copy Period Summary</button>
           <button id="copyEOSBtn" class="primary">Copy EOS Wash</button>
         </div>
+        <div id="bridgeSourceAges" class="bridge-source-ages"></div>
         <div class="note compact">
           <div><b>Tips</b></div>
           <div>Use Collect Data From Bridge after the helper gathers graph totals.</div>
@@ -479,6 +483,10 @@
             <div>
               <label>Period Summary</label>
               <textarea id="periodSummary"></textarea>
+            </div>
+            <div>
+              <label>EOS Notes <span class="label-hint">(optional — appears at bottom of EOS Wash)</span></label>
+              <textarea id="eos_notes" class="eos-notes-input" placeholder="End-of-shift observations, anything worth calling out in the handoff..."></textarea>
             </div>
             <div>
               <label>EOS Wash</label>
