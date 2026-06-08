@@ -1707,12 +1707,21 @@ function renderHourlyProjection(rows) {
       gap: periodDiff,
       started: periodHasActual
     });
+    const periodReqRate = effectiveHours > 0 ? periodTarget / effectiveHours : 0;
+    const elapsedInPeriod = segments.reduce((s, seg) => s + seg.elapsedHours, 0);
+    const periodActRate = elapsedInPeriod > 0 && periodActual > 0 ? periodActual / elapsedInPeriod : null;
     const periodSubtotal = `
       <tr class="projection-period-total projection-period-${row.key}">
         <td><b>Period total</b></td>
-        <td class="num"><b>${fmt(periodStartedExpected)}</b></td>
+        <td class="num">
+          <b>${fmt(periodStartedExpected)}</b>
+          ${periodReqRate > 0 ? `<br><span class="pace-rate-sub">Req ${fmt(periodReqRate, 0)}/hr</span>` : ''}
+        </td>
         <td class="num">${periodProjected != null ? fmt(periodProjected) : '-'}</td>
-        <td class="num">${periodHasActual ? fmt(periodActual) : '-'}</td>
+        <td class="num">
+          ${periodHasActual ? `<b>${fmt(periodActual)}</b>` : '-'}
+          ${periodActRate != null ? `<br><span class="pace-rate-sub">Act ${fmt(periodActRate, 0)}/hr</span>` : ''}
+        </td>
         <td class="num ${periodDiff == null ? '' : colorClass(periodDiff)}">${periodDiff == null ? '-' : signed(periodDiff)}</td>
       </tr>
     `;
@@ -1732,79 +1741,8 @@ function renderHourlyProjection(rows) {
     </tr>
   `;
 
-  // Per-period elapsed hours from the timed segments (for Act Rate column)
-  const periodElapsedHours = {};
-  allTimedSegments.forEach(s => {
-    periodElapsedHours[s.period] = (periodElapsedHours[s.period] || 0) + s.elapsedHours;
-  });
-
-  const neoGoalRows = rows.map(row => {
-    const neoGoal = stream.goal(row);
-    const planned = stream.should(row);
-    const actual = stream.actual(row);
-    const effHours = effectivePeriodHours(row);
-    const elapsed = periodElapsedHours[row.label] || 0;
-    const reqRate = effHours > 0 ? planned / effHours : 0;
-    const actRate = elapsed > 0 && actual > 0 ? actual / elapsed : null;
-    const gap = actual > 0 ? actual - planned : null;
-    return `
-      <tr class="neo-goals-row neo-goals-period-${row.key}">
-        <td><b>${row.label}</b></td>
-        <td class="num">${neoGoal > 0 ? fmt(neoGoal) : '-'}</td>
-        <td class="num">${planned > 0 ? fmt(planned) : '-'}</td>
-        <td class="num">${actual > 0 ? fmt(actual) : '-'}</td>
-        <td class="num">${reqRate > 0 ? fmt(reqRate, 0) + '/hr' : '-'}</td>
-        <td class="num">${actRate != null ? fmt(actRate, 0) + '/hr' : '-'}</td>
-        <td class="num ${gap == null ? '' : colorClass(gap)}">${gap == null ? '-' : signed(gap)}</td>
-      </tr>
-    `;
-  }).join('');
-
-  const totalShiftElapsed = allTimedSegments.reduce((s, seg) => s + seg.elapsedHours, 0);
-  const totalActual = streamTotals.actual || 0;
-  const totalReqRate = totalHours > 0 ? shiftTotal / totalHours : 0;
-  const totalActRate = totalShiftElapsed > 0 && totalActual > 0 ? totalActual / totalShiftElapsed : null;
-  const totalGap = totalActual > 0 ? totalActual - shiftTotal : null;
-
-  const neoGoalsSummary = `
-    <section class="pace-board pace-board-neo-summary">
-      <div class="pace-board-head">
-        <h3>NEO Goals by Period</h3>
-        <span>${stream.shouldLabel} targets split per period — planned vs actual and required rate</span>
-      </div>
-      <div class="table-wrap">
-        <table class="mini-table pace-neo-goals-table">
-          <thead>
-            <tr>
-              <th>Period</th>
-              <th class="num">NEO Goal</th>
-              <th class="num">Planned</th>
-              <th class="num">Actual</th>
-              <th class="num">Req Rate</th>
-              <th class="num">Act Rate</th>
-              <th class="num">Gap</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${neoGoalRows}
-            <tr class="total-row">
-              <td><b>Shift Total</b></td>
-              <td class="num"><b>${streamTotals.goal > 0 ? fmt(streamTotals.goal) : '-'}</b></td>
-              <td class="num"><b>${shiftTotal > 0 ? fmt(shiftTotal) : '-'}</b></td>
-              <td class="num"><b>${totalActual > 0 ? fmt(totalActual) : '-'}</b></td>
-              <td class="num"><b>${totalReqRate > 0 ? fmt(totalReqRate, 0) + '/hr' : '-'}</b></td>
-              <td class="num"><b>${totalActRate != null ? fmt(totalActRate, 0) + '/hr' : '-'}</b></td>
-              <td class="num ${totalGap == null ? '' : colorClass(totalGap)}"><b>${totalGap == null ? '-' : signed(totalGap)}</b></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  `;
-
   summary.innerHTML = `
     <div class="pace-board-grid">
-      ${neoGoalsSummary}
       <section class="pace-board pace-board-hero">
         <div class="pace-stream-tabs" role="tablist" aria-label="Pace tracker mode">
           ${validStreams.map((key) => `
