@@ -2068,3 +2068,46 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   body[data-view="goals"] .quick-tools-panel .btnstack{grid-template-columns:1fr}
   .shift-log-row{grid-template-columns:1fr}
 }
+/* NEO Goals by Period summary table */
+.pace-board-neo-summary .pace-board-head{
+  background:linear-gradient(90deg,color-mix(in srgb,var(--green),var(--thead) 68%),var(--thead));
+}
+.pace-board-neo-summary{
+  border-color:color-mix(in srgb,var(--green),var(--line) 40%);
+}
+.pace-neo-goals-table{
+  width:100%;
+  border-collapse:collapse;
+}
+.pace-neo-goals-table th,
+.pace-neo-goals-table td{
+  padding:8px 12px;
+  white-space:nowrap;
+  font-size:13px;
+  border-bottom:1px solid var(--line);
+}
+.pace-neo-goals-table th{
+  background:var(--thead);
+  color:var(--muted);
+  font-size:11px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  text-align:right;
+}
+.pace-neo-goals-table th:first-child{
+  text-align:left;
+}
+.pace-neo-goals-table td{
+  background:var(--panel2);
+  color:var(--text);
+}
+.pace-neo-goals-table tr:nth-child(even) td{
+  background:color-mix(in srgb,var(--panel2),var(--thead) 32%);
+}
+.pace-neo-goals-table .total-row td{
+  background:color-mix(in srgb,var(--green),var(--thead) 18%) !important;
+  border-top:3px solid var(--green);
+  border-bottom:0;
+  font-weight:950;
+  color:var(--text);
+}
