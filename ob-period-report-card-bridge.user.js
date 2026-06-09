@@ -1740,6 +1740,11 @@
       setInterval(()=>pullFluidRosterInBackground(),30*60*1000);
     }
 
+    if(isDashboard){
+      setTimeout(()=>pullMonitorInBackground(undefined,['flUtil','belt'],'all'),5000);
+      setInterval(()=>pullMonitorInBackground(undefined,['flUtil','belt'],'all'),5*60*1000);
+    }
+
     updatePanel(readBridge());
   }
 
