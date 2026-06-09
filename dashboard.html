@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RC Sort Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      background: #1a1a2e;
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .page-header h1 { font-size: 18px; font-weight: 600; }
+    .page-header .week-badge {
+      background: #2d6a9f;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 12px;
+    }
+
+    /* ── Card wrapper ── */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.12);
+      margin: 16px 16px 0;
+      overflow: hidden;
+    }
+    .card:last-child { margin-bottom: 16px; }
+
+    /* ── Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 7px 12px;
+      border-bottom: 1px solid #e8eaed;
+      white-space: nowrap;
+    }
+
+    /* column widths */
+    .col-label  { width: 260px; }
+    .col-actual { width: 130px; text-align: right; }
+    .col-input  { width: 90px;  text-align: center; }
+    .col-hash   { width: 24px;  text-align: center; color: #888; font-size: 11px; }
+    .col-ilabel { width: 220px; }
+    .col-plan   { width: 160px; text-align: right; }
+    .col-info   { width: 36px;  text-align: center; }
+
+    /* ── Column header row ── */
+    thead tr { background: #2d3748; }
+    thead th {
+      color: #cbd5e0;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      border-bottom: none;
+    }
+
+    /* ── Section header rows ── */
+    tr.section-header td {
+      background: #1e3a5f;
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 2px solid #2d6a9f;
+    }
+    tr.section-header:hover td { background: #1a3352; }
+    tr.section-header .toggle-icon {
+      display: inline-block;
+      margin-right: 6px;
+      transition: transform .2s;
+      font-size: 10px;
+    }
+    tr.section-header.collapsed .toggle-icon { transform: rotate(-90deg); }
+
+    /* ── Body rows ── */
+    tbody tr.data-row:nth-child(even) td { background: #f8f9fb; }
+    tbody tr.data-row:hover td { background: #edf2ff; }
+
+    .row-label { font-weight: 500; }
+    .row-label small {
+      font-weight: 400;
+      color: #718096;
+      font-size: 11px;
+      margin-left: 4px;
+    }
+
+    /* ── Actual value ── */
+    .actual-val { color: #2d3748; font-weight: 500; }
+    .actual-sub { color: #718096; font-size: 11px; }
+
+    /* ── Input field ── */
+    input.target-input {
+      width: 80px;
+      padding: 3px 6px;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+      background: #edf2f7;
+      font-size: 12px;
+      color: #4a5568;
+      text-align: right;
+      outline: none;
+      transition: border-color .15s, background .15s;
+    }
+    input.target-input:focus {
+      border-color: #3182ce;
+      background: #fff;
+    }
+    input.target-input:disabled {
+      background: #edf2f7;
+      color: #a0aec0;
+      cursor: not-allowed;
+    }
+
+    .input-label {
+      font-size: 11px;
+      color: #718096;
+      padding-left: 4px;
+    }
+    .input-label::before { content: "* "; color: #e53e3e; font-weight: 700; }
+
+    /* ── Plan / goal value ── */
+    .plan-val { font-weight: 600; }
+    .trend-up   { color: #2b6cb0; }
+    .trend-down { color: #dd6b20; }
+    .trend-none { color: #4a5568; }
+
+    .trend-arrow { font-size: 11px; margin-right: 2px; }
+
+    /* ── Info icon ── */
+    .info-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid #90cdf4;
+      color: #3182ce;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      background: transparent;
+    }
+    .info-btn:hover { background: #ebf8ff; }
+
+    /* ── Totals row ── */
+    tr.totals-row td {
+      background: #2d3748;
+      color: #e2e8f0;
+      font-weight: 700;
+      font-size: 13px;
+      border-bottom: none;
+      border-top: 2px solid #1a202c;
+    }
+    tr.totals-row .pct-badge {
+      display: inline-block;
+      background: #38a169;
+      color: #fff;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 12px;
+    }
+    tr.totals-row .pct-badge.warn { background: #dd6b20; }
+
+    /* ── Sub-totals (indirect hours) ── */
+    tr.subtotal-row td {
+      background: #eaf0fb;
+      font-weight: 600;
+      color: #2c5282;
+      font-size: 12px;
+    }
+
+    /* hidden rows */
+    tr.collapsible { transition: opacity .15s; }
+    tr.collapsible.hidden { display: none; }
+
+    /* ── Tooltip ── */
+    .tooltip-wrap { position: relative; display: inline-block; }
+    .tooltip-wrap .tooltip-text {
+      visibility: hidden;
+      opacity: 0;
+      background: #1a202c;
+      color: #e2e8f0;
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 5px;
+      position: absolute;
+      right: 28px;
+      top: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      pointer-events: none;
+      transition: opacity .15s;
+      z-index: 10;
+    }
+    .tooltip-wrap:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .col-ilabel, .col-input, .col-hash { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>RC Sort — Weekly Operations Dashboard</h1>
+  <span class="week-badge">WK 24 · 2026</span>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 1: RC Sort – Direct
+═══════════════════════════════════════════ -->
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th class="col-label">Metric</th>
+        <th class="col-actual">Actual</th>
+        <th class="col-input">Target</th>
+        <th class="col-hash">#</th>
+        <th class="col-ilabel">Input Type</th>
+        <th class="col-plan">Plan / Goal</th>
+        <th class="col-info"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- Section header -->
+      <tr class="section-header" data-section="direct" onclick="toggleSection('direct')">
+        <td class="col-label">
+          <span class="toggle-icon">▼</span>RC Sort – Direct
+          <small style="font-size:11px;font-weight:400;margin-left:8px;opacity:.75">123 (1,233)</small>
+        </td>
+        <td class="col-actual"></td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-down"><span class="trend-arrow">↓</span>86 (863)</td>
+        <td class="col-info"></td>
+      </tr>
+
+      <!-- RC Sort Units -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">RC Sort Units <small>(Default = Commitment)</small></td>
+        <td class="col-actual actual-val">486,500</td>
+        <td class="col-input"><input class="target-input" type="number" value="486500" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">WEEKLY SORT COMMITMENT</span></td>
+        <td class="col-plan trend-none plan-val">486,500</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Total weekly sort commitment units</span></div></td>
+      </tr>
+
+      <!-- UIS 5lb Cartons -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 5lb Cartons</td>
+        <td class="col-actual actual-val">0</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-none plan-val">0</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 5lb carton count</span></div></td>
+      </tr>
+
+      <!-- UIS 5lb Units -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 5lb Units</td>
+        <td class="col-actual actual-val">258,653</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>314,340</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 5lb unit volume (weekly goal: 314,340)</span></div></td>
+      </tr>
+
+      <!-- UIS 5lb Rate -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 5lb Rate</td>
+        <td class="col-actual actual-val">994.82</td>
+        <td class="col-input"><input class="target-input" type="number" value="1209" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">SORT WEEKLY RATE</span></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>1,209</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Units/hr — goal 1,209 uph</span></div></td>
+      </tr>
+
+      <!-- UIS 5lb Inductor HC -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 5lb Inductor HC</td>
+        <td class="col-actual actual-val">26 <span class="actual-sub">(260)</span></td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-none plan-val">26 <span style="color:#718096;font-weight:400">(260)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Daily HC (weekly hours in parentheses)</span></div></td>
+      </tr>
+
+      <!-- 5lb Case Prep HC -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">5lb Case Prep HC</td>
+        <td class="col-actual actual-val">26 <span class="actual-sub">(260)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="26" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">MANDALOR STATION</span></td>
+        <td class="col-plan trend-none plan-val">26 <span style="color:#718096;font-weight:400">(260)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Mandalor station headcount</span></div></td>
+      </tr>
+
+      <!-- UIS 20lb Cartons -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 20lb Cartons</td>
+        <td class="col-actual actual-val">0</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-none plan-val">0</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 20lb carton count</span></div></td>
+      </tr>
+
+      <!-- UIS 20lb Units -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 20lb Units</td>
+        <td class="col-actual actual-val">123,541</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>165,920</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 20lb unit volume (weekly goal: 165,920)</span></div></td>
+      </tr>
+
+      <!-- UIS 20lb Rate -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 20lb Rate</td>
+        <td class="col-actual actual-val">772.13</td>
+        <td class="col-input"><input class="target-input" type="number" value="1037" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">WEEKLY SORT RATE</span></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>1,037</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Units/hr — goal 1,037 uph</span></div></td>
+      </tr>
+
+      <!-- UIS 20lb Inductor HC -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">UIS 20lb Inductor HC</td>
+        <td class="col-actual actual-val">16 <span class="actual-sub">(160)</span></td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-none plan-val">16 <span style="color:#718096;font-weight:400">(160)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Daily HC (weekly hours in parentheses)</span></div></td>
+      </tr>
+
+      <!-- 20lb Case Prep HC -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">20lb Case Prep HC</td>
+        <td class="col-actual actual-val">16 <span class="actual-sub">(160)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="16" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">MANDALOR STATIONS</span></td>
+        <td class="col-plan trend-none plan-val">16 <span style="color:#718096;font-weight:400">(160)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Mandalor station headcount</span></div></td>
+      </tr>
+
+      <!-- Manual Sort Cartons -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">Manual Sort Cartons</td>
+        <td class="col-actual actual-val">0</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-none plan-val">0</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Manual sort carton count</span></div></td>
+      </tr>
+
+      <!-- Manual Sort Units -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">Manual Sort Units</td>
+        <td class="col-actual actual-val">104,305</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>6,240</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Manual sort unit volume</span></div></td>
+      </tr>
+
+      <!-- Manual Sort Rate -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">Manual Sort Rate</td>
+        <td class="col-actual actual-val">265.25</td>
+        <td class="col-input"><input class="target-input" type="number" value="271" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">WEEKLY SORT RATE</span></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>271</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Units/hr — goal 271 uph</span></div></td>
+      </tr>
+
+      <!-- Manual Sort HC -->
+      <tr class="data-row collapsible" data-group="direct">
+        <td class="col-label row-label">Manual Sort HC</td>
+        <td class="col-actual actual-val">39 <span class="actual-sub">(393)</span></td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>2 <span style="color:#718096;font-weight:400">(23)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Manual sort headcount</span></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SECTION 2: RC Sort – Indirect Roles
+═══════════════════════════════════════════ -->
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th class="col-label">Role</th>
+        <th class="col-actual">Actual</th>
+        <th class="col-input">Target</th>
+        <th class="col-hash">#</th>
+        <th class="col-ilabel">Input Type</th>
+        <th class="col-plan">Plan / Goal</th>
+        <th class="col-info"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+      <!-- Section header -->
+      <tr class="section-header" data-section="indirect" onclick="toggleSection('indirect')">
+        <td class="col-label">
+          <span class="toggle-icon">▼</span>RC Sort — Indirect Roles
+          <small style="font-size:11px;font-weight:400;margin-left:8px;opacity:.75">74 (744)</small>
+        </td>
+        <td class="col-actual"></td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-up"><span class="trend-arrow">↑</span>88 (880)</td>
+        <td class="col-info"></td>
+      </tr>
+
+      <!-- Indirect OP Hrs -->
+      <tr class="data-row subtotal-row collapsible" data-group="indirect">
+        <td class="col-label row-label">RC Sort – Total Indirect OP Hrs Allowed</td>
+        <td class="col-actual actual-val">1,162</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>1,533</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Total indirect OP hours allowed this week</span></div></td>
+      </tr>
+
+      <!-- Indirect LP Hrs -->
+      <tr class="data-row subtotal-row collapsible" data-group="indirect">
+        <td class="col-label row-label">RC Sort – Total Indirect LP Hrs Allowed</td>
+        <td class="col-actual actual-val" style="color:#c05621;">-683</td>
+        <td class="col-input"></td>
+        <td class="col-hash"></td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>-313</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Total indirect LP hours allowed (negative = over budget)</span></div></td>
+      </tr>
+
+      <!-- AIS 5lb Induct -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">AIS_5lb_Induct <small>(AISOPSS)</small></td>
+        <td class="col-actual actual-val">0</td>
+        <td class="col-input"><input class="target-input" type="number" value="0" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">N/S</span></td>
+        <td class="col-plan trend-none plan-val">0</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Not scheduled this week</span></div></td>
+      </tr>
+
+      <!-- RC Sort 5S -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">RC Sort 5S <small>(RSRT5S)</small></td>
+        <td class="col-actual actual-val">0</td>
+        <td class="col-input"><input class="target-input" type="number" value="0" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">N/S</span></td>
+        <td class="col-plan trend-none plan-val">0</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Not scheduled this week</span></div></td>
+      </tr>
+
+      <!-- UIS 20lb Case Prep -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS 20lb Case Prep <small>(UISCASEXL)</small></td>
+        <td class="col-actual actual-val">5 <span class="actual-sub">(53)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="0" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">N/S</span></td>
+        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>0</td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Not scheduled this week</span></div></td>
+      </tr>
+
+      <!-- UIS 20lb Psolve -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS 20lb Psolve <small>(UIS20PS)</small></td>
+        <td class="col-actual actual-val">1 <span class="actual-sub">(13)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="5" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">HC</span></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>5 <span style="color:#718096;font-weight:400">(50)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Problem-solve headcount target: 5</span></div></td>
+      </tr>
+
+      <!-- UIS 5lb Psolve -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS 5lb Psolve <small>(UIS5PS)</small></td>
+        <td class="col-actual actual-val">2 <span class="actual-sub">(21)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="6" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">HC</span></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>6 <span style="color:#718096;font-weight:400">(60)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Problem-solve headcount target: 6</span></div></td>
+      </tr>
+
+      <!-- UIS Case Prep -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS Case Prep <small>(UISCASE)</small></td>
+        <td class="col-actual actual-val">9 <span class="actual-sub">(86)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="6" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">HC</span></td>
+        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>6 <span style="color:#718096;font-weight:400">(60)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Case prep headcount target: 6</span></div></td>
+      </tr>
+
+      <!-- UIS SupUser 20lb -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS SupUser 20lb <small>(UIS20SU)</small></td>
+        <td class="col-actual actual-val">3 <span class="actual-sub">(32)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="5" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">HC</span></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>5 <span style="color:#718096;font-weight:400">(50)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Super-user 20lb headcount target: 5</span></div></td>
+      </tr>
+
+      <!-- UIS SupUser 5lb -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS SupUser 5lb <small>(UIS5SU)</small></td>
+        <td class="col-actual actual-val">5 <span class="actual-sub">(52)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="5" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">HC</span></td>
+        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>5 <span style="color:#718096;font-weight:400">(50)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Super-user 5lb headcount target: 5</span></div></td>
+      </tr>
+
+      <!-- UIS 20lb ToteWrangle -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS_20lb_ToteWrangle</td>
+        <td class="col-actual actual-val">16 <span class="actual-sub">(160)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="16" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">HC</span></td>
+        <td class="col-plan trend-none plan-val">16 <span style="color:#718096;font-weight:400">(160)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Tote wrangle 20lb headcount</span></div></td>
+      </tr>
+
+      <!-- UIS 5lb ToteWrangle -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">UIS_5lb_ToteWrangle</td>
+        <td class="col-actual actual-val">26 <span class="actual-sub">(260)</span></td>
+        <td class="col-input"><input class="target-input" type="number" placeholder="—" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"></td>
+        <td class="col-plan trend-none plan-val">26 <span style="color:#718096;font-weight:400">(260)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Tote wrangle 5lb headcount</span></div></td>
+      </tr>
+
+      <!-- Water Spider -->
+      <tr class="data-row collapsible" data-group="indirect">
+        <td class="col-label row-label">Water Spider <small>(RCWS)</small></td>
+        <td class="col-actual actual-val">7 <span class="actual-sub">(67)</span></td>
+        <td class="col-input"><input class="target-input" type="number" value="19" /></td>
+        <td class="col-hash">#</td>
+        <td class="col-ilabel"><span class="input-label">[PDP] Planned HC</span></td>
+        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>19 <span style="color:#718096;font-weight:400">(190)</span></td>
+        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Water spider headcount — PDP planned target: 19</span></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TOTALS ROW
+═══════════════════════════════════════════ -->
+<div class="card" style="margin-bottom:16px;">
+  <table>
+    <tbody>
+      <tr class="totals-row">
+        <td class="col-label" style="font-size:14px;">RC Sort — Total</td>
+        <td class="col-actual" style="font-size:12px;color:#a0aec0;">333,350</td>
+        <td class="col-input" style="text-align:right;font-size:12px;color:#a0aec0;">1,216.53</td>
+        <td class="col-hash" style="text-align:right;font-size:12px;color:#a0aec0;">274.02</td>
+        <td class="col-ilabel" style="font-size:12px;color:#a0aec0;">254.19 &nbsp;|&nbsp; 1,311.43</td>
+        <td class="col-plan" style="text-align:right;">
+          94.9 &nbsp; <span class="pct-badge">107.8%</span>
+        </td>
+        <td class="col-info"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  function toggleSection(section) {
+    const header = document.querySelector(`[data-section="${section}"]`);
+    const rows = document.querySelectorAll(`[data-group="${section}"]`);
+    const collapsed = header.classList.toggle('collapsed');
+    rows.forEach(r => r.classList.toggle('hidden', collapsed));
+  }
+
+  // Highlight input on change
+  document.querySelectorAll('.target-input').forEach(input => {
+    const original = input.value;
+    input.addEventListener('input', () => {
+      if (input.value !== original) {
+        input.style.borderColor = '#3182ce';
+        input.style.background = '#ebf8ff';
+      } else {
+        input.style.borderColor = '';
+        input.style.background = '';
+      }
+    });
+  });
+</script>
+</body>
+</html>
