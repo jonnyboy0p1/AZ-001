@@ -28,7 +28,7 @@
 
   const CONFIG = {
     bridgeKey: 'OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE',
-    dashboardUrl: 'file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/index.html',
+    dashboardUrl: 'file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/dashboard.html',
     dashboardServerUrl: 'http://localhost:5173/',
     neoUrl: 'https://neo.meta.amazon.dev/planning',
     fluidRosterUrl: 'https://zone-ra.amazon.dev/roster/rfd2/ob/fluid/',
@@ -46,6 +46,7 @@
   const isMonitor = HOST.includes('monitorportal.amazon.com');
   const isFluidRoster = HOST.includes('zone-ra.amazon.dev') && location.pathname.includes('/roster/rfd2/ob/fluid');
   const isDashboard =
+    HREF.startsWith('file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/dashboard.html') ||
     HREF.startsWith('file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/index.html') ||
     HREF.startsWith('http://localhost:5173/') ||
     HREF.startsWith('http://127.0.0.1:5173/');
