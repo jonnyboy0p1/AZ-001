@@ -1735,6 +1735,11 @@
       });
     }
 
+    if(isDashboard){
+      setTimeout(()=>pullFluidRosterInBackground(),3000);
+      setInterval(()=>pullFluidRosterInBackground(),CONFIG.refreshMinutes*60*1000);
+    }
+
     updatePanel(readBridge());
   }
 
