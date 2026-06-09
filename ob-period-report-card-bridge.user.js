@@ -1003,9 +1003,17 @@
     return {totesJobs,casesJobs,totalJobs,wallBuilderRate,jplh,updatedAt:now(),period};
   }
 
+  function withRetry(factory,maxRetries=2,baseDelay=2000){
+    const attempt=(n)=>factory().catch(err=>{
+      if(n>=maxRetries) throw err;
+      return new Promise(r=>setTimeout(r,baseDelay*(n+1))).then(()=>attempt(n+1));
+    });
+    return attempt(0);
+  }
+
   function fetchFclmPayload(key){
     const url=buildFclmUrl(key);
-    return new Promise((resolve,reject)=>{
+    const attempt=()=>new Promise((resolve,reject)=>{
       if(typeof GM_xmlhttpRequest!=='function'){
         reject(new Error('GM_xmlhttpRequest unavailable'));
         return;
@@ -1026,6 +1034,7 @@
         ontimeout:()=>reject(new Error(`FCLM ${key.toUpperCase()} request timed out`))
       });
     });
+    return withRetry(attempt);
   }
 
   async function pullFclmInBackground(periods=null,options={}){
@@ -1212,7 +1221,7 @@
 
   function fetchMonitorPayload(type,key){
     const url=type==='belt'?buildMonitorBeltUrl(key):buildMonitorFlUtilUrl(key);
-    return new Promise((resolve,reject)=>{
+    const attempt=()=>new Promise((resolve,reject)=>{
       if(typeof GM_xmlhttpRequest!=='function'){
         reject(new Error('GM_xmlhttpRequest unavailable'));
         return;
@@ -1233,6 +1242,7 @@
         ontimeout:()=>reject(new Error(`Monitor ${key.toUpperCase()} ${type} request timed out`))
       });
     });
+    return withRetry(attempt);
   }
 
   async function pullMonitorInBackground(periods=['full','p1','p2','p3'],types=['flUtil','belt'],source=null){
@@ -1743,6 +1753,17 @@
     if(isDashboard){
       setTimeout(()=>pullMonitorInBackground(undefined,['flUtil','belt'],'all'),5000);
       setInterval(()=>pullMonitorInBackground(undefined,['flUtil','belt'],'all'),5*60*1000);
+    }
+
+    if(isDashboard){
+      const autoFclm=()=>pullFclmInBackground(null,{
+        shiftDate:document.getElementById('shiftDate')?.value||'',
+        includeMET:document.getElementById('useMET')?.value==='true',
+        includeMonitor:false,
+        source:'fclm'
+      });
+      setTimeout(autoFclm,7000);
+      setInterval(autoFclm,5*60*1000);
     }
 
     updatePanel(readBridge());
