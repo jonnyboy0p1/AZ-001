@@ -720,9 +720,11 @@ function renderGoals() {
   const rosterFluidHc = val('rosterFluidHC');
   const rosterPayload = latestBridgePayload?.roster?.fluid || {};
   const rosterTarget = num(rosterPayload.target);
-  const compareTarget = rosterTarget || plannedFluidHc;
+  const neoFluidHc = num(latestBridgePayload?.neo?.fluidLoadHC);
+  // NEO actual HC (today's need) takes priority over ZoneRA zone capacity totals
+  const compareTarget = neoFluidHc || plannedFluidHc || rosterTarget;
   const rosterGap = rosterFluidHc - compareTarget;
-  const rosterSource = rosterTarget ? 'ZoneRA target' : 'planned';
+  const rosterSource = neoFluidHc ? 'NEO' : plannedFluidHc ? 'planned' : 'ZoneRA slots';
   const rosterGroups = Array.isArray(rosterPayload.groups) ? rosterPayload.groups : [];
 
   const ROSTER_LABEL = { 'WEST-DOORS': 'West Doors', 'EAST-DOORS': 'East Doors', 'FLOATER': 'Floater' };
@@ -755,16 +757,14 @@ function renderGoals() {
     const recoEl = $('fluidRosterRecommendation');
     if (recoEl) recoEl.style.display = 'none';
   }
-  if (!plannedFluidHc || !rosterFluidHc) {
+  if (rosterGroups.length) {
+    const slotTotal = rosterGroups.reduce((s, g) => s + num(g.target), 0);
+    const slotDetail = rosterGroups.map((g) => `${ROSTER_LABEL[g.label] || g.label} ${fmt(num(g.target))}`).join(' + ');
+    setText('fluidHcDifference', `Zone slots: ${slotDetail} = ${fmt(slotTotal)} total capacity.`, '');
+  } else if (!neoFluidHc) {
     setText('fluidHcDifference', 'HC difference vs NEO pending.', 'warn');
   } else {
-    const plannedGap = rosterFluidHc - plannedFluidHc;
-    const plannedTone = plannedGap === 0 ? 'good' : plannedGap > 0 ? 'warn' : 'bad';
-    setText(
-      'fluidHcDifference',
-      `NEO HC diff ${signed(plannedGap)} (${fmt(rosterFluidHc)} fulfilled vs ${fmt(plannedFluidHc)} planned).`,
-      plannedTone
-    );
+    setText('fluidHcDifference', `NEO actual HC: ${fmt(neoFluidHc)} needed today.`, '');
   }
   if (!compareTarget || !rosterFluidHc) {
     setText('fluidRosterStatus', 'Open roster and enter Fluid HC to compare.', 'warn');
@@ -781,11 +781,12 @@ function fluidRosterHcSummary() {
   const plannedFluidHc = val('fluidHC');
   const rosterFluidHc = val('rosterFluidHC');
   const rosterTarget = num(latestBridgePayload?.roster?.fluid?.target);
-  const compareTarget = rosterTarget || plannedFluidHc;
-  const rosterSource = rosterTarget ? 'ZoneRA target' : 'planned';
+  const neoFluidHc = num(latestBridgePayload?.neo?.fluidLoadHC);
+  const compareTarget = neoFluidHc || plannedFluidHc || rosterTarget;
+  const rosterSource = neoFluidHc ? 'NEO' : plannedFluidHc ? 'planned' : 'ZoneRA slots';
   if (!compareTarget || !rosterFluidHc) return 'Fluid roster HC: not entered';
   const rosterGap = rosterFluidHc - compareTarget;
-  const plannedGap = plannedFluidHc ? ` | NEO HC diff ${signed(rosterFluidHc - plannedFluidHc)}` : '';
+  const plannedGap = '';
   if (rosterGap > 0) return `Fluid roster HC: over by ${fmt(rosterGap)} (${fmt(rosterFluidHc)} fulfilled vs ${fmt(compareTarget)} ${rosterSource})${plannedGap}`;
   if (rosterGap < 0) return `Fluid roster HC: below by ${fmt(Math.abs(rosterGap))} (${fmt(rosterFluidHc)} fulfilled vs ${fmt(compareTarget)} ${rosterSource})${plannedGap}`;
   return `Fluid roster HC: at plan (${fmt(rosterFluidHc)} fulfilled vs ${fmt(compareTarget)} ${rosterSource})${plannedGap}`;
