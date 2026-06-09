@@ -7,649 +7,779 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --blue-dark:   #1a1a2e;
+      --blue-mid:    #1e3a5f;
+      --blue-bright: #2d6a9f;
+      --blue-light:  #ebf8ff;
+      --green:       #38a169;
+      --red:         #e53e3e;
+      --orange:      #dd6b20;
+      --grey-50:     #f8f9fb;
+      --grey-100:    #edf2f7;
+      --grey-200:    #e2e8f0;
+      --grey-400:    #a0aec0;
+      --grey-600:    #718096;
+      --grey-800:    #2d3748;
+      --text:        #1a202c;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 13px;
       background: #f0f2f5;
-      color: #1a1a2e;
+      color: var(--text);
     }
 
     /* ── Page header ── */
     .page-header {
-      background: #1a1a2e;
+      background: var(--blue-dark);
       color: #fff;
-      padding: 14px 24px;
+      padding: 12px 20px;
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
     }
-    .page-header h1 { font-size: 18px; font-weight: 600; }
-    .page-header .week-badge {
-      background: #2d6a9f;
+    .page-header h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 200px; }
+    .week-badge {
+      background: var(--blue-bright);
       border-radius: 4px;
       padding: 3px 10px;
-      font-size: 12px;
+      font-size: 11px;
+      white-space: nowrap;
     }
+
+    /* ── Proxy status pill ── */
+    #proxy-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      background: rgba(255,255,255,.08);
+      border-radius: 20px;
+      padding: 4px 10px;
+      white-space: nowrap;
+    }
+    #proxy-status .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--grey-400);
+      flex-shrink: 0;
+    }
+    #proxy-status[data-state="connected"]    .dot { background: var(--green); }
+    #proxy-status[data-state="auth-required"] .dot { background: var(--orange); }
+    #proxy-status[data-state="stale"]        .dot { background: var(--orange); }
+    #proxy-status[data-state="offline"]      .dot { background: var(--grey-400); }
+    #proxy-status[data-state="error"]        .dot { background: var(--red); }
+
+    /* ── Header buttons ── */
+    .btn {
+      padding: 5px 14px;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: var(--blue-bright); color: #fff; }
+    .btn-secondary { background: rgba(255,255,255,.15); color: #fff; }
+
+    .spinner {
+      display: none;
+      width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    .loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Banner ── */
+    .banner {
+      display: none;
+      padding: 10px 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .banner.show { display: block; }
+    .banner-warn { background: #fefcbf; color: #744210; border-bottom: 1px solid #f6e05e; }
+    .banner-error { background: #fff5f5; color: #742a2a; border-bottom: 1px solid #feb2b2; }
+    .banner-info  { background: #ebf8ff; color: #2c5282; border-bottom: 1px solid #bee3f8; }
 
     /* ── Card wrapper ── */
     .card {
       background: #fff;
       border-radius: 8px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.12);
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
       margin: 16px 16px 0;
       overflow: hidden;
     }
     .card:last-child { margin-bottom: 16px; }
 
-    /* ── Table ── */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+    /* ── Live data card ── */
+    #live-table-container { display: none; }
+    #live-table-container.show { display: block; }
 
-    th, td {
-      padding: 7px 12px;
-      border-bottom: 1px solid #e8eaed;
+    /* ── FCLM Table ── */
+    .fclm-table { width: 100%; border-collapse: collapse; }
+    .fclm-table th, .fclm-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--grey-200);
       white-space: nowrap;
     }
 
-    /* column widths */
-    .col-label  { width: 260px; }
-    .col-actual { width: 130px; text-align: right; }
-    .col-input  { width: 90px;  text-align: center; }
-    .col-hash   { width: 24px;  text-align: center; color: #888; font-size: 11px; }
-    .col-ilabel { width: 220px; }
-    .col-plan   { width: 160px; text-align: right; }
-    .col-info   { width: 36px;  text-align: center; }
-
-    /* ── Column header row ── */
-    thead tr { background: #2d3748; }
-    thead th {
-      color: #cbd5e0;
-      font-size: 11px;
-      font-weight: 600;
+    /* Column header */
+    .fclm-table thead tr.col-group th {
+      background: #2d3748;
+      color: #90cdf4;
+      font-size: 10px;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: .5px;
+      text-align: center;
       border-bottom: none;
     }
-
-    /* ── Section header rows ── */
-    tr.section-header td {
-      background: #1e3a5f;
-      color: #fff;
+    .fclm-table thead tr.col-names th {
+      background: #3d4f64;
+      color: #e2e8f0;
+      font-size: 11px;
       font-weight: 600;
-      font-size: 13px;
+      border-bottom: 2px solid #2d3748;
+    }
+    .fclm-table thead tr.col-names th.num { text-align: right; }
+
+    /* Section header rows */
+    .fclm-table tr.section-hdr td {
+      background: var(--blue-mid);
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
       cursor: pointer;
       user-select: none;
-      border-bottom: 2px solid #2d6a9f;
+      border-bottom: 2px solid var(--blue-bright);
     }
-    tr.section-header:hover td { background: #1a3352; }
-    tr.section-header .toggle-icon {
-      display: inline-block;
-      margin-right: 6px;
-      transition: transform .2s;
-      font-size: 10px;
-    }
-    tr.section-header.collapsed .toggle-icon { transform: rotate(-90deg); }
+    .fclm-table tr.section-hdr:hover td { background: #1a3352; }
+    .toggle-icon { margin-right: 6px; font-size: 10px; display: inline-block; transition: transform .2s; }
+    .collapsed .toggle-icon { transform: rotate(-90deg); }
 
-    /* ── Body rows ── */
-    tbody tr.data-row:nth-child(even) td { background: #f8f9fb; }
-    tbody tr.data-row:hover td { background: #edf2ff; }
+    /* Data rows */
+    .fclm-table tr.data-row:nth-child(even) td { background: var(--grey-50); }
+    .fclm-table tr.data-row:hover td { background: var(--blue-light); }
+    .fclm-table tr.data-row td { font-size: 12px; }
 
-    .row-label { font-weight: 500; }
-    .row-label small {
-      font-weight: 400;
-      color: #718096;
-      font-size: 11px;
-      margin-left: 4px;
-    }
-
-    /* ── Actual value ── */
-    .actual-val { color: #2d3748; font-weight: 500; }
-    .actual-sub { color: #718096; font-size: 11px; }
-
-    /* ── Input field ── */
-    input.target-input {
-      width: 80px;
-      padding: 3px 6px;
-      border: 1px solid #cbd5e0;
-      border-radius: 4px;
-      background: #edf2f7;
-      font-size: 12px;
-      color: #4a5568;
-      text-align: right;
-      outline: none;
-      transition: border-color .15s, background .15s;
-    }
-    input.target-input:focus {
-      border-color: #3182ce;
-      background: #fff;
-    }
-    input.target-input:disabled {
-      background: #edf2f7;
-      color: #a0aec0;
-      cursor: not-allowed;
-    }
-
-    .input-label {
-      font-size: 11px;
-      color: #718096;
-      padding-left: 4px;
-    }
-    .input-label::before { content: "* "; color: #e53e3e; font-weight: 700; }
-
-    /* ── Plan / goal value ── */
-    .plan-val { font-weight: 600; }
-    .trend-up   { color: #2b6cb0; }
-    .trend-down { color: #dd6b20; }
-    .trend-none { color: #4a5568; }
-
-    .trend-arrow { font-size: 11px; margin-right: 2px; }
-
-    /* ── Info icon ── */
-    .info-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      border: 1.5px solid #90cdf4;
-      color: #3182ce;
-      font-size: 11px;
+    /* Sub-total rows */
+    .fclm-table tr.sub-total td {
+      background: #dbeafe;
       font-weight: 700;
-      cursor: pointer;
-      background: transparent;
+      color: #1e40af;
+      border-top: 1px solid #bfdbfe;
     }
-    .info-btn:hover { background: #ebf8ff; }
 
-    /* ── Totals row ── */
-    tr.totals-row td {
-      background: #2d3748;
-      color: #e2e8f0;
+    /* RC Sort Total highlight */
+    .fclm-table tr.rc-sort-total td {
+      background: var(--blue-mid);
+      color: #fff;
       font-weight: 700;
       font-size: 13px;
+      border-top: 2px solid var(--blue-bright);
       border-bottom: none;
-      border-top: 2px solid #1a202c;
     }
-    tr.totals-row .pct-badge {
+    .fclm-table tr.rc-sort-total .pct-badge { border: 1px solid rgba(255,255,255,.3); }
+
+    /* Number cells */
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Trend */
+    .trend-up   { color: #2b6cb0; }
+    .trend-down { color: var(--orange); }
+
+    /* % badge */
+    .pct-badge {
       display: inline-block;
-      background: #38a169;
-      color: #fff;
       border-radius: 4px;
-      padding: 2px 8px;
-      font-size: 12px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-weight: 700;
     }
-    tr.totals-row .pct-badge.warn { background: #dd6b20; }
+    .pct-green { background: var(--green);  color: #fff; }
+    .pct-red   { background: var(--red);    color: #fff; }
+    .pct-grey  { background: var(--grey-400); color: #fff; }
 
-    /* ── Sub-totals (indirect hours) ── */
-    tr.subtotal-row td {
-      background: #eaf0fb;
-      font-weight: 600;
-      color: #2c5282;
-      font-size: 12px;
-    }
+    /* Delta */
+    .delta-pos { color: var(--green); font-weight: 600; }
+    .delta-neg { color: var(--red);   font-weight: 600; }
 
-    /* hidden rows */
-    tr.collapsible { transition: opacity .15s; }
+    /* Hidden rows */
     tr.collapsible.hidden { display: none; }
 
-    /* ── Tooltip ── */
-    .tooltip-wrap { position: relative; display: inline-block; }
-    .tooltip-wrap .tooltip-text {
-      visibility: hidden;
-      opacity: 0;
-      background: #1a202c;
-      color: #e2e8f0;
+    /* Merged-cell labels */
+    td.merge-cell {
+      color: var(--grey-600);
       font-size: 11px;
-      padding: 6px 10px;
-      border-radius: 5px;
-      position: absolute;
-      right: 28px;
-      top: 50%;
-      transform: translateY(-50%);
-      white-space: nowrap;
-      pointer-events: none;
-      transition: opacity .15s;
-      z-index: 10;
+      font-style: italic;
+      vertical-align: middle;
     }
-    .tooltip-wrap:hover .tooltip-text { visibility: visible; opacity: 1; }
+
+    /* Totals bar */
+    .totals-bar {
+      background: var(--grey-800);
+      color: var(--grey-200);
+      padding: 8px 20px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    .totals-bar .t-label { color: var(--grey-400); font-size: 11px; margin-right: 4px; }
+    .totals-bar .t-val   { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+    /* ── Placeholder / empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--grey-600);
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-state h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--grey-800); }
+    .empty-state p  { font-size: 12px; line-height: 1.6; max-width: 380px; margin: 0 auto; }
+    .empty-state code {
+      background: var(--grey-100);
+      border: 1px solid var(--grey-200);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 11px;
+    }
+
+    /* ── Cookie modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 24px;
+      width: 520px;
+      max-width: 95vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .modal-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .modal-card p  { font-size: 12px; color: var(--grey-600); line-height: 1.6; margin-bottom: 12px; }
+    .modal-card ol { font-size: 12px; color: var(--grey-600); line-height: 1.8; margin: 0 0 16px 18px; }
+    .modal-card ol code {
+      background: var(--grey-100);
+      border: 1px solid var(--grey-200);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 11px;
+    }
+    .modal-card textarea {
+      width: 100%;
+      height: 90px;
+      font-size: 11px;
+      font-family: monospace;
+      border: 1px solid var(--grey-200);
+      border-radius: 5px;
+      padding: 8px;
+      resize: vertical;
+      outline: none;
+    }
+    .modal-card textarea:focus { border-color: var(--blue-bright); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+    .btn-modal-save   { background: var(--blue-mid); color: #fff; }
+    .btn-modal-cancel { background: var(--grey-100); color: var(--grey-800); }
 
     /* ── Responsive ── */
-    @media (max-width: 720px) {
-      .col-ilabel, .col-input, .col-hash { display: none; }
+    @media (max-width: 900px) {
+      .fclm-table th:nth-child(1),
+      .fclm-table td:nth-child(1),
+      .fclm-table th:nth-child(2),
+      .fclm-table td:nth-child(2) { display: none; }
     }
   </style>
 </head>
 <body>
 
+<!-- ═══════════════════════════════════════════
+     PAGE HEADER
+═══════════════════════════════════════════ -->
 <div class="page-header">
-  <h1>RC Sort — Weekly Operations Dashboard</h1>
-  <span class="week-badge">WK 24 · 2026</span>
+  <h1>RC Sort — Process Path Rollup</h1>
+  <span class="week-badge" id="week-badge">WK — · —</span>
+
+  <div id="proxy-status" data-state="unknown">
+    <span class="dot"></span>
+    <span id="proxy-status-label">Checking proxy…</span>
+  </div>
+
+  <button class="btn btn-secondary" id="btn-cookie" onclick="showCookieModal()">
+    🔑 Session Cookie
+  </button>
+
+  <button class="btn btn-primary" id="btn-refresh" onclick="fetchData()">
+    <span class="spinner" id="refresh-spinner"></span>
+    ⟳ Connect / Refresh
+  </button>
+</div>
+
+<!-- ── Banners ── -->
+<div id="banner-stale"   class="banner banner-warn">
+  ⚠ Your Midway session cookie may be expired (older than 12 hours).
+  Run <strong>mwinit</strong> in a terminal then click Refresh.
+</div>
+<div id="banner-no-proxy" class="banner banner-error">
+  ✗ Proxy is not running. In a terminal: <strong>python proxy.py</strong> — then click Refresh.
+</div>
+<div id="banner-auth"    class="banner banner-error">
+  ✗ Authentication failed. Run <strong>mwinit</strong> or paste a session cookie via 🔑 Session Cookie.
+</div>
+<div id="banner-parse"   class="banner banner-warn">
+  ⚠ Data loaded but table format was not recognized. FCLM may have updated its layout.
 </div>
 
 <!-- ═══════════════════════════════════════════
-     SECTION 1: RC Sort – Direct
+     LIVE DATA TABLE (shown when data loaded)
 ═══════════════════════════════════════════ -->
-<div class="card">
-  <table>
-    <thead>
-      <tr>
-        <th class="col-label">Metric</th>
-        <th class="col-actual">Actual</th>
-        <th class="col-input">Target</th>
-        <th class="col-hash">#</th>
-        <th class="col-ilabel">Input Type</th>
-        <th class="col-plan">Plan / Goal</th>
-        <th class="col-info"></th>
-      </tr>
-    </thead>
-    <tbody>
-
-      <!-- Section header -->
-      <tr class="section-header" data-section="direct" onclick="toggleSection('direct')">
-        <td class="col-label">
-          <span class="toggle-icon">▼</span>RC Sort – Direct
-          <small style="font-size:11px;font-weight:400;margin-left:8px;opacity:.75">123 (1,233)</small>
-        </td>
-        <td class="col-actual"></td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-down"><span class="trend-arrow">↓</span>86 (863)</td>
-        <td class="col-info"></td>
-      </tr>
-
-      <!-- RC Sort Units -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">RC Sort Units <small>(Default = Commitment)</small></td>
-        <td class="col-actual actual-val">486,500</td>
-        <td class="col-input"><input class="target-input" type="number" value="486500" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">WEEKLY SORT COMMITMENT</span></td>
-        <td class="col-plan trend-none plan-val">486,500</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Total weekly sort commitment units</span></div></td>
-      </tr>
-
-      <!-- UIS 5lb Cartons -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 5lb Cartons</td>
-        <td class="col-actual actual-val">0</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-none plan-val">0</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 5lb carton count</span></div></td>
-      </tr>
-
-      <!-- UIS 5lb Units -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 5lb Units</td>
-        <td class="col-actual actual-val">258,653</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>314,340</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 5lb unit volume (weekly goal: 314,340)</span></div></td>
-      </tr>
-
-      <!-- UIS 5lb Rate -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 5lb Rate</td>
-        <td class="col-actual actual-val">994.82</td>
-        <td class="col-input"><input class="target-input" type="number" value="1209" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">SORT WEEKLY RATE</span></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>1,209</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Units/hr — goal 1,209 uph</span></div></td>
-      </tr>
-
-      <!-- UIS 5lb Inductor HC -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 5lb Inductor HC</td>
-        <td class="col-actual actual-val">26 <span class="actual-sub">(260)</span></td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-none plan-val">26 <span style="color:#718096;font-weight:400">(260)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Daily HC (weekly hours in parentheses)</span></div></td>
-      </tr>
-
-      <!-- 5lb Case Prep HC -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">5lb Case Prep HC</td>
-        <td class="col-actual actual-val">26 <span class="actual-sub">(260)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="26" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">MANDALOR STATION</span></td>
-        <td class="col-plan trend-none plan-val">26 <span style="color:#718096;font-weight:400">(260)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Mandalor station headcount</span></div></td>
-      </tr>
-
-      <!-- UIS 20lb Cartons -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 20lb Cartons</td>
-        <td class="col-actual actual-val">0</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-none plan-val">0</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 20lb carton count</span></div></td>
-      </tr>
-
-      <!-- UIS 20lb Units -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 20lb Units</td>
-        <td class="col-actual actual-val">123,541</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>165,920</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">UIS 20lb unit volume (weekly goal: 165,920)</span></div></td>
-      </tr>
-
-      <!-- UIS 20lb Rate -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 20lb Rate</td>
-        <td class="col-actual actual-val">772.13</td>
-        <td class="col-input"><input class="target-input" type="number" value="1037" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">WEEKLY SORT RATE</span></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>1,037</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Units/hr — goal 1,037 uph</span></div></td>
-      </tr>
-
-      <!-- UIS 20lb Inductor HC -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">UIS 20lb Inductor HC</td>
-        <td class="col-actual actual-val">16 <span class="actual-sub">(160)</span></td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-none plan-val">16 <span style="color:#718096;font-weight:400">(160)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Daily HC (weekly hours in parentheses)</span></div></td>
-      </tr>
-
-      <!-- 20lb Case Prep HC -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">20lb Case Prep HC</td>
-        <td class="col-actual actual-val">16 <span class="actual-sub">(160)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="16" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">MANDALOR STATIONS</span></td>
-        <td class="col-plan trend-none plan-val">16 <span style="color:#718096;font-weight:400">(160)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Mandalor station headcount</span></div></td>
-      </tr>
-
-      <!-- Manual Sort Cartons -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">Manual Sort Cartons</td>
-        <td class="col-actual actual-val">0</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-none plan-val">0</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Manual sort carton count</span></div></td>
-      </tr>
-
-      <!-- Manual Sort Units -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">Manual Sort Units</td>
-        <td class="col-actual actual-val">104,305</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>6,240</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Manual sort unit volume</span></div></td>
-      </tr>
-
-      <!-- Manual Sort Rate -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">Manual Sort Rate</td>
-        <td class="col-actual actual-val">265.25</td>
-        <td class="col-input"><input class="target-input" type="number" value="271" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">WEEKLY SORT RATE</span></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>271</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Units/hr — goal 271 uph</span></div></td>
-      </tr>
-
-      <!-- Manual Sort HC -->
-      <tr class="data-row collapsible" data-group="direct">
-        <td class="col-label row-label">Manual Sort HC</td>
-        <td class="col-actual actual-val">39 <span class="actual-sub">(393)</span></td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>2 <span style="color:#718096;font-weight:400">(23)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Manual sort headcount</span></div></td>
-      </tr>
-
-    </tbody>
-  </table>
+<div id="live-table-container">
+  <!-- Totals bar injected here by JS -->
+  <div id="totals-bar-wrap"></div>
+  <!-- Main table card -->
+  <div class="card" style="margin-bottom:16px;">
+    <div id="fclm-table-wrap"></div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════
-     SECTION 2: RC Sort – Indirect Roles
+     EMPTY STATE (shown when no data yet)
 ═══════════════════════════════════════════ -->
-<div class="card">
-  <table>
-    <thead>
-      <tr>
-        <th class="col-label">Role</th>
-        <th class="col-actual">Actual</th>
-        <th class="col-input">Target</th>
-        <th class="col-hash">#</th>
-        <th class="col-ilabel">Input Type</th>
-        <th class="col-plan">Plan / Goal</th>
-        <th class="col-info"></th>
-      </tr>
-    </thead>
-    <tbody>
-
-      <!-- Section header -->
-      <tr class="section-header" data-section="indirect" onclick="toggleSection('indirect')">
-        <td class="col-label">
-          <span class="toggle-icon">▼</span>RC Sort — Indirect Roles
-          <small style="font-size:11px;font-weight:400;margin-left:8px;opacity:.75">74 (744)</small>
-        </td>
-        <td class="col-actual"></td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-up"><span class="trend-arrow">↑</span>88 (880)</td>
-        <td class="col-info"></td>
-      </tr>
-
-      <!-- Indirect OP Hrs -->
-      <tr class="data-row subtotal-row collapsible" data-group="indirect">
-        <td class="col-label row-label">RC Sort – Total Indirect OP Hrs Allowed</td>
-        <td class="col-actual actual-val">1,162</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>1,533</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Total indirect OP hours allowed this week</span></div></td>
-      </tr>
-
-      <!-- Indirect LP Hrs -->
-      <tr class="data-row subtotal-row collapsible" data-group="indirect">
-        <td class="col-label row-label">RC Sort – Total Indirect LP Hrs Allowed</td>
-        <td class="col-actual actual-val" style="color:#c05621;">-683</td>
-        <td class="col-input"></td>
-        <td class="col-hash"></td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>-313</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Total indirect LP hours allowed (negative = over budget)</span></div></td>
-      </tr>
-
-      <!-- AIS 5lb Induct -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">AIS_5lb_Induct <small>(AISOPSS)</small></td>
-        <td class="col-actual actual-val">0</td>
-        <td class="col-input"><input class="target-input" type="number" value="0" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">N/S</span></td>
-        <td class="col-plan trend-none plan-val">0</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Not scheduled this week</span></div></td>
-      </tr>
-
-      <!-- RC Sort 5S -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">RC Sort 5S <small>(RSRT5S)</small></td>
-        <td class="col-actual actual-val">0</td>
-        <td class="col-input"><input class="target-input" type="number" value="0" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">N/S</span></td>
-        <td class="col-plan trend-none plan-val">0</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Not scheduled this week</span></div></td>
-      </tr>
-
-      <!-- UIS 20lb Case Prep -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS 20lb Case Prep <small>(UISCASEXL)</small></td>
-        <td class="col-actual actual-val">5 <span class="actual-sub">(53)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="0" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">N/S</span></td>
-        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>0</td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Not scheduled this week</span></div></td>
-      </tr>
-
-      <!-- UIS 20lb Psolve -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS 20lb Psolve <small>(UIS20PS)</small></td>
-        <td class="col-actual actual-val">1 <span class="actual-sub">(13)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="5" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">HC</span></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>5 <span style="color:#718096;font-weight:400">(50)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Problem-solve headcount target: 5</span></div></td>
-      </tr>
-
-      <!-- UIS 5lb Psolve -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS 5lb Psolve <small>(UIS5PS)</small></td>
-        <td class="col-actual actual-val">2 <span class="actual-sub">(21)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="6" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">HC</span></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>6 <span style="color:#718096;font-weight:400">(60)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Problem-solve headcount target: 6</span></div></td>
-      </tr>
-
-      <!-- UIS Case Prep -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS Case Prep <small>(UISCASE)</small></td>
-        <td class="col-actual actual-val">9 <span class="actual-sub">(86)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="6" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">HC</span></td>
-        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>6 <span style="color:#718096;font-weight:400">(60)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Case prep headcount target: 6</span></div></td>
-      </tr>
-
-      <!-- UIS SupUser 20lb -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS SupUser 20lb <small>(UIS20SU)</small></td>
-        <td class="col-actual actual-val">3 <span class="actual-sub">(32)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="5" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">HC</span></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>5 <span style="color:#718096;font-weight:400">(50)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Super-user 20lb headcount target: 5</span></div></td>
-      </tr>
-
-      <!-- UIS SupUser 5lb -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS SupUser 5lb <small>(UIS5SU)</small></td>
-        <td class="col-actual actual-val">5 <span class="actual-sub">(52)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="5" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">HC</span></td>
-        <td class="col-plan trend-down plan-val"><span class="trend-arrow">↓</span>5 <span style="color:#718096;font-weight:400">(50)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Super-user 5lb headcount target: 5</span></div></td>
-      </tr>
-
-      <!-- UIS 20lb ToteWrangle -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS_20lb_ToteWrangle</td>
-        <td class="col-actual actual-val">16 <span class="actual-sub">(160)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="16" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">HC</span></td>
-        <td class="col-plan trend-none plan-val">16 <span style="color:#718096;font-weight:400">(160)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Tote wrangle 20lb headcount</span></div></td>
-      </tr>
-
-      <!-- UIS 5lb ToteWrangle -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">UIS_5lb_ToteWrangle</td>
-        <td class="col-actual actual-val">26 <span class="actual-sub">(260)</span></td>
-        <td class="col-input"><input class="target-input" type="number" placeholder="—" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"></td>
-        <td class="col-plan trend-none plan-val">26 <span style="color:#718096;font-weight:400">(260)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Tote wrangle 5lb headcount</span></div></td>
-      </tr>
-
-      <!-- Water Spider -->
-      <tr class="data-row collapsible" data-group="indirect">
-        <td class="col-label row-label">Water Spider <small>(RCWS)</small></td>
-        <td class="col-actual actual-val">7 <span class="actual-sub">(67)</span></td>
-        <td class="col-input"><input class="target-input" type="number" value="19" /></td>
-        <td class="col-hash">#</td>
-        <td class="col-ilabel"><span class="input-label">[PDP] Planned HC</span></td>
-        <td class="col-plan trend-up plan-val"><span class="trend-arrow">↑</span>19 <span style="color:#718096;font-weight:400">(190)</span></td>
-        <td class="col-info"><div class="tooltip-wrap"><button class="info-btn">i</button><span class="tooltip-text">Water spider headcount — PDP planned target: 19</span></div></td>
-      </tr>
-
-    </tbody>
-  </table>
+<div id="empty-state-container" class="card" style="margin:16px;margin-bottom:16px;">
+  <div class="empty-state">
+    <div class="icon">📊</div>
+    <h2>No data loaded yet</h2>
+    <p>
+      Start the local proxy in a terminal:<br/>
+      <code>python proxy.py</code><br/><br/>
+      Then click <strong>Connect / Refresh</strong> above.
+      Make sure you've run <code>mwinit</code> first so your Midway session is active.
+    </p>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════
-     TOTALS ROW
+     COOKIE MODAL
 ═══════════════════════════════════════════ -->
-<div class="card" style="margin-bottom:16px;">
-  <table>
-    <tbody>
-      <tr class="totals-row">
-        <td class="col-label" style="font-size:14px;">RC Sort — Total</td>
-        <td class="col-actual" style="font-size:12px;color:#a0aec0;">333,350</td>
-        <td class="col-input" style="text-align:right;font-size:12px;color:#a0aec0;">1,216.53</td>
-        <td class="col-hash" style="text-align:right;font-size:12px;color:#a0aec0;">274.02</td>
-        <td class="col-ilabel" style="font-size:12px;color:#a0aec0;">254.19 &nbsp;|&nbsp; 1,311.43</td>
-        <td class="col-plan" style="text-align:right;">
-          94.9 &nbsp; <span class="pct-badge">107.8%</span>
-        </td>
-        <td class="col-info"></td>
-      </tr>
-    </tbody>
-  </table>
+<div id="cookie-modal" class="modal-overlay">
+  <div class="modal-card">
+    <h2>🔑 Paste Session Cookie</h2>
+    <p>Use this if <code>mwinit</code> isn't available or the automatic cookie isn't working.</p>
+    <ol>
+      <li>Open <strong>https://fclm-portal.amazon.com</strong> in your browser while logged in.</li>
+      <li>Open DevTools → <strong>Network</strong> tab → refresh the page.</li>
+      <li>Click any request → <strong>Headers</strong> → find <code>Cookie:</code> in the Request headers.</li>
+      <li>Copy the entire cookie value and paste it below.</li>
+    </ol>
+    <textarea id="cookie-input" placeholder="Paste your session cookie string here…"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-modal-cancel" onclick="hideCookieModal()">Cancel</button>
+      <button class="btn btn-primary btn-modal-save" onclick="saveCookie()">Save &amp; Refresh</button>
+    </div>
+  </div>
 </div>
 
 <script>
-  function toggleSection(section) {
-    const header = document.querySelector(`[data-section="${section}"]`);
-    const rows = document.querySelectorAll(`[data-group="${section}"]`);
-    const collapsed = header.classList.toggle('collapsed');
-    rows.forEach(r => r.classList.toggle('hidden', collapsed));
+"use strict";
+
+// ── Config ────────────────────────────────────────────────────────────────────
+const PROXY_BASE  = "http://localhost:8765";
+const WAREHOUSE   = "RFD2";
+const FCLM_PATH   = `/reports/processPathRollup?warehouseId=${WAREHOUSE}`;
+const REFRESH_MS  = 5 * 60 * 1000;  // auto-refresh every 5 min
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const elStatus      = document.getElementById("proxy-status");
+const elStatusLabel = document.getElementById("proxy-status-label");
+const elBtnRefresh  = document.getElementById("btn-refresh");
+const elSpinner     = document.getElementById("refresh-spinner");
+const elLiveWrap    = document.getElementById("live-table-container");
+const elEmptyWrap   = document.getElementById("empty-state-container");
+const elTableWrap   = document.getElementById("fclm-table-wrap");
+const elTotalsWrap  = document.getElementById("totals-bar-wrap");
+const elWeekBadge   = document.getElementById("week-badge");
+
+const banners = {
+  stale:   document.getElementById("banner-stale"),
+  noProxy: document.getElementById("banner-no-proxy"),
+  auth:    document.getElementById("banner-auth"),
+  parse:   document.getElementById("banner-parse"),
+};
+
+// ── Status pill ───────────────────────────────────────────────────────────────
+const STATUS_LABELS = {
+  unknown:       "Checking proxy…",
+  connected:     "Connected",
+  "auth-required": "Auth Required",
+  stale:         "Session Stale",
+  offline:       "Proxy Offline",
+  error:         "Error",
+};
+
+function setStatus(state) {
+  elStatus.dataset.state = state;
+  elStatusLabel.textContent = STATUS_LABELS[state] ?? state;
+}
+
+// ── Banner helpers ────────────────────────────────────────────────────────────
+function clearBanners() {
+  Object.values(banners).forEach(b => b.classList.remove("show"));
+}
+function showBanner(key) {
+  clearBanners();
+  banners[key]?.classList.add("show");
+}
+
+// ── Loading state ─────────────────────────────────────────────────────────────
+function setLoading(on) {
+  elBtnRefresh.disabled = on;
+  elBtnRefresh.classList.toggle("loading", on);
+}
+
+// ── Week badge ────────────────────────────────────────────────────────────────
+function updateWeekBadge() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+  elWeekBadge.textContent = `WK ${week} · ${now.getFullYear()}`;
+}
+
+// ── Health check ──────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${PROXY_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+    const data = await r.json();
+    if (data.status === "ok" || data.manualCookie) {
+      setStatus("connected");
+      clearBanners();
+    } else if (data.status === "stale") {
+      setStatus("stale");
+      showBanner("stale");
+    } else {
+      setStatus("auth-required");
+      showBanner("auth");
+    }
+    return data.status === "ok" || data.manualCookie;
+  } catch {
+    setStatus("offline");
+    showBanner("noProxy");
+    return false;
+  }
+}
+
+// ── Main fetch ────────────────────────────────────────────────────────────────
+async function fetchData() {
+  setLoading(true);
+  clearBanners();
+
+  // Check proxy first
+  const healthy = await checkHealth();
+  if (!healthy && elStatus.dataset.state === "offline") {
+    setLoading(false);
+    return;
   }
 
-  // Highlight input on change
-  document.querySelectorAll('.target-input').forEach(input => {
-    const original = input.value;
-    input.addEventListener('input', () => {
-      if (input.value !== original) {
-        input.style.borderColor = '#3182ce';
-        input.style.background = '#ebf8ff';
-      } else {
-        input.style.borderColor = '';
-        input.style.background = '';
-      }
+  try {
+    const r = await fetch(`${PROXY_BASE}/api${FCLM_PATH}`, {
+      signal: AbortSignal.timeout(30000),
     });
-  });
+
+    // Auth error
+    if (r.headers.get("X-Proxy-Auth-Error") === "true") {
+      const body = await r.json().catch(() => ({}));
+      setStatus("auth-required");
+      showBanner("auth");
+      setLoading(false);
+      return;
+    }
+
+    const contentType = r.headers.get("X-Upstream-Content-Type") || r.headers.get("Content-Type") || "";
+    let rows;
+
+    if (contentType.includes("json")) {
+      const json = await r.json();
+      rows = parseJSON(json);
+    } else {
+      const html = await r.text();
+      rows = parseHTML(html);
+    }
+
+    if (!rows || rows.length === 0) {
+      showBanner("parse");
+      setLoading(false);
+      return;
+    }
+
+    renderTable(rows);
+    setStatus("connected");
+
+  } catch (err) {
+    if (err.name === "TimeoutError") {
+      showBanner("noProxy");
+      setStatus("offline");
+    } else {
+      setStatus("error");
+    }
+  }
+
+  setLoading(false);
+}
+
+// ── HTML parser ───────────────────────────────────────────────────────────────
+function parseHTML(html) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+
+  // Find the table whose headers include "Main Processes" or "Line Items"
+  let targetTable = null;
+  for (const tbl of doc.querySelectorAll("table")) {
+    const text = tbl.textContent || "";
+    if (text.includes("Line Items") || text.includes("Main Processes") || text.includes("RC Sort")) {
+      targetTable = tbl;
+      break;
+    }
+  }
+  if (!targetTable) return null;
+
+  const rows = [];
+  let mainProcess = "", coreProcess = "";
+
+  for (const tr of targetTable.querySelectorAll("tr")) {
+    const cells = [...tr.querySelectorAll("td, th")].map(c => c.textContent.trim());
+    if (cells.length < 4) continue;
+
+    // Detect merged-cell rows (Main Process / Core Process labels)
+    const td0 = tr.querySelector("td");
+    if (!td0) continue;
+
+    const rowspan0 = parseInt(td0.getAttribute("rowspan") || "1");
+    if (rowspan0 > 1) mainProcess = cells[0] || mainProcess;
+
+    // Build row object — column positions inferred from screenshot layout:
+    // [mainProc?, coreProc?, lineItem, icons, unit, volAct, hrsAct, rateAct, ratePlan, hrsPlan, delta, pct]
+    // Column count varies; we detect by looking at known numeric patterns
+    const numCols = cells.length;
+
+    if (numCols >= 8) {
+      const offset = numCols >= 12 ? 0 : numCols >= 10 ? 1 : 2;
+      rows.push({
+        mainProcess:  cells[0 - offset] || mainProcess,
+        coreProcess:  cells[1 - offset] || coreProcess,
+        lineItem:     cells[Math.max(0, 2 - offset)],
+        unit:         cells[Math.max(0, 4 - offset)] || "-",
+        volActual:    cells[numCols - 7] || "0",
+        hrsActual:    cells[numCols - 6] || "0",
+        rateActual:   cells[numCols - 5] || "0",
+        ratePlan:     cells[numCols - 4] || "0",
+        hrsPlan:      cells[numCols - 3] || "0",
+        deltaPlan:    cells[numCols - 2] || "0",
+        pctPlan:      cells[numCols - 1] || "0%",
+      });
+    }
+  }
+  return rows.length ? rows : null;
+}
+
+// ── JSON parser (if FCLM returns JSON) ───────────────────────────────────────
+function parseJSON(json) {
+  // Handle array of row objects or wrapped {data: [...]}
+  const arr = Array.isArray(json) ? json : json.data || json.rows || [];
+  return arr.map(r => ({
+    mainProcess: r.mainProcess  || r.main_process || "",
+    coreProcess: r.coreProcess  || r.core_process || "",
+    lineItem:    r.lineItem     || r.line_item     || r.name || "",
+    unit:        r.unit         || "-",
+    volActual:   r.volActual    || r.vol_actual    || "0",
+    hrsActual:   r.hrsActual    || r.hrs_actual    || "0",
+    rateActual:  r.rateActual   || r.rate_actual   || "0",
+    ratePlan:    r.ratePlan     || r.rate_plan      || "0",
+    hrsPlan:     r.hrsPlan      || r.hrs_plan       || "0",
+    deltaPlan:   r.deltaPlan    || r.delta_plan     || "0",
+    pctPlan:     r.pctPlan      || r.pct_plan       || "0%",
+  }));
+}
+
+// ── Rendering helpers ─────────────────────────────────────────────────────────
+function num(v) {
+  return `<span class="num">${v ?? "-"}</span>`;
+}
+
+function pctBadge(v) {
+  const val = parseFloat(String(v).replace("%", ""));
+  if (isNaN(val) || val === 0) return `<span class="pct-badge pct-grey">${v}</span>`;
+  return `<span class="pct-badge ${val >= 100 ? "pct-green" : "pct-red"}">${v}</span>`;
+}
+
+function deltaBadge(v) {
+  const val = parseFloat(v);
+  if (isNaN(val)) return v;
+  if (val > 0) return `<span class="delta-pos">+${v}</span>`;
+  if (val < 0) return `<span class="delta-neg">${v}</span>`;
+  return v;
+}
+
+// ── Table renderer ────────────────────────────────────────────────────────────
+function renderTable(rows) {
+  // Group rows by mainProcess
+  const groups = new Map();
+  let currentMain = "";
+  for (const row of rows) {
+    const key = row.mainProcess || currentMain || "Other";
+    currentMain = key;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(row);
+  }
+
+  // Build totals from the last "Total" row or last row
+  const totalRow = rows.find(r =>
+    /RC Sort.*Total/i.test(r.lineItem) || /Total/i.test(r.lineItem)
+  ) || rows[rows.length - 1];
+
+  // Render totals bar
+  elTotalsWrap.innerHTML = `
+    <div class="totals-bar">
+      <span><span class="t-label">Vol</span><span class="t-val">${totalRow.volActual}</span></span>
+      <span><span class="t-label">Hrs (Act)</span><span class="t-val">${totalRow.hrsActual}</span></span>
+      <span><span class="t-label">Rate (Act)</span><span class="t-val">${totalRow.rateActual}</span></span>
+      <span><span class="t-label">Rate (Plan)</span><span class="t-val">${totalRow.ratePlan}</span></span>
+      <span><span class="t-label">Hrs (Plan)</span><span class="t-val">${totalRow.hrsPlan}</span></span>
+      <span><span class="t-label">Δ to Plan</span><span class="t-val">${totalRow.deltaPlan}</span></span>
+      <span>${pctBadge(totalRow.pctPlan)}</span>
+      <span style="margin-left:auto;font-size:10px;color:#718096;">
+        Last updated: ${new Date().toLocaleTimeString()}
+      </span>
+    </div>`;
+
+  // Build table HTML
+  let html = `
+  <table class="fclm-table" id="main-fclm-table">
+    <thead>
+      <tr class="col-group">
+        <th rowspan="2">Main Processes</th>
+        <th rowspan="2">Core Processes</th>
+        <th rowspan="2" style="text-align:left">Line Items</th>
+        <th rowspan="2">Unit</th>
+        <th colspan="3" style="border-left:2px solid #4a5568">Actual</th>
+        <th colspan="4" style="border-left:2px solid #4a5568">Plan</th>
+      </tr>
+      <tr class="col-names">
+        <th class="num" style="border-left:2px solid #4a5568">Vol</th>
+        <th class="num">Hrs</th>
+        <th class="num">Rate</th>
+        <th class="num" style="border-left:2px solid #4a5568">Rate</th>
+        <th class="num">Hrs</th>
+        <th class="num">Δ to Plan (Hrs)</th>
+        <th class="num">% to Plan</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  let sectionIdx = 0;
+  for (const [groupName, groupRows] of groups) {
+    const secId = `sec-${sectionIdx++}`;
+    const isRCSort = /RC Sort/i.test(groupName);
+
+    html += `
+      <tr class="section-hdr" onclick="toggleSection('${secId}')">
+        <td colspan="11"><span class="toggle-icon">▼</span>${escHtml(groupName)}</td>
+      </tr>`;
+
+    let rowIdx = 0;
+    for (const row of groupRows) {
+      const isTotal = /Total/i.test(row.lineItem);
+      const isRCSortTotal = isRCSort && /RC Sort.*Total/i.test(row.lineItem);
+      const cls = isRCSortTotal ? "rc-sort-total" : isTotal ? "sub-total" : `data-row collapsible`;
+
+      html += `
+      <tr class="${cls}" data-group="${secId}">
+        <td class="merge-cell">${rowIdx === 0 ? escHtml(row.mainProcess) : ""}</td>
+        <td class="merge-cell">${rowIdx === 0 ? escHtml(row.coreProcess) : ""}</td>
+        <td>${escHtml(row.lineItem)}</td>
+        <td style="text-align:center;color:#718096">${escHtml(row.unit)}</td>
+        <td class="num" style="border-left:2px solid #e2e8f0">${fmt(row.volActual)}</td>
+        <td class="num">${fmt(row.hrsActual)}</td>
+        <td class="num" style="color:#c05621;font-weight:600">${fmt(row.rateActual)}</td>
+        <td class="num" style="border-left:2px solid #e2e8f0">${fmt(row.ratePlan)}</td>
+        <td class="num">${fmt(row.hrsPlan)}</td>
+        <td class="num">${deltaBadge(row.deltaPlan)}</td>
+        <td class="num">${pctBadge(row.pctPlan)}</td>
+      </tr>`;
+      rowIdx++;
+    }
+  }
+
+  html += `</tbody></table>`;
+  elTableWrap.innerHTML = html;
+
+  // Show live table, hide empty state
+  elLiveWrap.classList.add("show");
+  elEmptyWrap.style.display = "none";
+}
+
+function fmt(v) {
+  if (v === null || v === undefined || v === "") return "-";
+  return String(v);
+}
+
+function escHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// ── Section collapse ──────────────────────────────────────────────────────────
+function toggleSection(secId) {
+  const hdr  = document.querySelector(`[onclick="toggleSection('${secId}')"]`);
+  const rows = document.querySelectorAll(`[data-group="${secId}"]`);
+  const collapsed = hdr.classList.toggle("collapsed");
+  rows.forEach(r => r.classList.toggle("hidden", collapsed));
+}
+
+// ── Cookie modal ──────────────────────────────────────────────────────────────
+function showCookieModal()  { document.getElementById("cookie-modal").classList.add("show"); }
+function hideCookieModal()  { document.getElementById("cookie-modal").classList.remove("show"); }
+
+async function saveCookie() {
+  const val = document.getElementById("cookie-input").value.trim();
+  if (!val) return;
+  try {
+    await fetch(`${PROXY_BASE}/set-cookie`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ cookie: val }),
+    });
+    hideCookieModal();
+    fetchData();
+  } catch {
+    alert("Could not reach proxy. Make sure python proxy.py is running.");
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateWeekBadge();
+checkHealth();
+setInterval(fetchData, REFRESH_MS);
 </script>
 </body>
 </html>
