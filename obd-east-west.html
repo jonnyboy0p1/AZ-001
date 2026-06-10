@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FUSE-OBD · East/West Weight & Trailer Map</title>
+<style>
+:root{--ink:#14213d;--teal:#008891;--gold:#ffb703;--red:#d95d39;--green:#2a9d8f;--line:#d9e2ec;--field:#f0f4fa;--white:#fff;--ob:#9a3412}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5}
+.fuse-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--ink);position:sticky;top:0;z-index:100}
+.brand{font-size:16px;font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;flex-shrink:0}
+.brand em{color:rgba(255,255,255,.3);font-style:normal;font-weight:400;font-size:10px;margin-left:8px;letter-spacing:.12em}
+.pills{display:flex;gap:3px;flex-wrap:wrap}
+.pills a{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-decoration:none;color:rgba(255,255,255,.45);transition:all .15s}
+.pills a:hover{background:rgba(255,255,255,.1);color:#fff}
+.pills a.p-ixd.active{background:var(--teal);color:#fff}
+.pills a.p-ib.active,.pills a.p-anti.active{background:#1d4ed8;color:#fff}
+.pills a.p-ob.active,.pills a.p-cdt.active{background:#b45309;color:#fff}
+.nclock{font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
+.shell{max-width:1600px;margin:0 auto;padding:18px}
+.ph{margin-bottom:16px}.ph h1{font-size:21px;font-weight:900}.ph p{color:#64748b;font-size:12px;margin-top:3px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.mb16{margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(20,33,61,.04)}
+.ct{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:12px}
+.card-ob{border-left:3px solid #c2410c}
+.card-east{border-left:3px solid #1d4ed8}
+.card-west{border-left:3px solid #c2410c}
+/* BANNER */
+.banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600;margin-bottom:16px}
+.banner-sample{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.banner-live{background:#f0fdf4;border:1px solid #86efac;color:#166534}
+/* KPI */
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kl{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748b}
+.kv{font-size:22px;font-weight:900;line-height:1.1;margin-top:4px}
+.ks{font-size:11px;color:#64748b;margin-top:2px}
+/* SIDE GAUGE */
+.gauge-wrap{margin-top:12px}
+.gauge-label-row{display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:4px;font-weight:600}
+.gauge-track{height:24px;border-radius:8px;background:#e2e8f0;position:relative;overflow:hidden}
+.gauge-band{position:absolute;top:0;bottom:0;background:rgba(22,163,74,.18);border-left:2px solid #16a34a;border-right:2px solid #16a34a}
+.gauge-warn{position:absolute;top:0;bottom:0;background:rgba(217,119,6,.12)}
+.gauge-fill{position:absolute;top:0;bottom:0;left:0;border-radius:8px 0 0 8px;transition:width .5s}
+.gauge-pointer{position:absolute;top:-5px;bottom:-5px;width:3px;border-radius:2px;background:#1e3a8a;transition:left .5s;z-index:2}
+.gauge-pointer::after{content:attr(data-val);position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;color:#1e3a8a;background:#fff;border:1px solid var(--line);padding:1px 5px;border-radius:4px}
+.gauge-ticks{display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-top:3px}
+.side-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+/* DOOR CARD */
+.door-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+.door-card{border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff;transition:box-shadow .15s;position:relative}
+.door-card:hover{box-shadow:0 4px 14px rgba(20,33,61,.12)}
+.door-card.w-under{border-color:#fca5a5;background:#fef2f2}
+.door-card.w-over{border-color:#fcd34d;background:#fffbeb}
+.door-card.w-in{border-color:#86efac;background:#f0fdf4}
+.door-card.w-empty{border-color:#e2e8f0;background:#f8fafc;opacity:.7}
+.door-card.w-hold{border-color:#ef4444;background:#fef2f2}
+.dh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px}
+.d-num{font-size:18px;font-weight:900;line-height:1}
+.d-dest{font-size:12px;font-weight:800;letter-spacing:.04em}
+.d-dest.na{color:#94a3b8;font-weight:600}
+.d-trailer{font-size:10px;color:#64748b;font-weight:600;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d-wt{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums}
+.d-wt-sub{font-size:10px;color:#64748b}
+.wbar{height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden;margin:5px 0 4px;position:relative}
+.wbar span{display:block;height:100%;border-radius:999px}
+.wbar .bandmark{position:absolute;top:-1px;bottom:-1px;width:1px;background:rgba(20,33,61,.25)}
+.d-badge{display:inline-flex;align-items:center;height:17px;padding:0 6px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.b-in{background:#dcfce7;color:#166534}.b-under{background:#fee2e2;color:#991b1b}.b-over{background:#fef9c3;color:#92400e}.b-empty{background:#f1f5f9;color:#64748b}.b-hold{background:#fee2e2;color:#991b1b}
+/* FILTERS */
+.filter-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filter-row label{font-size:12px;color:#64748b;font-weight:600}
+.filter-row select,.filter-row input{height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:#fff}
+.filter-row select:focus,.filter-row input:focus{outline:1px solid var(--teal)}
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}
+thead th{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;padding:8px 10px;text-align:left;border-bottom:2px solid var(--line);background:#f8fafc}
+tbody td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
+tbody tr:hover td{background:#f8fafc}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+/* BTN */
+.btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:7px;background:#fff;font:600 12px inherit;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn.primary{background:var(--ob);border-color:var(--ob);color:#fff}
+.btn.primary:hover{opacity:.9;color:#fff}
+.tg{color:#166534}.ta{color:#92400e}.tr{color:#991b1b}.tb{color:#1e3a8a}
+.modal{display:none;position:fixed;inset:0;background:rgba(20,33,61,.5);z-index:200;align-items:center;justify-content:center}
+.modal.show{display:flex}
+.modal-card{background:#fff;border-radius:12px;padding:22px;width:640px;max-width:95vw;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-card h2{font-size:15px;font-weight:800;margin-bottom:6px}
+.modal-card p{font-size:12px;color:#64748b;margin-bottom:10px}
+.modal-card textarea{width:100%;height:200px;font:12px monospace;border:1px solid var(--line);border-radius:6px;padding:8px;resize:vertical;outline:none}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+</style>
+</head>
+<body>
+
+<nav class="fuse-nav">
+  <a class="brand" href="fuse-ixd.html">FUSE <em>v001 · OBD E/W</em></a>
+  <div class="pills">
+    <a href="fuse-ixd.html" class="p-ixd">IXD</a>
+    <a href="fuse-ibd.html" class="p-ib">IBD</a>
+    <a href="fuse-anti.html" class="p-anti">ANTI</a>
+    <a href="fuse-obd.html" class="p-ob active">OBD</a>
+    <a href="fuse-cdt.html" class="p-cdt">CDT·WM</a>
+  </div>
+  <span class="nclock" id="clock">--:--:--</span>
+</nav>
+
+<div class="shell">
+  <div class="ph">
+    <h1>FUSE-OBD · East/West Weight &amp; Trailer Map</h1>
+    <p>OB dock split — <strong>East DD104–126</strong> · <strong>West DD334–355</strong>. Per-side and per-door weight monitor (32K–40K band) with trailer type from YMS. Destinations from DockFlow MainSorter. Node RFD2.</p>
+  </div>
+
+  <!-- Data-source banner -->
+  <div id="src-banner"></div>
+
+  <!-- Side summaries -->
+  <div class="g2 mb16">
+    <div class="card card-east" id="east-summary"></div>
+    <div class="card card-west" id="west-summary"></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb16">
+    <div class="ct">Filters</div>
+    <div class="filter-row">
+      <label>Side
+        <select id="f-side" onchange="renderAll()">
+          <option value="">East + West</option>
+          <option value="East">East only</option>
+          <option value="West">West only</option>
+        </select>
+      </label>
+      <label>Weight band
+        <select id="f-band" onchange="renderAll()">
+          <option value="">All</option>
+          <option value="in">In band (32–40K)</option>
+          <option value="under">Under (&lt;32K)</option>
+          <option value="over">Over (&gt;40K)</option>
+          <option value="hold">Hold / flagged</option>
+          <option value="empty">Empty doors</option>
+        </select>
+      </label>
+      <label>Search dest / trailer
+        <input type="text" id="f-search" placeholder="e.g. MKE, 53'" oninput="renderAll()" style="width:140px">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="f-hide-empty" onchange="renderAll()"> Hide empty doors
+      </label>
+      <button class="btn" style="margin-left:auto" onclick="clearFilters()">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- Door grids -->
+  <div class="g2 mb16">
+    <div class="card card-east">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="ct" style="margin-bottom:0">East Side · DD104–126</div>
+        <span id="east-count" style="font-size:11px;color:#64748b"></span>
+      </div>
+      <div class="door-grid" id="east-doors"></div>
+    </div>
+    <div class="card card-west">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="ct" style="margin-bottom:0">West Side · DD334–355</div>
+        <span id="west-count" style="font-size:11px;color:#64748b"></span>
+      </div>
+      <div class="door-grid" id="west-doors"></div>
+    </div>
+  </div>
+
+  <!-- Full table -->
+  <div class="card mb16">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:0">All Doors · Detail</div>
+      <button class="btn" onclick="exportCsv()">⭳ Export CSV</button>
+    </div>
+    <div class="table-wrap" id="detail-table"></div>
+  </div>
+
+  <!-- Data controls -->
+  <div class="card">
+    <div class="ct">Data Controls</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" onclick="pullDockFlow()">▶ DockFlow Pull (dest + weight)</button>
+      <button class="btn primary" onclick="pullYms()">▶ YMS Pull (trailer type · yesterday)</button>
+      <button class="btn" onclick="showPaste()">⌨ Paste CSV</button>
+      <label class="btn" style="cursor:pointer">⭱ Upload CSV<input type="file" accept=".csv" style="display:none" onchange="uploadCsv(this)"></label>
+      <button class="btn" onclick="renderAll()">↺ Refresh</button>
+      <button class="btn" style="margin-left:auto" onclick="resetSample()">↩ Reset to door map</button>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-top:10px">
+      Live pulls go through your local <code>proxy.py</code> (uses your Midway session). Start it with
+      <code>python proxy.py</code> after <code>mwinit</code>. If a pull can't return structured rows
+      (DockFlow/YMS are single-page apps), use <strong>Paste CSV</strong> — columns:
+      <code>side,door,destination,trailer_type,weight,status</code>.
+    </p>
+  </div>
+</div>
+
+<!-- Paste modal -->
+<div class="modal" id="paste-modal">
+  <div class="modal-card">
+    <h2>Paste door data (CSV or TSV)</h2>
+    <p>Header row required. Columns: <code>side,door,destination,trailer_type,weight,status</code>.
+       <code>weight</code> in lbs. <code>status</code>: Loading / Staged / Empty / Hold / Closed.
+       Tab-separated (pasted straight from Excel/DockFlow) also works.</p>
+    <textarea id="paste-input" placeholder="side,door,destination,trailer_type,weight,status&#10;East,104,IND1,53' Dry Van,34200,Loading&#10;..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="hidePaste()">Cancel</button>
+      <button class="btn primary" onclick="savePaste()">Load data</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const STORE={get:(k,fb)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const PROXY_BASE="http://localhost:8765";
+
+// Weight band (lbs) — matches FUSE-CDT·WM
+const BAND_LO=32000,BAND_HI=40000,WARN_LO=28000,WARN_HI=43000,GAUGE_MAX=48000;
+
+// ── Default door map (from DockFlow MainSorter screenshot). Weights/trailer types
+//    are SAMPLE placeholders until a live pull or paste replaces them. ──
+const sampleDoorsCsv=`side,door,destination,trailer_type,weight,status
+East,104,IND1,53' Dry Van,34200,Loading
+East,105,MSP1,53' Dry Van,28100,Loading
+East,106,PCW1,53' Dry Van,36500,Loading
+East,107,DSM5,53' Dry Van,41200,Loading
+East,108,QXX6,53' Dry Van,30900,Hold
+East,109,MDW4,53' Dry Van,37800,Loading
+East,110,CMH4,53' Dry Van,32400,Loading
+East,111,CMH1,53' Dry Van,39100,Loading
+East,113,STL8,53' Dry Van,30500,Loading
+East,114,SBN1,53' Dry Van,35600,Staged
+East,115,GRR1,53' Dry Van,38200,Loading
+East,116,MKE1,53' Dry Van,33300,Loading
+East,117,MKE2,53' Dry Van,40500,Loading
+East,118,ORD5,53' Dry Van,36900,Loading
+East,119,DET6,53' Dry Van,31200,Loading
+East,120,LUK2,53' Dry Van,34800,Loading
+East,121,IGQ1,53' Dry Van,37100,Loading
+East,122,FSD1,53' Dry Van,29800,Loading
+East,124,N/A,,0,Empty
+East,125,N/A,,0,Empty
+East,126,N/A,,0,Empty
+West,334,N/A,,0,Empty
+West,335,N/A,,0,Empty
+West,336,N/A,,0,Empty
+West,337,N/A,,0,Empty
+West,338,MKC6,53' Dry Van,35200,Loading
+West,339,DSM5,53' Dry Van,38600,Loading
+West,341,MDW7,53' Dry Van,33900,Loading
+West,342,FSD1,53' Dry Van,41800,Loading
+West,343,MKE2,53' Dry Van,36100,Loading
+West,344,HMW3,53' Dry Van,30900,Loading
+West,345,KRB6,53' Dry Van,34500,Loading
+West,346,DTW1,53' Dry Van,37600,Loading
+West,347,CLE2,53' Dry Van,32800,Loading
+West,348,FWA6,53' Dry Van,39400,Loading
+West,349,CLE3,53' Dry Van,28700,Loading
+West,350,MLI1,53' Dry Van,35900,Loading
+West,351,OMA2,53' Dry Van,33200,Loading
+West,352,DET3,53' Dry Van,40100,Loading
+West,353,ORD5,53' Dry Van,36400,Loading
+West,354,IGQ1,53' Dry Van,31600,Loading
+West,355,PCW1,53' Dry Van,38900,Loading`;
+
+function parseCsv(text){
+  if(!text)return[];
+  const lines=text.trim().split(/\r?\n/).filter(Boolean);
+  const delim=lines[0].includes('\t')?'\t':',';
+  const headers=lines[0].split(delim).map(h=>h.trim().toLowerCase());
+  return lines.slice(1).map(line=>{
+    const cols=line.split(delim);
+    return headers.reduce((r,h,i)=>{r[h]=(cols[i]||'').trim();return r},{});
+  });
+}
+
+function doors(){
+  const csv=STORE.get('obd.doorsCsv',null)||sampleDoorsCsv;
+  return parseCsv(csv).map(r=>{
+    const dest=(r.destination||'').trim();
+    const isEmpty=!dest||dest.toUpperCase()==='N/A'||(r.status||'').toLowerCase()==='empty';
+    return{
+      side:(r.side||'').trim()||'East',
+      door:String(r.door||'').trim(),
+      destination:isEmpty?'N/A':dest,
+      trailerType:(r.trailer_type||r.trailertype||'').trim(),
+      weight:Number(String(r.weight||'0').replace(/[^0-9.]/g,''))||0,
+      status:(r.status||(isEmpty?'Empty':'Loading')).trim(),
+      isEmpty
+    };
+  });
+}
+
+function band(d){
+  if(d.isEmpty||d.weight<=0)return'empty';
+  if((d.status||'').toLowerCase()==='hold'||(d.status||'').toLowerCase()==='closed')return'hold';
+  if(d.weight<BAND_LO)return'under';
+  if(d.weight>BAND_HI)return'over';
+  return'in';
+}
+const BAND_LABEL={in:'In band',under:'Under',over:'Over',empty:'Empty',hold:'Hold'};
+
+function pctOf(v){return Math.max(0,Math.min(100,(v/GAUGE_MAX)*100));}
+
+// ── Side summary card ──
+function sideSummary(side,list){
+  const loaded=list.filter(d=>!d.isEmpty&&band(d)!=='hold');
+  const totalWt=list.reduce((s,d)=>s+d.weight,0);
+  const avgWt=loaded.length?Math.round(loaded.reduce((s,d)=>s+d.weight,0)/loaded.length):0;
+  const inB=list.filter(d=>band(d)==='in').length;
+  const under=list.filter(d=>band(d)==='under').length;
+  const over=list.filter(d=>band(d)==='over').length;
+  const hold=list.filter(d=>band(d)==='hold').length;
+  const empty=list.filter(d=>band(d)==='empty').length;
+  const active=list.length-empty;
+  const avgColor=avgWt>=BAND_LO&&avgWt<=BAND_HI?'#16a34a':avgWt>=WARN_LO&&avgWt<=WARN_HI?'#d97706':'#dc2626';
+  const ticks=[0,12,24,36,48];
+  return`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="ct" style="margin-bottom:0">${side} Side · Weight Monitor</div>
+      <span style="font-size:11px;color:#64748b">${active}/${list.length} doors active</span>
+    </div>
+    <div class="side-stat-row">
+      <div class="kpi"><div class="kl">Total on side</div><div class="kv" style="font-size:18px">${(totalWt/1000).toFixed(1)}K</div><div class="ks">${active} loaded</div></div>
+      <div class="kpi"><div class="kl">Avg / door</div><div class="kv" style="font-size:18px;color:${avgColor}">${(avgWt/1000).toFixed(1)}K</div><div class="ks">band 32–40K</div></div>
+      <div class="kpi"><div class="kl">In band</div><div class="kv tg" style="font-size:18px">${inB}</div><div class="ks">${under} under · ${over} over</div></div>
+      <div class="kpi"><div class="kl">Flags</div><div class="kv ${hold?'tr':''}" style="font-size:18px">${hold}</div><div class="ks">${empty} empty</div></div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge-label-row"><span>0</span><span>Side avg vs target band</span><span>${(GAUGE_MAX/1000)}K lbs</span></div>
+      <div class="gauge-track">
+        <div class="gauge-warn" style="left:${pctOf(WARN_LO)}%;width:${pctOf(BAND_LO)-pctOf(WARN_LO)}%"></div>
+        <div class="gauge-band" style="left:${pctOf(BAND_LO)}%;width:${pctOf(BAND_HI)-pctOf(BAND_LO)}%"></div>
+        <div class="gauge-warn" style="left:${pctOf(BAND_HI)}%;width:${pctOf(WARN_HI)-pctOf(BAND_HI)}%"></div>
+        <div class="gauge-fill" style="width:${pctOf(avgWt)}%;background:${avgColor};opacity:.25"></div>
+        <div class="gauge-pointer" data-val="${(avgWt/1000).toFixed(1)}K" style="left:calc(${pctOf(avgWt)}% - 1px)"></div>
+      </div>
+      <div class="gauge-ticks">${ticks.map(t=>`<span>${t}K</span>`).join('')}</div>
+    </div>`;
+}
+
+// ── Door card ──
+function doorCard(d){
+  const b=band(d);
+  const cls={in:'w-in',under:'w-under',over:'w-over',empty:'w-empty',hold:'w-hold'}[b];
+  const badgeCls={in:'b-in',under:'b-under',over:'b-over',empty:'b-empty',hold:'b-hold'}[b];
+  const barColor=b==='in'?'#16a34a':b==='over'?'#d97706':b==='hold'?'#dc2626':b==='under'?'#dc2626':'#cbd5e1';
+  const wtStr=d.isEmpty?'—':`${(d.weight/1000).toFixed(1)}K`;
+  return`<div class="door-card ${cls}" title="DD${d.door} · ${d.destination} · ${d.trailerType||'no trailer type'} · ${d.weight?d.weight.toLocaleString()+' lbs':'empty'} · ${d.status}">
+    <div class="dh">
+      <span class="d-num">${d.door}</span>
+      <span class="d-dest ${d.isEmpty?'na':''}">${d.destination}</span>
+    </div>
+    <div class="d-trailer">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">trailer type?</span>')}</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <span class="d-wt" style="color:${d.isEmpty?'#94a3b8':barColor}">${wtStr}</span>
+      <span class="d-wt-sub">${d.isEmpty?'lbs':'lbs'}</span>
+    </div>
+    <div class="wbar">
+      <span style="width:${pctOf(d.weight)}%;background:${barColor}"></span>
+      <span class="bandmark" style="left:${pctOf(BAND_LO)}%"></span>
+      <span class="bandmark" style="left:${pctOf(BAND_HI)}%"></span>
+    </div>
+    <span class="d-badge ${badgeCls}">${BAND_LABEL[b]}${b!=='empty'&&b!=='in'?' · '+d.status:''}</span>
+  </div>`;
+}
+
+function applyFilters(list){
+  const side=document.getElementById('f-side').value;
+  const bandF=document.getElementById('f-band').value;
+  const q=document.getElementById('f-search').value.trim().toLowerCase();
+  const hideEmpty=document.getElementById('f-hide-empty').checked;
+  return list.filter(d=>{
+    if(side&&d.side!==side)return false;
+    if(bandF&&band(d)!==bandF)return false;
+    if(hideEmpty&&d.isEmpty)return false;
+    if(q&&!(d.destination.toLowerCase().includes(q)||(d.trailerType||'').toLowerCase().includes(q)||d.door.includes(q)))return false;
+    return true;
+  });
+}
+
+function renderAll(){
+  const all=doors();
+  // Side summaries (always full side, not filtered, so the monitor is accurate)
+  document.getElementById('east-summary').innerHTML=sideSummary('East',all.filter(d=>d.side==='East'));
+  document.getElementById('west-summary').innerHTML=sideSummary('West',all.filter(d=>d.side==='West'));
+
+  const filtered=applyFilters(all);
+  const east=filtered.filter(d=>d.side==='East');
+  const west=filtered.filter(d=>d.side==='West');
+  document.getElementById('east-doors').innerHTML=east.length?east.map(doorCard).join(''):'<p style="color:#64748b;font-size:12px">No East doors match.</p>';
+  document.getElementById('west-doors').innerHTML=west.length?west.map(doorCard).join(''):'<p style="color:#64748b;font-size:12px">No West doors match.</p>';
+  document.getElementById('east-count').textContent=`${east.length} shown`;
+  document.getElementById('west-count').textContent=`${west.length} shown`;
+
+  // Detail table
+  document.getElementById('detail-table').innerHTML=`<table>
+    <thead><tr><th>Side</th><th>Door</th><th>Destination</th><th>Trailer Type</th><th class="num">Weight (lbs)</th><th>Band</th><th>Status</th></tr></thead>
+    <tbody>${filtered.map(d=>{const b=band(d);const c=b==='in'?'tg':b==='under'||b==='hold'?'tr':b==='over'?'ta':'';return`<tr>
+      <td>${d.side}</td>
+      <td style="font-weight:800">${d.door}</td>
+      <td style="font-weight:700" class="${d.isEmpty?'':''}">${d.destination}</td>
+      <td style="color:#64748b">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">missing</span>')}</td>
+      <td class="num">${d.weight?d.weight.toLocaleString():'—'}</td>
+      <td class="${c}" style="font-weight:700">${BAND_LABEL[b]}</td>
+      <td>${d.status}</td>
+    </tr>`}).join('')}</tbody>
+  </table>`;
+
+  renderBanner();
+}
+
+function renderBanner(){
+  const live=STORE.get('obd.lastPull',null);
+  const el=document.getElementById('src-banner');
+  if(live){
+    el.innerHTML=`<div class="banner banner-live">✓ Live data loaded — ${live.source} · captured ${new Date(live.at).toLocaleString()}. ${live.note||''}</div>`;
+  }else{
+    el.innerHTML=`<div class="banner banner-sample">⚠ Showing the door map with <strong>SAMPLE weights &amp; trailer types</strong>. Run a DockFlow + YMS pull (local proxy) or Paste CSV to load real values. Destinations match the DockFlow board.</div>`;
+  }
+}
+
+// ── Filters ──
+function clearFilters(){
+  document.getElementById('f-side').value='';
+  document.getElementById('f-band').value='';
+  document.getElementById('f-search').value='';
+  document.getElementById('f-hide-empty').checked=false;
+  renderAll();
+}
+
+// ── Paste / upload / export / reset ──
+function showPaste(){document.getElementById('paste-modal').classList.add('show');}
+function hidePaste(){document.getElementById('paste-modal').classList.remove('show');}
+function savePaste(){
+  const txt=document.getElementById('paste-input').value.trim();
+  if(!txt){hidePaste();return;}
+  STORE.set('obd.doorsCsv',txt);
+  STORE.set('obd.lastPull',{source:'Manual paste',at:Date.now(),note:'Pasted CSV/TSV.'});
+  hidePaste();renderAll();
+}
+function uploadCsv(input){
+  const f=input.files[0];if(!f)return;
+  f.text().then(txt=>{
+    STORE.set('obd.doorsCsv',txt);
+    STORE.set('obd.lastPull',{source:'File upload: '+f.name,at:Date.now()});
+    renderAll();
+  });
+}
+function exportCsv(){
+  const rows=doors();
+  const head='side,door,destination,trailer_type,weight,status';
+  const body=rows.map(d=>[d.side,d.door,d.destination,d.trailerType,d.weight,d.status].join(',')).join('\n');
+  const blob=new Blob([head+'\n'+body],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`obd-east-west-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();URL.revokeObjectURL(a.href);
+}
+function resetSample(){
+  STORE.set('obd.doorsCsv',sampleDoorsCsv);
+  localStorage.removeItem('obd.lastPull');
+  renderAll();
+}
+
+// ── Live pulls via local proxy ──
+// DockFlow MainSorter (per your URL) and YMS shipclerk are SPAs, so a raw GET may
+// return the app shell rather than rows. We attempt the pull and, if we can extract
+// a CSV/JSON table, merge it; otherwise we tell you to paste the export.
+async function pullDockFlow(){
+  const dfPath='/api/dockflow/RFD2/wc/MainSorter/Sorter';
+  try{
+    const r=await fetch(PROXY_BASE+dfPath,{signal:AbortSignal.timeout(30000)});
+    if(r.headers.get('X-Proxy-Auth-Error')==='true'){alert('DockFlow auth failed via proxy. Run mwinit, then retry — or use Paste CSV.');return;}
+    const txt=await r.text();
+    const rows=extractRows(txt);
+    if(rows){
+      mergeDockFlow(rows);
+      STORE.set('obd.lastPull',{source:'DockFlow MainSorter',at:Date.now(),note:'Destinations + weight merged.'});
+      renderAll();alert('FUSE: DockFlow data merged.');
+    }else{
+      alert('DockFlow returned no parseable table (it is a single-page app). Open the Sorter view, export/copy the workcell table, and use Paste CSV.');
+    }
+  }catch(e){
+    alert('Could not reach DockFlow through the local proxy.\nStart it with:  python proxy.py  (after mwinit).\nThen retry, or use Paste CSV.');
+  }
+}
+async function pullYms(){
+  // Yesterday's yard state for trailer type per door.
+  const ymsPath='/api/yms/yms/shipclerk/api/yard?node=RFD2';
+  try{
+    const r=await fetch(PROXY_BASE+ymsPath,{signal:AbortSignal.timeout(30000)});
+    if(r.headers.get('X-Proxy-Auth-Error')==='true'){alert('YMS auth failed via proxy. Run mwinit, then retry — or use Paste CSV.');return;}
+    const txt=await r.text();
+    const rows=extractRows(txt);
+    if(rows){
+      mergeYms(rows);
+      STORE.set('obd.lastPull',{source:'YMS yard (yesterday)',at:Date.now(),note:'Trailer types merged.'});
+      renderAll();alert('FUSE: YMS trailer types merged.');
+    }else{
+      alert('YMS returned no parseable table (single-page app). Open YMS yard view, filter to yesterday, copy the door/equipment table, and use Paste CSV.');
+    }
+  }catch(e){
+    alert('Could not reach YMS through the local proxy.\nStart it with:  python proxy.py  (after mwinit).\nThen retry, or use Paste CSV.');
+  }
+}
+
+// Best-effort: pull rows out of JSON payload or embedded CSV/TSV.
+function extractRows(txt){
+  try{
+    const j=JSON.parse(txt);
+    const arr=Array.isArray(j)?j:(j.data||j.rows||j.workcells||j.results||null);
+    if(Array.isArray(arr)&&arr.length)return arr;
+  }catch{}
+  // embedded CSV with a header that has door + (destination|weight|trailer)
+  if(/(^|\n)[^\n]*door[^\n]*\n/i.test(txt)&&/(destination|weight|trailer|equip)/i.test(txt)){
+    const rows=parseCsv(txt);
+    if(rows.length)return rows;
+  }
+  return null;
+}
+function keyByDoor(){const m={};doors().forEach(d=>m[d.door]=d);return m;}
+function persist(map){
+  const head='side,door,destination,trailer_type,weight,status';
+  const body=Object.values(map).map(d=>[d.side,d.door,d.destination,d.trailerType,d.weight,d.status].join(',')).join('\n');
+  STORE.set('obd.doorsCsv',head+'\n'+body);
+}
+function fieldOf(o,names){for(const n of names){for(const k in o){if(k.toLowerCase().replace(/[^a-z]/g,'')===n)return o[k];}}return undefined;}
+function mergeDockFlow(rows){
+  const map=keyByDoor();
+  rows.forEach(o=>{
+    const door=String(fieldOf(o,['door','dock','dockdoor','workcell','wc'])||'').replace(/[^0-9]/g,'');
+    if(!door||!map[door])return;
+    const dest=fieldOf(o,['destination','dest','arc','lane','fc']);
+    const wt=fieldOf(o,['weight','wt','loadweight','lbs']);
+    if(dest!=null&&String(dest).trim())map[door].destination=String(dest).trim();
+    if(wt!=null&&String(wt).trim())map[door].weight=Number(String(wt).replace(/[^0-9.]/g,''))||map[door].weight;
+    if(map[door].weight>0&&map[door].isEmpty){map[door].isEmpty=false;map[door].status='Loading';}
+  });
+  persist(map);
+}
+function mergeYms(rows){
+  const map=keyByDoor();
+  rows.forEach(o=>{
+    const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
+    if(!door||!map[door])return;
+    const tt=fieldOf(o,['trailertype','equipmenttype','equiptype','type','equipment','trailer']);
+    if(tt!=null&&String(tt).trim())map[door].trailerType=String(tt).trim();
+  });
+  persist(map);
+}
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+renderAll();
+</script>
+</body>
+</html>

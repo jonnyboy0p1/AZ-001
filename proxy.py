@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """
-RC Sort Dashboard — FCLM Local Proxy
-Forwards requests to the FCLM portal using your Midway session cookie.
+RC Sort / OBD Dashboard — Local Midway Proxy
+Forwards requests to internal Amazon services using your Midway session cookie.
+
+Upstreams (selected by URL prefix after /api):
+  /api/reports/...     → FCLM portal            (legacy; RC Sort dashboard.html)
+  /api/dockflow/...    → DockFlow MainSorter     (OBD destinations + weight)
+  /api/yms/...         → YMS shipclerk yard       (trailer type per door)
+  /api/fclm/...        → FCLM portal (explicit)
 
 Usage:
   python proxy.py                  # default port 8765, warehouse RFD2
@@ -9,6 +15,9 @@ Usage:
   python proxy.py --warehouse DET6
 
 Requirements: Python 3.6+, no external packages needed.
+Note: DockFlow / YMS are single-page apps. A raw GET of the page URL returns the
+app shell, not data rows. Point /api/dockflow and /api/yms at the JSON/XHR
+endpoints those apps call, or use the dashboard's Paste CSV path.
 """
 
 import http.server
@@ -23,9 +32,23 @@ import argparse
 from socketserver import ThreadingMixIn
 
 FCLM_BASE      = "https://fclm-portal.amazon.com"
+DOCKFLOW_BASE  = "https://prod-na.dockflow.robotics.a2z.com"
+YMS_BASE       = "https://trans-logistics.amazon.com"
 DEFAULT_PORT   = 8765
 COOKIE_FILE    = os.path.expanduser("~/.midway/cookie")
 COOKIE_MAX_AGE = 12 * 3600  # 12 hours in seconds
+
+# Upstreams reachable through this proxy. The dashboard calls /api/<prefix>/<path>.
+# Anything without a known prefix falls through to FCLM for backward compatibility
+# (dashboard.html calls /api/reports/...).
+UPSTREAMS = {
+    "/dockflow": DOCKFLOW_BASE,
+    "/yms":      YMS_BASE,
+    "/fclm":     FCLM_BASE,
+}
+
+# Cookie domains worth forwarding. Midway federates across these internal hosts.
+COOKIE_DOMAINS = ("amazon.com", "a2z.com", "aka.amazon.com")
 
 # Module-level manual cookie override (set via POST /set-cookie)
 _manual_cookie: str = ""
@@ -51,7 +74,7 @@ def load_cookie_header() -> str:
     pairs = [
         f"{c.name}={c.value}"
         for c in jar
-        if "amazon.com" in (c.domain or "")
+        if any(dom in (c.domain or "") for dom in COOKIE_DOMAINS)
     ]
     return "; ".join(pairs)
 
@@ -85,9 +108,18 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         if self.path == "/health":
             self._handle_health()
         elif self.path.startswith("/api/"):
-            self._handle_proxy(self.path[4:])   # strip /api → /reports/...
+            self._route_proxy(self.path[4:])   # strip /api → /<prefix>/<path> or /reports/...
         else:
             self._json({"error": "not found"}, 404)
+
+    def _route_proxy(self, rest: str):
+        """Pick an upstream by leading prefix, else default to FCLM."""
+        for prefix, base in UPSTREAMS.items():
+            if rest == prefix or rest.startswith(prefix + "/"):
+                self._handle_proxy(base, rest[len(prefix):] or "/")
+                return
+        # No known prefix → legacy FCLM behaviour (e.g. /reports/processPathRollup)
+        self._handle_proxy(FCLM_BASE, rest)
 
     def do_POST(self):
         if self.path == "/set-cookie":
@@ -115,9 +147,10 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             "manualCookie": bool(_manual_cookie),
         })
 
-    def _handle_proxy(self, path: str):
-        url = FCLM_BASE + path
+    def _handle_proxy(self, base: str, path: str):
+        url = base + path
         cookie = load_cookie_header()
+        origin = base.rstrip("/")
 
         req = urllib.request.Request(url)
         req.add_header("Cookie",          cookie)
@@ -126,7 +159,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
                                           "Chrome/120.0 Safari/537.36")
         req.add_header("Accept",          "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8")
         req.add_header("Accept-Language", "en-US,en;q=0.9")
-        req.add_header("Referer",         "https://fclm-portal.amazon.com/")
+        req.add_header("Referer",         origin + "/")
+        req.add_header("Origin",          origin)
 
         try:
             with urllib.request.urlopen(req, timeout=25) as resp:
@@ -212,10 +246,11 @@ def main():
 
     print()
     print("  ╔══════════════════════════════════════════╗")
-    print("  ║   RC Sort Dashboard — FCLM Proxy         ║")
+    print("  ║   RC Sort / OBD — Midway Proxy           ║")
     print("  ╚══════════════════════════════════════════╝")
     print(f"  Listening on  http://localhost:{args.port}")
     print(f"  Warehouse     {args.warehouse}")
+    print(f"  Upstreams     FCLM · DockFlow · YMS")
     print()
 
     age = cookie_file_age_seconds()
