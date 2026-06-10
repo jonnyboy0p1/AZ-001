@@ -203,82 +203,6 @@ function renderBridgeSourceAges() {
   ).join('');
 }
 
-function renderLiveBridgeStatus() {
-  const grid = $('liveStatusGrid');
-  if (!grid) return;
-  const bridge = latestBridgePayload || readStoredBridgePayload();
-  const heartbeat = $('liveStatusHeartbeat');
-  if (!bridge) {
-    if (heartbeat) { heartbeat.textContent = 'Waiting for bridge…'; heartbeat.className = 'source-age-chip'; }
-    grid.innerHTML = '<div class="live-status-card"><div class="ls-title">No bridge data yet</div><div class="ls-row"><span class="ls-label">Enable the Tampermonkey script, then hit Collect / Pull Now.</span></div></div>';
-    return;
-  }
-
-  const includeMET = $('useMET')?.value === 'true';
-  const p = bridge.fclmPeriods || {};
-  const m = bridge.monitorPeriods || {};
-  const roster = bridge.roster?.fluid || {};
-  const lastPull = bridge.lastPull;
-
-  const ageSpan = (ts) => {
-    const ms = num(ts);
-    if (!ms) return '<span class="ls-age never">—</span>';
-    const min = (Date.now() - ms) / 60000;
-    const cls = min <= 15 ? '' : min <= 60 ? ' stale' : ' old';
-    return `<span class="ls-age${cls}">${formatBridgeAge(ms)}</span>`;
-  };
-  const row = (label, value) => `<div class="ls-row"><span class="ls-label">${label}</span><span class="ls-value">${value}</span></div>`;
-  const gapSpan = (gap) => gap == null || Number.isNaN(gap) ? '' : ` <span class="${gap >= 0 ? 'ls-pos' : 'ls-neg'}">(${gap >= 0 ? '+' : ''}${fmt(gap)})</span>`;
-
-  const zoneRows = (roster.groups || []).map((g) => {
-    const gap = g.target ? num(g.current) - num(g.target) : null;
-    return row(g.label, `${fmt(g.current)}${g.target ? `/${fmt(g.target)}` : ''}${gapSpan(gap)}`);
-  }).join('');
-
-  const fclmRow = (key, label) => row(label, `Jobs ${fmt(p[key]?.totalJobs)} · JPLH ${fmt(p[key]?.jplh, 2)} · ${ageSpan(p[key]?.updatedAt)}`);
-  const monitorRow = (key, label) => row(label, `FL ${ageSpan(m[key]?.flUtil?.updatedAt)} · Belt ${ageSpan(m[key]?.belt?.updatedAt)}`);
-
-  grid.innerHTML = `
-    <div class="live-status-card">
-      <div class="ls-title">Sources</div>
-      ${row('NEO', ageSpan(bridge.neo?.updatedAt))}
-      ${row('Fluid Roster', ageSpan(roster.updatedAt))}
-      ${row('FCLM Full', ageSpan(bridge.fclmFull?.updatedAt))}
-      ${row('Last Pull', lastPull?.label ? `${lastPull.label} ${ageSpan(lastPull.updatedAt)}` : '<span class="ls-age never">Waiting</span>')}
-    </div>
-    <div class="live-status-card">
-      <div class="ls-title">Fluid Roster</div>
-      ${row('Headcount', `${fmt(roster.headcount)}${roster.target ? `/${fmt(roster.target)}` : ''}${gapSpan(roster.gap != null ? num(roster.gap) : null)}`)}
-      ${zoneRows || row('Zones', '<span class="ls-age never">—</span>')}
-    </div>
-    <div class="live-status-card">
-      <div class="ls-title">FCLM</div>
-      ${fclmRow('p1', 'P1')}
-      ${fclmRow('p2', 'P2')}
-      ${fclmRow('p3', 'P3')}
-      ${includeMET ? fclmRow('met', 'MET') : ''}
-    </div>
-    <div class="live-status-card">
-      <div class="ls-title">Monitor</div>
-      ${monitorRow('p1', 'P1')}
-      ${monitorRow('p2', 'P2')}
-      ${monitorRow('p3', 'P3')}
-      ${includeMET ? monitorRow('met', 'MET') : ''}
-    </div>
-  `;
-
-  if (heartbeat) {
-    const newest = Math.max(
-      num(lastPull?.updatedAt), num(bridge.updatedAt), num(roster.updatedAt),
-      num(bridge.neo?.updatedAt), num(bridge.fclmFull?.updatedAt),
-      ...Object.values(p).map((r) => num(r?.updatedAt)),
-      ...Object.values(m).flatMap((r) => [num(r?.flUtil?.updatedAt), num(r?.belt?.updatedAt)])
-    );
-    const min = newest ? (Date.now() - newest) / 60000 : Infinity;
-    heartbeat.textContent = newest ? `Live · updated ${formatBridgeAge(newest)}` : 'Waiting for bridge…';
-    heartbeat.className = `source-age-chip ${newest ? (min <= 15 ? 'good' : min <= 60 ? 'warn' : 'bad') : ''}`;
-  }
-}
 
 function on(id, event, handler) {
   const el = $(id);
@@ -3746,7 +3670,6 @@ function renderAll() {
   renderOperationsInsights(board, full);
   updateShiftProgressBar(rows);
   renderBridgeSourceAges();
-  renderLiveBridgeStatus();
   saveState(false);
 }
 
@@ -3805,7 +3728,7 @@ function init() {
   startServerBridgePoll();
   updateLiveClock();
   setInterval(updateLiveClock, 10000);
-  setInterval(() => { renderBridgeSourceAges(); renderLiveBridgeStatus(); }, 5000);
+  setInterval(renderBridgeSourceAges, 5000);
 }
 
 init();
