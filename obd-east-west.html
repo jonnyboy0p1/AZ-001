@@ -273,7 +273,10 @@ tbody tr:hover td{background:#f8fafc}
         </div>
       </div>
       <div class="card">
-        <div class="ct">Divert Breakdown</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="ct" style="margin-bottom:0">Divert Breakdown <span id="divert-src" style="font-weight:600;text-transform:none;letter-spacing:0;color:#92400e">· sample</span></div>
+          <button class="btn" style="height:26px;font-size:11px" onclick="pullDivert()">▶ DockFlow Pull</button>
+        </div>
         <div id="divert-breakdown"></div>
       </div>
     </div>
@@ -282,8 +285,9 @@ tbody tr:hover td{background:#f8fafc}
   <!-- CDT Tracker -->
   <div class="card mb16">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <div class="ct" style="margin-bottom:0">CDT Tracker · Upcoming Departures</div>
+      <div class="ct" style="margin-bottom:0">CDT Tracker · Upcoming Departures <span id="cdt-src" style="font-weight:600;text-transform:none;letter-spacing:0;color:#92400e">· sample</span></div>
       <div style="display:flex;gap:6px;font-size:11px;color:#64748b;align-items:center">
+        <button class="btn" style="height:26px;font-size:11px" onclick="pullCdt()">▶ SSP Pull (CDT)</button>
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fef2f2;border:1px solid #fca5a5;display:inline-block"></span>Critical (&lt;30 min)</span>
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fffbeb;border:1px solid #fcd34d;display:inline-block"></span>Watch (30–90 min)</span>
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f0fdf4;border:1px solid #86efac;display:inline-block"></span>On track</span>
@@ -319,9 +323,10 @@ tbody tr:hover td{background:#f8fafc}
     </div>
     <p style="font-size:11px;color:#64748b;margin-top:10px">
       Live pulls go through your local <code>proxy.py</code> (uses your Midway session). Start it with
-      <code>python proxy.py</code> after <code>mwinit</code>. DockFlow/YMS are single-page apps, so first set
-      the data request URLs under <strong>⚙ Endpoints</strong> (capture them in DevTools → Network). Fallback
-      any time: <strong>Paste CSV</strong> — columns:
+      <code>python proxy.py</code> after <code>mwinit</code>. DockFlow / YMS / SSP are single-page apps, so first set
+      the data request URLs under <strong>⚙ Endpoints</strong> (capture them in DevTools → Network): DockFlow =
+      door dest+weight, YMS = trailer type, SSP = CDT departures, DockFlow = divert mix. Fallback for the door
+      grid any time: <strong>Paste CSV</strong> — columns
       <code>side,door,destination,trailer_type,weight,status</code>.
     </p>
   </div>
@@ -331,10 +336,10 @@ tbody tr:hover td{background:#f8fafc}
 <div class="modal" id="ep-modal">
   <div class="modal-card">
     <h2>Live data endpoints</h2>
-    <p>Open DockFlow / YMS in your browser, DevTools → <strong>Network</strong>, find the request that returns the
+    <p>Open DockFlow / YMS / SSP in your browser, DevTools → <strong>Network</strong>, find the request that returns the
        data (filter by Fetch/XHR), and copy the full <strong>Request URL</strong>. Paste it below. The proxy routes
-       it by host (<code>dockflow.robotics.a2z.com</code> → <code>/api/dockflow</code>, <code>trans-logistics.amazon.com</code>
-       → <code>/api/yms</code>). If the request is a POST/GraphQL, set method to POST and paste the request payload.</p>
+       it by host (<code>dockflow.robotics.a2z.com</code> → <code>/api/dockflow</code>; <code>trans-logistics.amazon.com</code>
+       — YMS <em>and</em> SSP — → <code>/api/yms</code>). If the request is a POST/GraphQL, set method to POST and paste the request payload.</p>
 
     <div style="display:grid;gap:6px;margin-bottom:14px">
       <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow — destinations + weight</div>
@@ -364,6 +369,36 @@ tbody tr:hover td{background:#f8fafc}
         <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
       </div>
       <textarea id="ep-yms-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#166534">SSP — CDT departures (tracker)</div>
+      <input id="ep-ssp-url" placeholder="https://trans-logistics.amazon.com/ssp/dock/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-ssp-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-ssp-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow — divert / recirc mix (optional)</div>
+      <input id="ep-divert-url" placeholder="https://prod-na.dockflow.robotics.a2z.com/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-divert-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-divert-body" style="height:60px" placeholder='{...}'></textarea>
     </div>
 
     <div class="modal-actions">
@@ -638,8 +673,8 @@ function exportCsv(){
 }
 function resetSample(){
   STORE.set('obd.doorsCsv',sampleDoorsCsv);
-  localStorage.removeItem('obd.lastPull');
-  renderAll();
+  ['obd.lastPull','obd.cdtRows','obd.divertRows'].forEach(k=>localStorage.removeItem(k));
+  renderAll();renderCWM();
 }
 
 // ── Endpoint config ──
@@ -649,19 +684,21 @@ function resetSample(){
 function endpoints(){return STORE.get('obd.endpoints',{});}
 function showEndpoints(){
   const e=endpoints();
-  document.getElementById('ep-df-url').value=e.dockflow?.url||'';
-  document.getElementById('ep-df-method').value=e.dockflow?.method||'GET';
-  document.getElementById('ep-df-body').value=e.dockflow?.body||'';
-  document.getElementById('ep-yms-url').value=e.yms?.url||'';
-  document.getElementById('ep-yms-method').value=e.yms?.method||'GET';
-  document.getElementById('ep-yms-body').value=e.yms?.body||'';
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  set('ep-df-url',e.dockflow?.url||'');set('ep-df-method',e.dockflow?.method||'GET');set('ep-df-body',e.dockflow?.body||'');
+  set('ep-yms-url',e.yms?.url||'');set('ep-yms-method',e.yms?.method||'GET');set('ep-yms-body',e.yms?.body||'');
+  set('ep-ssp-url',e.ssp?.url||'');set('ep-ssp-method',e.ssp?.method||'GET');set('ep-ssp-body',e.ssp?.body||'');
+  set('ep-divert-url',e.divert?.url||'');set('ep-divert-method',e.divert?.method||'GET');set('ep-divert-body',e.divert?.body||'');
   document.getElementById('ep-modal').classList.add('show');
 }
 function hideEndpoints(){document.getElementById('ep-modal').classList.remove('show');}
 function saveEndpoints(){
+  const val=id=>document.getElementById(id).value.trim();
   STORE.set('obd.endpoints',{
-    dockflow:{url:document.getElementById('ep-df-url').value.trim(),method:document.getElementById('ep-df-method').value,body:document.getElementById('ep-df-body').value.trim()},
-    yms:{url:document.getElementById('ep-yms-url').value.trim(),method:document.getElementById('ep-yms-method').value,body:document.getElementById('ep-yms-body').value.trim()}
+    dockflow:{url:val('ep-df-url'),method:val('ep-df-method'),body:val('ep-df-body')},
+    yms:{url:val('ep-yms-url'),method:val('ep-yms-method'),body:val('ep-yms-body')},
+    ssp:{url:val('ep-ssp-url'),method:val('ep-ssp-method'),body:val('ep-ssp-body')},
+    divert:{url:val('ep-divert-url'),method:val('ep-divert-method'),body:val('ep-divert-body')}
   });
   hideEndpoints();
 }
@@ -718,11 +755,14 @@ async function pullYms(){
 function extractRows(txt){
   try{
     const j=JSON.parse(txt);
-    const arr=Array.isArray(j)?j:(j.data||j.rows||j.workcells||j.results||null);
+    let arr=Array.isArray(j)?j:(j.data||j.rows||j.workcells||j.results||j.loads||j.departures||j.trailers||j.diverts||j.items||j.content||null);
+    // one level deeper, e.g. {data:{loads:[...]}}
+    if(!Array.isArray(arr)&&j&&typeof j==='object'){for(const k in j){if(j[k]&&typeof j[k]==='object'){const inner=j[k].rows||j[k].loads||j[k].departures||j[k].results||j[k].items;if(Array.isArray(inner)&&inner.length){arr=inner;break;}}}}
     if(Array.isArray(arr)&&arr.length)return arr;
   }catch{}
-  // embedded CSV with a header that has door + (destination|weight|trailer)
-  if(/(^|\n)[^\n]*door[^\n]*\n/i.test(txt)&&/(destination|weight|trailer|equip)/i.test(txt)){
+  // embedded CSV/TSV with a recognizable header row
+  const firstLine=(txt.split(/\r?\n/).find(l=>l.trim())||'');
+  if(/(door|vrid|trailer|cdt|divert|destination|weight|equip|departure)/i.test(firstLine)&&/[,\t]/.test(firstLine)){
     const rows=parseCsv(txt);
     if(rows.length)return rows;
   }
@@ -759,6 +799,66 @@ function mergeYms(rows){
   persist(map);
 }
 
+// ── CDT (SSP) + divert (DockFlow) live pulls ──
+function truthy(v){if(v==null)return false;const s=String(v).toLowerCase().trim();return s==='true'||s==='yes'||s==='y'||s==='1'||s==='open';}
+
+// Resolve a departure time into {hh,mm,min}. Accepts "HH:MM", an ISO/parseable
+// datetime, or an explicit minutes-remaining field.
+function parseCdtTime(raw,minField){
+  let min=null,hh=0,mm=0;
+  if(minField!=null&&String(minField).trim()!=='')min=Math.round(Number(String(minField).replace(/[^0-9.\-]/g,'')));
+  if(raw!=null&&String(raw).trim()!==''){
+    const s=String(raw).trim();let d=null;
+    if(/^\d{1,2}:\d{2}/.test(s)){const [H,M]=s.split(':');hh=+H;mm=parseInt(M,10);const now=new Date();d=new Date(now);d.setHours(hh,mm,0,0);if(d<now)d.setDate(d.getDate()+1);}
+    else{const t=Date.parse(s);if(!isNaN(t))d=new Date(t);}
+    if(d){hh=d.getHours();mm=d.getMinutes();if(min==null||isNaN(min))min=Math.max(0,Math.round((d-new Date())/60000));}
+  }
+  if(min==null||isNaN(min))min=0;
+  if(!hh&&!mm&&min){const dep=new Date(Date.now()+min*60000);hh=dep.getHours();mm=dep.getMinutes();}
+  return{hh,mm,min};
+}
+
+function mergeCDT(rows){
+  const out=rows.map(o=>{
+    const vrid=String(fieldOf(o,['vrid','trailer','trailerid','load','loadid','vr','scac'])||'—').trim();
+    const type=String(fieldOf(o,['freighttype','type','lane','program','sortcode'])||'—').trim();
+    const cdtRaw=fieldOf(o,['cdt','criticalpulltime','cpt','departuretime','dpt','departure','scheduleddeparture']);
+    const wt=Number(String(fieldOf(o,['weight','wt','loadweight','lbs'])||'0').replace(/[^0-9.]/g,''))||0;
+    const gw=truthy(fieldOf(o,['gw','gwopen','gatekeeping','gatekeepingwindow','gatekeeper']));
+    const {hh,mm,min}=parseCdtTime(cdtRaw,fieldOf(o,['minutesremaining','minremaining','timeremaining','minutes']));
+    const status=min<30?'urgent':min<90?'warn':'ok';
+    return{vrid,type,cdtHH:hh,cdtMM:mm,minRemaining:min,weight:wt,gwOpen:gw,status};
+  }).filter(c=>c.vrid&&c.vrid!=='—').sort((a,b)=>a.minRemaining-b.minRemaining);
+  if(out.length)STORE.set('obd.cdtRows',out);
+  return out.length;
+}
+
+function mergeDivert(rows){
+  const colors={MP:'#1d4ed8',FL:'#008891',FLUID:'#008891',RWC:'#c2410c',EOL:'#7c3aed'};
+  const out=rows.map(o=>{
+    const name=String(fieldOf(o,['name','divert','type','lane','destination','category'])||'').toUpperCase().trim();
+    const val=Number(String(fieldOf(o,['val','pct','percent','share','value'])||'0').replace(/[^0-9.]/g,''))||0;
+    return{name,val,color:colors[name]||'#64748b'};
+  }).filter(d=>d.name&&d.val>0);
+  if(out.length)STORE.set('obd.divertRows',out);
+  return out.length;
+}
+
+async function pullCdt(){
+  const txt=await fetchEndpoint(endpoints().ssp,'SSP');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows||!mergeCDT(rows)){alert('SSP responded but no CDT rows could be parsed.\nCheck you captured the departures data request, or keep sample.');return;}
+  renderCWM();alert('FUSE: CDT tracker updated from SSP ('+cdtRows().length+' departures).');
+}
+async function pullDivert(){
+  const txt=await fetchEndpoint(endpoints().divert,'DockFlow divert');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows||!mergeDivert(rows)){alert('DockFlow responded but no divert rows could be parsed.\nCheck you captured the recirc/divert data request, or keep sample.');return;}
+  renderCWM();alert('FUSE: divert breakdown updated from DockFlow.');
+}
+
 // ════════════════════════════════════════════════════════════════════════
 //  CDT·WM — Sorter Weight Monitor & Departure Tracker
 //  Self-contained: reuses STORE + BAND_LO/HI + WARN_LO/HI from above.
@@ -787,6 +887,11 @@ const sampleCDT=[
   {vrid:'OB-T5510',type:'MP',   cdtHH:4,cdtMM:0, minRemaining:132,weight:38900,gwOpen:false,status:'ok'},
   {vrid:'OB-T2210',type:'Fluid',cdtHH:4,cdtMM:30,minRemaining:162,weight:33700,gwOpen:false,status:'ok'},
 ];
+const sampleDivert=[{name:'MP',val:41,color:'#1d4ed8'},{name:'FL',val:38,color:'#008891'},{name:'RWC',val:21,color:'#c2410c'}];
+
+// Live data when pulled, sample otherwise.
+function cdtRows(){return STORE.get('obd.cdtRows',null)||sampleCDT;}
+function divertRows(){return STORE.get('obd.divertRows',null)||sampleDivert;}
 
 function cwmPct(val){return Math.round((val/CWM_MAX)*100);}
 
@@ -846,9 +951,10 @@ function renderSweeperFlags(){
   if(w>BAND_HI)flags.push({cls:'flag-warn',icon:'⚠️',msg:`Weight ${(w/1000).toFixed(1)}K — ${((w-BAND_HI)/1000).toFixed(1)}K above target band. Reduce divert or shift to lighter freight.`});
   if(w<WARN_LO)flags.push({cls:'flag-alert',icon:'🚨',msg:`Critical underweight at ${(w/1000).toFixed(1)}K. Sweeper sweep is urgently needed.`});
   if(w>WARN_HI)flags.push({cls:'flag-alert',icon:'🚨',msg:`Critical overweight at ${(w/1000).toFixed(1)}K. Risk of system overload — reduce flow immediately.`});
-  const critical=sampleCDT.filter(x=>x.status==='urgent');
+  const cdt=cdtRows();
+  const critical=cdt.filter(x=>x.status==='urgent');
   if(critical.length)flags.push({cls:'flag-alert',icon:'⏰',msg:`${critical.length} trailer${critical.length>1?'s':''} at critical CDT — sweeper closeout required now: ${critical.map(x=>x.vrid).join(', ')}`});
-  const watching=sampleCDT.filter(x=>x.status==='warn');
+  const watching=cdt.filter(x=>x.status==='warn');
   if(watching.length)flags.push({cls:'flag-warn',icon:'👁',msg:`${watching.length} trailer${watching.length>1?'s':''} entering gatekeeping window — prepare closeout: ${watching.map(x=>x.vrid).join(', ')}`});
   if(w>=BAND_LO&&w<=BAND_HI&&!critical.length&&!watching.length)flags.push({cls:'flag-ok',icon:'✓',msg:'Weight in target band. No sweeper flags active.'});
   document.getElementById('sweeper-flags').innerHTML=flags.map(f=>`<div class="flag-row ${f.cls}"><span class="flag-icon">${f.icon}</span><span>${f.msg}</span></div>`).join('');
@@ -885,19 +991,24 @@ function recalcWeight(){
 function clearArcs(){arcs.forEach(arc=>{const el=document.getElementById(arc.id+'-wt');if(el)el.value=0;const pe=document.getElementById(arc.id+'-pct');if(pe)pe.value=0;});recalcWeight();}
 
 function renderDivert(){
-  const divData=[{name:'MP',val:41,color:'#1d4ed8'},{name:'FL',val:38,color:'#008891'},{name:'RWC',val:21,color:'#c2410c'}];
-  const total=divData.reduce((s,x)=>s+x.val,0);
+  const divData=divertRows();
+  const live=STORE.get('obd.divertRows',null)!=null;
+  const total=divData.reduce((s,x)=>s+(Number(x.val)||0),0)||1;
   document.getElementById('divert-breakdown').innerHTML=divData.map(d=>`
     <div class="div-row">
       <span style="min-width:32px;font-weight:800;font-size:12px">${d.name}</span>
-      <div class="div-bar"><span style="width:${Math.round((d.val/total)*100)}%;background:${d.color}"></span></div>
+      <div class="div-bar"><span style="width:${Math.round((d.val/total)*100)}%;background:${d.color||'#64748b'}"></span></div>
       <span style="min-width:36px;text-align:right;font-size:12px;font-weight:700">${d.val}%</span>
       <span style="min-width:50px;text-align:right;font-size:11px;color:#64748b">${((total*d.val/100)/1000).toFixed(1)}K lbs</span>
-    </div>`).join('')+`<p style="font-size:11px;color:#64748b;margin-top:8px">Recirc rate: ~12% · Sample data — connect DockFlow for live values</p>`;
+    </div>`).join('')+`<p style="font-size:11px;color:#64748b;margin-top:8px">${live?'Live DockFlow capture':'Sample data — connect DockFlow for live values'}</p>`;
+  const src=document.getElementById('divert-src');if(src){src.textContent=live?'· live':'· sample';src.style.color=live?'#166534':'#92400e';}
 }
 
 function renderCDT(){
-  document.getElementById('cdt-cards').innerHTML=sampleCDT.map(c=>{
+  const rows=cdtRows();
+  const live=STORE.get('obd.cdtRows',null)!=null;
+  const src=document.getElementById('cdt-src');if(src){src.textContent=live?'· live':'· sample';src.style.color=live?'#166534':'#92400e';}
+  document.getElementById('cdt-cards').innerHTML=rows.map(c=>{
     const h=Math.floor(c.minRemaining/60),m=c.minRemaining%60;
     const countdownStr=h>0?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m`;
     const inBand=c.weight>=BAND_LO&&c.weight<=BAND_HI;
