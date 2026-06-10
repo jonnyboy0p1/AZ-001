@@ -8,7 +8,7 @@
 // @match        https://fclm-portal.amazon.com/reports/functionRollup*
 // @match        https://monitorportal.amazon.com/igraph*
 // @match        https://zone-ra.amazon.dev/roster/rfd2/ob/fluid/*
-// @match        file:///C:/Users/jonavroa/Desktop/OBR03/OBR03/dashboard.html*
+// @match        file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html*
 // @match        http://localhost:5173/*
 // @match        http://127.0.0.1:5173/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=undefined.
@@ -30,7 +30,7 @@
 
   const CONFIG = {
     bridgeKey: 'OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE',
-    dashboardUrl: 'file:///C:/Users/jonavroa/Desktop/OBR03/OBR03/dashboard.html',
+    dashboardUrl: 'file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html',
     dashboardServerUrl: 'http://localhost:5173/',
     neoUrl: 'https://neo.meta.amazon.dev/planning',
     fluidRosterUrl: 'https://zone-ra.amazon.dev/roster/rfd2/ob/fluid/',
@@ -48,7 +48,7 @@
   const isMonitor = HOST.includes('monitorportal.amazon.com');
   const isFluidRoster = HOST.includes('zone-ra.amazon.dev') && location.pathname.includes('/roster/rfd2/ob/fluid');
   const isDashboard =
-    HREF.startsWith('file:///C:/Users/jonavroa/Desktop/OBR03/OBR03/dashboard.html') ||
+    HREF.startsWith('file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html') ||
     HREF.startsWith('http://localhost:5173/') ||
     HREF.startsWith('http://127.0.0.1:5173/');
   let fclmPullContext = null;
