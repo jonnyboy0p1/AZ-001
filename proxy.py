@@ -112,18 +112,24 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         else:
             self._json({"error": "not found"}, 404)
 
-    def _route_proxy(self, rest: str):
+    def _route_proxy(self, rest: str, method: str = "GET",
+                     body: bytes | None = None, content_type: str | None = None):
         """Pick an upstream by leading prefix, else default to FCLM."""
         for prefix, base in UPSTREAMS.items():
             if rest == prefix or rest.startswith(prefix + "/"):
-                self._handle_proxy(base, rest[len(prefix):] or "/")
+                self._handle_proxy(base, rest[len(prefix):] or "/", method, body, content_type)
                 return
         # No known prefix → legacy FCLM behaviour (e.g. /reports/processPathRollup)
-        self._handle_proxy(FCLM_BASE, rest)
+        self._handle_proxy(FCLM_BASE, rest, method, body, content_type)
 
     def do_POST(self):
         if self.path == "/set-cookie":
             self._handle_set_cookie()
+        elif self.path.startswith("/api/"):
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b""
+            ctype = self.headers.get("Content-Type", "application/json")
+            self._route_proxy(self.path[4:], method="POST", body=body, content_type=ctype)
         else:
             self._json({"error": "not found"}, 404)
 
@@ -147,12 +153,14 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             "manualCookie": bool(_manual_cookie),
         })
 
-    def _handle_proxy(self, base: str, path: str):
+    def _handle_proxy(self, base: str, path: str, method: str = "GET",
+                      body: bytes | None = None, content_type: str | None = None):
         url = base + path
         cookie = load_cookie_header()
         origin = base.rstrip("/")
 
-        req = urllib.request.Request(url)
+        req = urllib.request.Request(url, data=body if method == "POST" else None,
+                                     method=method)
         req.add_header("Cookie",          cookie)
         req.add_header("User-Agent",      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                                           "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -161,6 +169,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         req.add_header("Accept-Language", "en-US,en;q=0.9")
         req.add_header("Referer",         origin + "/")
         req.add_header("Origin",          origin)
+        if method == "POST" and content_type:
+            req.add_header("Content-Type", content_type)
 
         try:
             with urllib.request.urlopen(req, timeout=25) as resp:

@@ -187,6 +187,7 @@ tbody tr:hover td{background:#f8fafc}
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn primary" onclick="pullDockFlow()">▶ DockFlow Pull (dest + weight)</button>
       <button class="btn primary" onclick="pullYms()">▶ YMS Pull (trailer type · yesterday)</button>
+      <button class="btn" onclick="showEndpoints()">⚙ Endpoints</button>
       <button class="btn" onclick="showPaste()">⌨ Paste CSV</button>
       <label class="btn" style="cursor:pointer">⭱ Upload CSV<input type="file" accept=".csv" style="display:none" onchange="uploadCsv(this)"></label>
       <button class="btn" onclick="renderAll()">↺ Refresh</button>
@@ -194,10 +195,57 @@ tbody tr:hover td{background:#f8fafc}
     </div>
     <p style="font-size:11px;color:#64748b;margin-top:10px">
       Live pulls go through your local <code>proxy.py</code> (uses your Midway session). Start it with
-      <code>python proxy.py</code> after <code>mwinit</code>. If a pull can't return structured rows
-      (DockFlow/YMS are single-page apps), use <strong>Paste CSV</strong> — columns:
+      <code>python proxy.py</code> after <code>mwinit</code>. DockFlow/YMS are single-page apps, so first set
+      the data request URLs under <strong>⚙ Endpoints</strong> (capture them in DevTools → Network). Fallback
+      any time: <strong>Paste CSV</strong> — columns:
       <code>side,door,destination,trailer_type,weight,status</code>.
     </p>
+  </div>
+</div>
+
+<!-- Endpoints modal -->
+<div class="modal" id="ep-modal">
+  <div class="modal-card">
+    <h2>Live data endpoints</h2>
+    <p>Open DockFlow / YMS in your browser, DevTools → <strong>Network</strong>, find the request that returns the
+       data (filter by Fetch/XHR), and copy the full <strong>Request URL</strong>. Paste it below. The proxy routes
+       it by host (<code>dockflow.robotics.a2z.com</code> → <code>/api/dockflow</code>, <code>trans-logistics.amazon.com</code>
+       → <code>/api/yms</code>). If the request is a POST/GraphQL, set method to POST and paste the request payload.</p>
+
+    <div style="display:grid;gap:6px;margin-bottom:14px">
+      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow — destinations + weight</div>
+      <input id="ep-df-url" placeholder="https://prod-na.dockflow.robotics.a2z.com/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-df-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body (GraphQL/JSON), if any:</span>
+      </div>
+      <textarea id="ep-df-body" style="height:60px" placeholder='{"query":"..."}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px">
+      <div style="font-weight:800;font-size:12px;color:#1d4ed8">YMS — trailer type per door (yesterday)</div>
+      <input id="ep-yms-url" placeholder="https://trans-logistics.amazon.com/yms/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-yms-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-yms-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="hideEndpoints()">Cancel</button>
+      <button class="btn primary" onclick="saveEndpoints()">Save endpoints</button>
+    </div>
   </div>
 </div>
 
@@ -470,46 +518,76 @@ function resetSample(){
   renderAll();
 }
 
-// ── Live pulls via local proxy ──
-// DockFlow MainSorter (per your URL) and YMS shipclerk are SPAs, so a raw GET may
-// return the app shell rather than rows. We attempt the pull and, if we can extract
-// a CSV/JSON table, merge it; otherwise we tell you to paste the export.
-async function pullDockFlow(){
-  const dfPath='/api/dockflow/RFD2/wc/MainSorter/Sorter';
+// ── Endpoint config ──
+// DockFlow MainSorter and YMS shipclerk are SPAs, so the *page* URL returns the app
+// shell, not data. Capture the underlying Fetch/XHR request in DevTools and store it
+// here; we route it through the local proxy by host and merge whatever rows come back.
+function endpoints(){return STORE.get('obd.endpoints',{});}
+function showEndpoints(){
+  const e=endpoints();
+  document.getElementById('ep-df-url').value=e.dockflow?.url||'';
+  document.getElementById('ep-df-method').value=e.dockflow?.method||'GET';
+  document.getElementById('ep-df-body').value=e.dockflow?.body||'';
+  document.getElementById('ep-yms-url').value=e.yms?.url||'';
+  document.getElementById('ep-yms-method').value=e.yms?.method||'GET';
+  document.getElementById('ep-yms-body').value=e.yms?.body||'';
+  document.getElementById('ep-modal').classList.add('show');
+}
+function hideEndpoints(){document.getElementById('ep-modal').classList.remove('show');}
+function saveEndpoints(){
+  STORE.set('obd.endpoints',{
+    dockflow:{url:document.getElementById('ep-df-url').value.trim(),method:document.getElementById('ep-df-method').value,body:document.getElementById('ep-df-body').value.trim()},
+    yms:{url:document.getElementById('ep-yms-url').value.trim(),method:document.getElementById('ep-yms-method').value,body:document.getElementById('ep-yms-body').value.trim()}
+  });
+  hideEndpoints();
+}
+
+// Map a captured full URL to a local-proxy path, routed by host.
+function toProxyPath(u){
   try{
-    const r=await fetch(PROXY_BASE+dfPath,{signal:AbortSignal.timeout(30000)});
-    if(r.headers.get('X-Proxy-Auth-Error')==='true'){alert('DockFlow auth failed via proxy. Run mwinit, then retry — or use Paste CSV.');return;}
-    const txt=await r.text();
-    const rows=extractRows(txt);
-    if(rows){
-      mergeDockFlow(rows);
-      STORE.set('obd.lastPull',{source:'DockFlow MainSorter',at:Date.now(),note:'Destinations + weight merged.'});
-      renderAll();alert('FUSE: DockFlow data merged.');
-    }else{
-      alert('DockFlow returned no parseable table (it is a single-page app). Open the Sorter view, export/copy the workcell table, and use Paste CSV.');
-    }
-  }catch(e){
-    alert('Could not reach DockFlow through the local proxy.\nStart it with:  python proxy.py  (after mwinit).\nThen retry, or use Paste CSV.');
+    const url=new URL(u);
+    const h=url.hostname;
+    let prefix=h.includes('dockflow')?'/dockflow':h.includes('trans-logistics')?'/yms':h.includes('fclm')?'/fclm':null;
+    if(!prefix)return null;
+    return '/api'+prefix+url.pathname+url.search;
+  }catch{return null;}
+}
+
+// Fetch a configured endpoint through the proxy. Returns response text, or null on a
+// handled problem (with a user-facing alert already shown).
+async function fetchEndpoint(cfg,label){
+  if(!cfg||!cfg.url){
+    alert(`No ${label} endpoint set yet.\nClick "⚙ Endpoints", paste the Request URL you captured in DevTools, then pull again.\n(Or use Paste CSV.)`);
+    return null;
   }
+  const path=toProxyPath(cfg.url);
+  if(!path){alert(`The ${label} URL host isn't recognized.\nExpected a dockflow.robotics.a2z.com or trans-logistics.amazon.com URL.`);return null;}
+  const opts={signal:AbortSignal.timeout(30000)};
+  if((cfg.method||'GET').toUpperCase()==='POST'){opts.method='POST';opts.headers={'Content-Type':'application/json'};opts.body=cfg.body||'';}
+  let r;
+  try{r=await fetch(PROXY_BASE+path,opts);}
+  catch(e){alert(`Could not reach the local proxy.\nStart it with:  python proxy.py  (after mwinit).\nThen retry, or use Paste CSV.`);return null;}
+  if(r.headers.get('X-Proxy-Auth-Error')==='true'){alert(`${label} auth failed via proxy. Run mwinit and retry, or use Paste CSV.`);return null;}
+  return await r.text();
+}
+
+async function pullDockFlow(){
+  const txt=await fetchEndpoint(endpoints().dockflow,'DockFlow');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows){alert('DockFlow responded but no rows could be parsed.\nDouble-check you captured the data request (not the HTML page), or use Paste CSV.');return;}
+  mergeDockFlow(rows);
+  STORE.set('obd.lastPull',{source:'DockFlow MainSorter',at:Date.now(),note:'Destinations + weight merged.'});
+  renderAll();alert('FUSE: DockFlow data merged ('+rows.length+' rows).');
 }
 async function pullYms(){
-  // Yesterday's yard state for trailer type per door.
-  const ymsPath='/api/yms/yms/shipclerk/api/yard?node=RFD2';
-  try{
-    const r=await fetch(PROXY_BASE+ymsPath,{signal:AbortSignal.timeout(30000)});
-    if(r.headers.get('X-Proxy-Auth-Error')==='true'){alert('YMS auth failed via proxy. Run mwinit, then retry — or use Paste CSV.');return;}
-    const txt=await r.text();
-    const rows=extractRows(txt);
-    if(rows){
-      mergeYms(rows);
-      STORE.set('obd.lastPull',{source:'YMS yard (yesterday)',at:Date.now(),note:'Trailer types merged.'});
-      renderAll();alert('FUSE: YMS trailer types merged.');
-    }else{
-      alert('YMS returned no parseable table (single-page app). Open YMS yard view, filter to yesterday, copy the door/equipment table, and use Paste CSV.');
-    }
-  }catch(e){
-    alert('Could not reach YMS through the local proxy.\nStart it with:  python proxy.py  (after mwinit).\nThen retry, or use Paste CSV.');
-  }
+  const txt=await fetchEndpoint(endpoints().yms,'YMS');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows){alert('YMS responded but no rows could be parsed.\nDouble-check you captured the data request (not the HTML page), or use Paste CSV.');return;}
+  mergeYms(rows);
+  STORE.set('obd.lastPull',{source:'YMS yard (yesterday)',at:Date.now(),note:'Trailer types merged.'});
+  renderAll();alert('FUSE: YMS trailer types merged ('+rows.length+' rows).');
 }
 
 // Best-effort: pull rows out of JSON payload or embedded CSV/TSV.
