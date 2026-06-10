@@ -2,7 +2,7 @@
 // @name         OBR002 OB Period Report Card (Live FL Util + Belt)
 // @namespace    http://tampermonkey.net/
 // @version      2026-06-10.1
-// @description  V2 Hybrid bridge: automates NEO shift goals and FCLM JPLH per period. FL Utilization and Battle of the Belt are pulled with one click via off-screen hidden frames (no visible tabs) and refreshed every 10 minutes. Monitor pulls write only the monitor branch of the bridge, so other live data is unaffected.
+// @description  V2 Hybrid bridge: automates NEO shift goals and FCLM JPLH per period. FL Utilization and Battle of the Belt feed live from open graph tabs (set Reload=15min) and/or hidden frames every 15 minutes. Monitor pulls write only the monitor branch of the bridge, so other live data is unaffected.
 // @author       JR
 // @match        https://neo.meta.amazon.dev/planning*
 // @match        https://fclm-portal.amazon.com/reports/functionRollup*
@@ -1106,10 +1106,15 @@
   function numberAfterLabels(text, labels){
     for(const label of labels){
       const escaped=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      // igraph renders legends in several shapes depending on DecoratePoints:
+      //   West Side: 102,394        {West Side}: 102,394
+      //   West Side[total: 102,394.00]    {West Side}[total: 102,394.00]: 102,394 (52.1%)
+      // The [total: X] value is authoritative, so try those shapes first.
       const patterns=[
-        new RegExp(`${escaped}\\s*\\[?\\s*total\\s*:?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
+        new RegExp(`\\{?${escaped}\\}?\\s*\\[?\\s*total\\s*:?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
         new RegExp(`${escaped}\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
-        new RegExp(`\\{?${escaped}\\}?\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`,'i')
+        new RegExp(`\\{?${escaped}\\}?\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
+        new RegExp(`\\{?${escaped}\\}?[^0-9\\n]{0,16}([\\d,]+(?:\\.\\d+)?)`,'i')
       ];
 
       for(const pattern of patterns){
@@ -1153,6 +1158,11 @@
       const fl=monitorMetricTotal(text,'FL');
       const rwc=monitorMetricTotal(text,'RWC');
 
+      if(![mp,fl,rwc].some(Number.isFinite)){
+        updatePanel(readBridge(),`Monitor ${period.toUpperCase()} FL waiting for chart render...`);
+        return;
+      }
+
       target.flUtil={
         mp:Number.isFinite(mp)?mp:target.flUtil?.mp,
         fl:Number.isFinite(fl)?fl:target.flUtil?.fl,
@@ -1170,6 +1180,11 @@
     if(type==='belt'){
       const west=numberAfterLabels(text,['West Side']);
       const east=numberAfterLabels(text,['East Side']);
+
+      if(![west,east].some(Number.isFinite)){
+        updatePanel(readBridge(),`Monitor ${period.toUpperCase()} Belt waiting for chart render...`);
+        return;
+      }
 
       target.belt={
         east:Number.isFinite(east)?east:target.belt?.east,
@@ -1931,13 +1946,15 @@
 
   // monitorportal draws the totals with JavaScript, so they can only be read
   // from a rendered tab. Each open FL Util / Belt graph tab self-collects and
-  // reloads every 10 minutes to keep the bridge -> dashboard numbers live.
+  // reloads every 15 minutes to keep the bridge -> dashboard numbers live.
+  // (Matches the page's own Reload dropdown set to 15 min — if you set that,
+  // both timers stay in sync and the totals refresh on the same cadence.)
   let lastMonitorRefresh=GM_getValue('PRC_MONITOR_LAST_REFRESH_'+location.href.slice(0,90),0);
 
   function maybeMonitorRefresh(){
     if(!isMonitor) return;
 
-    if(now()-Number(lastMonitorRefresh||0)<10*60*1000) return;
+    if(now()-Number(lastMonitorRefresh||0)<15*60*1000) return;
 
     lastMonitorRefresh=now();
     GM_setValue('PRC_MONITOR_LAST_REFRESH_'+location.href.slice(0,90),lastMonitorRefresh);
@@ -2037,10 +2054,12 @@
 
     if(isDashboard){
       // LIVE FL Utilization + Battle of the Belt, with NO visible tabs: pull them
-      // through off-screen hidden frames on load and then every 10 minutes. These
+      // through off-screen hidden frames on load and then every 15 minutes. These
       // writes only touch the monitor branch, so NEO / FCLM / roster are untouched.
+      // (Open the real graph tabs with Reload=15min for an even more reliable feed —
+      // both paths write the same bridge keys, so whichever updates last wins.)
       setTimeout(()=>pullMonitorViaFrames(['flUtil','belt']),6000);
-      setInterval(()=>pullMonitorViaFrames(['flUtil','belt']),10*60*1000);
+      setInterval(()=>pullMonitorViaFrames(['flUtil','belt']),15*60*1000);
     }
 
     if(isDashboard){
@@ -2055,9 +2074,15 @@
     }
 
     if(isMonitor){
-      // If you DO open a real graph tab, it still self-collects and self-refreshes
-      // every 10 minutes, and shows the read-only diagnostic box.
-      setTimeout(()=>{ try{ collectMonitor(); }catch(e){ log('monitor collect failed',e); } },5000);
+      // LIVE TAB MODE: leave this graph tab open with the page's Reload dropdown
+      // set to 15 min. The chart renders async, so try collecting at staggered
+      // delays after load, then keep re-collecting every 60s — whenever the page
+      // redraws (its own Reload timer or ours), fresh totals reach the dashboard
+      // within a minute. collectMonitor() skips writes until numbers actually
+      // appear, so empty renders never overwrite good data.
+      const tryCollect=()=>{ try{ collectMonitor(); }catch(e){ log('monitor collect failed',e); } };
+      [4000,8000,15000,25000].forEach(ms=>setTimeout(tryCollect,ms));
+      setInterval(tryCollect,60*1000);
       setInterval(maybeMonitorRefresh,10000);
       setTimeout(runMonitorDiagnostic,4500);
     }
