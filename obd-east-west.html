@@ -51,7 +51,8 @@ body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",syste
 .door-card{border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff;transition:box-shadow .15s;position:relative}
 .door-card:hover{box-shadow:0 4px 14px rgba(20,33,61,.12)}
 .door-card.w-under{border-color:#fca5a5;background:#fef2f2}
-.door-card.w-over{border-color:#fcd34d;background:#fffbeb}
+.door-card.w-exception{border-color:#fcd34d;background:#fffbeb}
+.door-card.w-over{border-color:#fca5a5;background:#fef2f2}
 .door-card.w-in{border-color:#86efac;background:#f0fdf4}
 .door-card.w-empty{border-color:#e2e8f0;background:#f8fafc;opacity:.7}
 .door-card.w-hold{border-color:#ef4444;background:#fef2f2}
@@ -64,9 +65,13 @@ body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",syste
 .d-wt-sub{font-size:10px;color:#64748b}
 .wbar{height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden;margin:5px 0 4px;position:relative}
 .wbar span{display:block;height:100%;border-radius:999px}
-.wbar .bandmark{position:absolute;top:-1px;bottom:-1px;width:1px;background:rgba(20,33,61,.25)}
+.wbar .bandmark{position:absolute;top:-1px;bottom:-1px;width:1px;background:rgba(20,33,61,.35)}
+.wbar .bandmark.exc{background:rgba(217,119,6,.55)}
 .d-badge{display:inline-flex;align-items:center;height:17px;padding:0 6px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
-.b-in{background:#dcfce7;color:#166534}.b-under{background:#fee2e2;color:#991b1b}.b-over{background:#fef9c3;color:#92400e}.b-empty{background:#f1f5f9;color:#64748b}.b-hold{background:#fee2e2;color:#991b1b}
+.b-in{background:#dcfce7;color:#166534}.b-under{background:#fee2e2;color:#991b1b}.b-exception{background:#fef9c3;color:#92400e}.b-over{background:#fee2e2;color:#991b1b}.b-empty{background:#f1f5f9;color:#64748b}.b-hold{background:#fee2e2;color:#991b1b}
+.d-proj{display:flex;justify-content:space-between;gap:4px;font-size:10px;color:#64748b;margin-top:5px;border-top:1px dashed var(--line);padding-top:4px}
+.d-proj .risk-late{color:#991b1b;font-weight:800}
+.d-proj .risk-ok{color:#166534;font-weight:800}
 /* FILTERS */
 .filter-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .filter-row label{font-size:12px;color:#64748b;font-weight:600}
@@ -154,7 +159,7 @@ tbody tr:hover td{background:#f8fafc}
 <div class="shell">
   <div class="ph">
     <h1>FUSE-OBD · East/West Weight &amp; Trailer Map</h1>
-    <p>OB dock split — <strong>East DD104–126</strong> · <strong>West DD334–355</strong>. Per-side and per-door weight monitor (32K–40K band) with trailer type from YMS. Destinations from DockFlow MainSorter. Node RFD2.</p>
+    <p>OB dock split — <strong>East DD104–126</strong> · <strong>West DD334–355</strong>. Per door: <strong>ARC</strong> (DockFlow) · <strong>trailer type</strong> (YMS) · <strong>payload weight</strong> (SSP) vs the <strong>33–40K band, exception to 42K</strong>, with a <strong>DockFlow close projection</strong> judged against the CDT window. Node RFD2.</p>
   </div>
 
   <!-- Data-source banner -->
@@ -183,9 +188,10 @@ tbody tr:hover td{background:#f8fafc}
       <label>Weight band
         <select id="f-band" onchange="renderAll()">
           <option value="">All</option>
-          <option value="in">In band (32–40K)</option>
-          <option value="under">Under (&lt;32K)</option>
-          <option value="over">Over (&gt;40K)</option>
+          <option value="in">In band (33–40K)</option>
+          <option value="under">Under (&lt;33K)</option>
+          <option value="exception">Exception (40–42K)</option>
+          <option value="over">Over (&gt;42K)</option>
           <option value="hold">Hold / flagged</option>
           <option value="empty">Empty doors</option>
         </select>
@@ -287,7 +293,7 @@ tbody tr:hover td{background:#f8fafc}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
       <div class="ct" style="margin-bottom:0">CDT Tracker · Upcoming Departures <span id="cdt-src" style="font-weight:600;text-transform:none;letter-spacing:0;color:#92400e">· sample</span></div>
       <div style="display:flex;gap:6px;font-size:11px;color:#64748b;align-items:center">
-        <button class="btn" style="height:26px;font-size:11px" onclick="pullCdt()">▶ SSP Pull (CDT)</button>
+        <button class="btn" style="height:26px;font-size:11px" onclick="pullSSP()">▶ SSP Pull (payload + CDT)</button>
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fef2f2;border:1px solid #fca5a5;display:inline-block"></span>Critical (&lt;30 min)</span>
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fffbeb;border:1px solid #fcd34d;display:inline-block"></span>Watch (30–90 min)</span>
         <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f0fdf4;border:1px solid #86efac;display:inline-block"></span>On track</span>
@@ -312,9 +318,13 @@ tbody tr:hover td{background:#f8fafc}
   <div class="card">
     <div class="ct">Data Controls</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn primary" onclick="pullDockFlow()">▶ DockFlow Pull (dest + weight)</button>
-      <button class="btn primary" onclick="pullYms()">▶ YMS Pull (trailer type · yesterday)</button>
+      <button class="btn primary" onclick="pullDockFlow()">▶ DockFlow (ARC + projection)</button>
+      <button class="btn primary" onclick="pullSSP()">▶ SSP (payload + CDT)</button>
+      <button class="btn primary" onclick="pullYms()">▶ YMS (trailer type)</button>
       <button class="btn" onclick="showEndpoints()">⚙ Endpoints</button>
+      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px">Fill rate
+        <input type="number" id="fill-rate" min="0" step="500" style="width:70px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12px" onchange="setFillRate(this.value)"> lbs/hr
+      </label>
       <button class="btn" onclick="showPaste()">⌨ Paste CSV</button>
       <label class="btn" style="cursor:pointer">⭱ Upload CSV<input type="file" accept=".csv" style="display:none" onchange="uploadCsv(this)"></label>
       <button class="btn" onclick="renderAll();renderCWM()">↺ Refresh</button>
@@ -324,10 +334,11 @@ tbody tr:hover td{background:#f8fafc}
     <p style="font-size:11px;color:#64748b;margin-top:10px">
       Live pulls go through your local <code>proxy.py</code> (uses your Midway session). Start it with
       <code>python proxy.py</code> after <code>mwinit</code>. DockFlow / YMS / SSP are single-page apps, so first set
-      the data request URLs under <strong>⚙ Endpoints</strong> (capture them in DevTools → Network): DockFlow =
-      door dest+weight, YMS = trailer type, SSP = CDT departures, DockFlow = divert mix. Fallback for the door
-      grid any time: <strong>Paste CSV</strong> — columns
-      <code>side,door,destination,trailer_type,weight,status</code>.
+      the data request URLs under <strong>⚙ Endpoints</strong> (capture them in DevTools → Network): <strong>DockFlow</strong> =
+      ARC + close projection (fill rate), <strong>SSP</strong> = payload weight + CDT, <strong>YMS</strong> = trailer type,
+      DockFlow = divert mix. <strong>Fill rate</strong> is the lbs/hr fallback used to project close time when DockFlow
+      doesn't supply one. Fallback any time: <strong>Paste CSV</strong> — columns
+      <code>side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status</code>.
     </p>
   </div>
 </div>
@@ -342,7 +353,7 @@ tbody tr:hover td{background:#f8fafc}
        — YMS <em>and</em> SSP — → <code>/api/yms</code>). If the request is a POST/GraphQL, set method to POST and paste the request payload.</p>
 
     <div style="display:grid;gap:6px;margin-bottom:14px">
-      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow — destinations + weight</div>
+      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow — ARC / destination + close projection (fill rate)</div>
       <input id="ep-df-url" placeholder="https://prod-na.dockflow.robotics.a2z.com/...  (full Request URL)"
              style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
       <div style="display:flex;gap:8px;align-items:center">
@@ -372,7 +383,7 @@ tbody tr:hover td{background:#f8fafc}
     </div>
 
     <div style="display:grid;gap:6px;margin-top:14px">
-      <div style="font-weight:800;font-size:12px;color:#166534">SSP — CDT departures (tracker)</div>
+      <div style="font-weight:800;font-size:12px;color:#166534">SSP — payload weight + CDT (door blocks + tracker)</div>
       <input id="ep-ssp-url" placeholder="https://trans-logistics.amazon.com/ssp/dock/...  (full Request URL)"
              style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
       <div style="display:flex;gap:8px;align-items:center">
@@ -412,10 +423,10 @@ tbody tr:hover td{background:#f8fafc}
 <div class="modal" id="paste-modal">
   <div class="modal-card">
     <h2>Paste door data (CSV or TSV)</h2>
-    <p>Header row required. Columns: <code>side,door,destination,trailer_type,weight,status</code>.
-       <code>weight</code> in lbs. <code>status</code>: Loading / Staged / Empty / Hold / Closed.
-       Tab-separated (pasted straight from Excel/DockFlow) also works.</p>
-    <textarea id="paste-input" placeholder="side,door,destination,trailer_type,weight,status&#10;East,104,IND1,53' Dry Van,34200,Loading&#10;..."></textarea>
+    <p>Header row required. Columns: <code>side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status</code>.
+       <code>arc</code>←DockFlow, <code>trailer_type</code>←YMS, <code>weight</code> (lbs)←SSP, <code>cdt</code> HH:MM←SSP.
+       <code>fill_rate</code> (lbs/hr) and <code>projected_close</code> are optional (DockFlow). Tab-separated also works.</p>
+    <textarea id="paste-input" placeholder="side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status&#10;East,104,IND1,AZNU,33800,02:30,8200,,Loading&#10;..."></textarea>
     <div class="modal-actions">
       <button class="btn" onclick="hidePaste()">Cancel</button>
       <button class="btn primary" onclick="savePaste()">Load data</button>
@@ -428,54 +439,60 @@ tbody tr:hover td{background:#f8fafc}
 const STORE={get:(k,fb)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 const PROXY_BASE="http://localhost:8765";
 
-// Weight band (lbs) — matches FUSE-CDT·WM
+// ── Bands ──
+// Door PAYLOAD band (per your notes): hard 33K–40K, exception up to 42K. Used by the
+// door blocks. Close-out target = 40K. The CDT·WM sorter monitor below keeps its own
+// 32–40K sorter band (BAND_LO/HI/WARN) — different measurement (belt vs trailer payload).
+const DOOR_LO=33000,DOOR_HI=40000,DOOR_EXC=42000,CLOSE_TARGET=40000;
 const BAND_LO=32000,BAND_HI=40000,WARN_LO=28000,WARN_HI=43000,GAUGE_MAX=48000;
+function fillRateDefault(){return Number(STORE.get('obd.fillRate',7000))||7000;} // lbs/hr fallback for projection
+function setFillRate(v){STORE.set('obd.fillRate',Number(v)||7000);renderAll();}
 
-// ── Default door map (from DockFlow MainSorter screenshot). Weights/trailer types
-//    are SAMPLE placeholders until a live pull or paste replaces them. ──
-const sampleDoorsCsv=`side,door,destination,trailer_type,weight,status
-East,104,IND1,53' Dry Van,34200,Loading
-East,105,MSP1,53' Dry Van,28100,Loading
-East,106,PCW1,53' Dry Van,36500,Loading
-East,107,DSM5,53' Dry Van,41200,Loading
-East,108,QXX6,53' Dry Van,30900,Hold
-East,109,MDW4,53' Dry Van,37800,Loading
-East,110,CMH4,53' Dry Van,32400,Loading
-East,111,CMH1,53' Dry Van,39100,Loading
-East,113,STL8,53' Dry Van,30500,Loading
-East,114,SBN1,53' Dry Van,35600,Staged
-East,115,GRR1,53' Dry Van,38200,Loading
-East,116,MKE1,53' Dry Van,33300,Loading
-East,117,MKE2,53' Dry Van,40500,Loading
-East,118,ORD5,53' Dry Van,36900,Loading
-East,119,DET6,53' Dry Van,31200,Loading
-East,120,LUK2,53' Dry Van,34800,Loading
-East,121,IGQ1,53' Dry Van,37100,Loading
-East,122,FSD1,53' Dry Van,29800,Loading
-East,124,N/A,,0,Empty
-East,125,N/A,,0,Empty
-East,126,N/A,,0,Empty
-West,334,N/A,,0,Empty
-West,335,N/A,,0,Empty
-West,336,N/A,,0,Empty
-West,337,N/A,,0,Empty
-West,338,MKC6,53' Dry Van,35200,Loading
-West,339,DSM5,53' Dry Van,38600,Loading
-West,341,MDW7,53' Dry Van,33900,Loading
-West,342,FSD1,53' Dry Van,41800,Loading
-West,343,MKE2,53' Dry Van,36100,Loading
-West,344,HMW3,53' Dry Van,30900,Loading
-West,345,KRB6,53' Dry Van,34500,Loading
-West,346,DTW1,53' Dry Van,37600,Loading
-West,347,CLE2,53' Dry Van,32800,Loading
-West,348,FWA6,53' Dry Van,39400,Loading
-West,349,CLE3,53' Dry Van,28700,Loading
-West,350,MLI1,53' Dry Van,35900,Loading
-West,351,OMA2,53' Dry Van,33200,Loading
-West,352,DET3,53' Dry Van,40100,Loading
-West,353,ORD5,53' Dry Van,36400,Loading
-West,354,IGQ1,53' Dry Van,31600,Loading
-West,355,PCW1,53' Dry Van,38900,Loading`;
+// ── Default door map (ARC from DockFlow board; trailer type from YMS; payload weight
+//    from SSP). Values below are SAMPLE until a live pull or paste replaces them. ──
+const sampleDoorsCsv=`side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status
+East,104,IND1,AZNU,33800,02:30,8200,,Loading
+East,105,MSP1,BXLU,31200,02:45,,,Loading
+East,106,PCW1,CMQU,36500,03:00,,,Loading
+East,107,DSM5,DLPU,41200,03:15,,,Loading
+East,108,QXX6,,0,,,,Hold
+East,109,MDW4,EJTU,38400,03:30,,,Loading
+East,110,CMH4,FRZU,33100,03:45,,,Loading
+East,111,CMH1,GHNU,39600,04:00,,,Loading
+East,113,STL8,HKLU,30500,02:20,,,Loading
+East,114,SBN1,JMPU,35900,04:15,,,Staged
+East,115,GRR1,KQRU,38900,04:30,,,Loading
+East,116,MKE1,LSTU,34200,03:50,,,Loading
+East,117,MKE2,MVWU,42600,02:10,,,Loading
+East,118,ORD5,NXYU,37000,04:45,,,Loading
+East,119,DET6,PZAU,32100,03:05,,,Loading
+East,120,LUK2,QBCU,34800,04:00,,,Loading
+East,121,IGQ1,RDEU,39100,05:00,,,Loading
+East,122,FSD1,SFGU,29800,02:35,,,Loading
+East,124,N/A,,0,,,,Empty
+East,125,N/A,,0,,,,Empty
+East,126,N/A,,0,,,,Empty
+West,334,N/A,,0,,,,Empty
+West,335,N/A,,0,,,,Empty
+West,336,N/A,,0,,,,Empty
+West,337,N/A,,0,,,,Empty
+West,338,MKC6,TGHU,35200,03:20,,,Loading
+West,339,DSM5,UJKU,38600,04:10,,,Loading
+West,341,MDW7,VLMU,33900,03:40,,,Loading
+West,342,FSD1,WNPU,41800,02:55,,,Loading
+West,343,MKE2,XQRU,36100,04:20,,,Loading
+West,344,HMW3,YSTU,30900,03:10,,,Loading
+West,345,KRB6,ZVWU,34500,04:35,,,Loading
+West,346,DTW1,AXYU,37600,05:05,,,Loading
+West,347,CLE2,BZAU,32800,03:25,,,Loading
+West,348,FWA6,CBDU,39400,04:50,,,Loading
+West,349,CLE3,DEFU,28700,02:40,,,Loading
+West,350,MLI1,AWO2A,35900,03:55,7600,,Loading
+West,351,OMA2,FHIU,33200,04:05,,,Loading
+West,352,DET3,GJKU,43100,02:25,,,Loading
+West,353,ORD5,HLMU,36400,04:40,,,Loading
+West,354,IGQ1,JNPU,31600,03:35,,,Loading
+West,355,PCW1,KQSU,38900,05:10,,,Loading`;
 
 function parseCsv(text){
   if(!text)return[];
@@ -491,30 +508,63 @@ function parseCsv(text){
 function doors(){
   const csv=STORE.get('obd.doorsCsv',null)||sampleDoorsCsv;
   return parseCsv(csv).map(r=>{
-    const dest=(r.destination||'').trim();
-    const isEmpty=!dest||dest.toUpperCase()==='N/A'||(r.status||'').toLowerCase()==='empty';
+    const arc=(r.arc||r.destination||r.dest||'').trim();
+    const isEmpty=!arc||arc.toUpperCase()==='N/A'||(r.status||'').toLowerCase()==='empty';
     return{
       side:(r.side||'').trim()||'East',
       door:String(r.door||'').trim(),
-      destination:isEmpty?'N/A':dest,
-      trailerType:(r.trailer_type||r.trailertype||'').trim(),
-      weight:Number(String(r.weight||'0').replace(/[^0-9.]/g,''))||0,
+      arc:isEmpty?'N/A':arc,                                    // ← DockFlow
+      trailerType:(r.trailer_type||r.trailertype||'').trim(),   // ← YMS
+      weight:Number(String(r.weight||'0').replace(/[^0-9.]/g,''))||0, // ← SSP payload
+      cdt:(r.cdt||r.cpt||'').trim(),                            // ← SSP critical departure time
+      fillRate:Number(String(r.fill_rate||r.fillrate||'0').replace(/[^0-9.]/g,''))||0, // ← DockFlow ARC rate
+      projectedClose:(r.projected_close||r.expected_close||'').trim(), // ← DockFlow projection (if given)
+      vrid:(r.vrid||'').trim(),
       status:(r.status||(isEmpty?'Empty':'Loading')).trim(),
       isEmpty
     };
   });
 }
 
+// Door payload band: hard 33–40K, exception 40–42K, over >42K.
 function band(d){
+  const st=(d.status||'').toLowerCase();
+  if(st==='hold'||st==='closed')return'hold';      // flagged takes precedence over zero weight
   if(d.isEmpty||d.weight<=0)return'empty';
-  if((d.status||'').toLowerCase()==='hold'||(d.status||'').toLowerCase()==='closed')return'hold';
-  if(d.weight<BAND_LO)return'under';
-  if(d.weight>BAND_HI)return'over';
-  return'in';
+  if(d.weight<DOOR_LO)return'under';
+  if(d.weight<=DOOR_HI)return'in';
+  if(d.weight<=DOOR_EXC)return'exception';
+  return'over';
 }
-const BAND_LABEL={in:'In band',under:'Under',over:'Over',empty:'Empty',hold:'Hold'};
+const BAND_LABEL={in:'In band',under:'Under',exception:'Exception',over:'Over',empty:'Empty',hold:'Hold'};
+const BAND_BADGE={in:'b-in',under:'b-under',exception:'b-exception',over:'b-over',empty:'b-empty',hold:'b-hold'};
+const BAND_CARD={in:'w-in',under:'w-under',exception:'w-exception',over:'w-over',empty:'w-empty',hold:'w-hold'};
+const BAND_COLOR={in:'#16a34a',under:'#dc2626',exception:'#d97706',over:'#dc2626',hold:'#dc2626',empty:'#cbd5e1'};
 
 function pctOf(v){return Math.max(0,Math.min(100,(v/GAUGE_MAX)*100));}
+function pad2(n){return String(n).padStart(2,'0');}
+function clockStr(d){return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;}
+// "HH:MM" → minutes from now (next occurrence today/tomorrow), or null.
+function minsToClock(t){
+  if(!t)return null;
+  const m=String(t).match(/(\d{1,2}):(\d{2})/);if(!m)return null;
+  const now=new Date(),d=new Date(now);d.setHours(+m[1],+m[2],0,0);if(d<now)d.setDate(d.getDate()+1);
+  return Math.round((d-now)/60000);
+}
+// DockFlow close projection per door: when will payload reach the 40K close target,
+// given current SSP weight + ARC fill rate, judged against the CDT window.
+function projectClose(d){
+  if(d.isEmpty||d.weight<=0)return null;
+  if(d.projectedClose){const em=minsToClock(d.projectedClose);return{time:d.projectedClose,etaMin:em,basis:'DockFlow',risk:riskVsCdt(em,d)};}
+  if(d.weight>=CLOSE_TARGET){return{time:clockStr(new Date()),etaMin:0,basis:'at target',risk:riskVsCdt(0,d)};}
+  const rate=d.fillRate>0?d.fillRate:fillRateDefault();
+  if(!rate)return null;
+  const etaMin=Math.max(0,Math.round((CLOSE_TARGET-d.weight)/rate*60));
+  const dep=new Date(Date.now()+etaMin*60000);
+  return{time:clockStr(dep),etaMin,basis:d.fillRate>0?'DockFlow rate':'est rate',risk:riskVsCdt(etaMin,d)};
+}
+// 'late' = projected to hit weight after CDT (won't make weight in time); 'ok' otherwise.
+function riskVsCdt(etaMin,d){const c=minsToClock(d.cdt);if(c==null||etaMin==null)return null;return etaMin>c?'late':'ok';}
 
 // ── Side summary card ──
 function sideSummary(side,list){
@@ -523,59 +573,75 @@ function sideSummary(side,list){
   const avgWt=loaded.length?Math.round(loaded.reduce((s,d)=>s+d.weight,0)/loaded.length):0;
   const inB=list.filter(d=>band(d)==='in').length;
   const under=list.filter(d=>band(d)==='under').length;
+  const exc=list.filter(d=>band(d)==='exception').length;
   const over=list.filter(d=>band(d)==='over').length;
   const hold=list.filter(d=>band(d)==='hold').length;
   const empty=list.filter(d=>band(d)==='empty').length;
   const active=list.length-empty;
-  const avgColor=avgWt>=BAND_LO&&avgWt<=BAND_HI?'#16a34a':avgWt>=WARN_LO&&avgWt<=WARN_HI?'#d97706':'#dc2626';
-  const ticks=[0,12,24,36,48];
+  // projected to close after CDT (at risk of departing light / late)
+  const late=loaded.filter(d=>{const p=projectClose(d);return p&&p.risk==='late';}).length;
+  const avgColor=avgWt>=DOOR_LO&&avgWt<=DOOR_HI?'#16a34a':(avgWt>=DOOR_LO-3000&&avgWt<=DOOR_EXC)?'#d97706':'#dc2626';
+  const DLO=30000;
   return`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div class="ct" style="margin-bottom:0">${side} Side · Weight Monitor</div>
       <span style="font-size:11px;color:#64748b">${active}/${list.length} doors active</span>
     </div>
     <div class="side-stat-row">
-      <div class="kpi"><div class="kl">Total on side</div><div class="kv" style="font-size:18px">${(totalWt/1000).toFixed(1)}K</div><div class="ks">${active} loaded</div></div>
-      <div class="kpi"><div class="kl">Avg / door</div><div class="kv" style="font-size:18px;color:${avgColor}">${(avgWt/1000).toFixed(1)}K</div><div class="ks">band 32–40K</div></div>
-      <div class="kpi"><div class="kl">In band</div><div class="kv tg" style="font-size:18px">${inB}</div><div class="ks">${under} under · ${over} over</div></div>
+      <div class="kpi"><div class="kl">Avg / door</div><div class="kv" style="font-size:18px;color:${avgColor}">${(avgWt/1000).toFixed(1)}K</div><div class="ks">band 33–40K</div></div>
+      <div class="kpi"><div class="kl">In band</div><div class="kv tg" style="font-size:18px">${inB}</div><div class="ks">${under} under · ${exc} exc · ${over} over</div></div>
+      <div class="kpi"><div class="kl">Proj. late</div><div class="kv ${late?'tr':'tg'}" style="font-size:18px">${late}</div><div class="ks">close after CDT</div></div>
       <div class="kpi"><div class="kl">Flags</div><div class="kv ${hold?'tr':''}" style="font-size:18px">${hold}</div><div class="ks">${empty} empty</div></div>
     </div>
     <div class="gauge-wrap">
-      <div class="gauge-label-row"><span>0</span><span>Side avg vs target band</span><span>${(GAUGE_MAX/1000)}K lbs</span></div>
+      <div class="gauge-label-row"><span>0</span><span>Side avg vs 33–40K band (exc 42K)</span><span>${(GAUGE_MAX/1000)}K lbs</span></div>
       <div class="gauge-track">
-        <div class="gauge-warn" style="left:${pctOf(WARN_LO)}%;width:${pctOf(BAND_LO)-pctOf(WARN_LO)}%"></div>
-        <div class="gauge-band" style="left:${pctOf(BAND_LO)}%;width:${pctOf(BAND_HI)-pctOf(BAND_LO)}%"></div>
-        <div class="gauge-warn" style="left:${pctOf(BAND_HI)}%;width:${pctOf(WARN_HI)-pctOf(BAND_HI)}%"></div>
+        <div class="gauge-warn" style="left:${pctOf(DLO)}%;width:${pctOf(DOOR_LO)-pctOf(DLO)}%"></div>
+        <div class="gauge-band" style="left:${pctOf(DOOR_LO)}%;width:${pctOf(DOOR_HI)-pctOf(DOOR_LO)}%"></div>
+        <div class="gauge-warn" style="left:${pctOf(DOOR_HI)}%;width:${pctOf(DOOR_EXC)-pctOf(DOOR_HI)}%"></div>
         <div class="gauge-fill" style="width:${pctOf(avgWt)}%;background:${avgColor};opacity:.25"></div>
         <div class="gauge-pointer" data-val="${(avgWt/1000).toFixed(1)}K" style="left:calc(${pctOf(avgWt)}% - 1px)"></div>
       </div>
-      <div class="gauge-ticks">${ticks.map(t=>`<span>${t}K</span>`).join('')}</div>
+      <div class="gauge-ticks">${[0,12,24,36,48].map(t=>`<span>${t}K</span>`).join('')}</div>
     </div>`;
 }
 
-// ── Door card ──
+// ── Door block (per your "block idea": ARC←DockFlow, trailer←YMS, weight←SSP,
+//    bar vs 33–40K band, DockFlow close projection vs CDT) ──
 function doorCard(d){
   const b=band(d);
-  const cls={in:'w-in',under:'w-under',over:'w-over',empty:'w-empty',hold:'w-hold'}[b];
-  const badgeCls={in:'b-in',under:'b-under',over:'b-over',empty:'b-empty',hold:'b-hold'}[b];
-  const barColor=b==='in'?'#16a34a':b==='over'?'#d97706':b==='hold'?'#dc2626':b==='under'?'#dc2626':'#cbd5e1';
-  const wtStr=d.isEmpty?'—':`${(d.weight/1000).toFixed(1)}K`;
-  return`<div class="door-card ${cls}" title="DD${d.door} · ${d.destination} · ${d.trailerType||'no trailer type'} · ${d.weight?d.weight.toLocaleString()+' lbs':'empty'} · ${d.status}">
+  const cls=BAND_CARD[b],badgeCls=BAND_BADGE[b],barColor=BAND_COLOR[b];
+  const wtStr=(d.isEmpty||d.weight<=0)?'—':`${(d.weight/1000).toFixed(1)}K`;
+  const proj=projectClose(d);
+  let projHtml='';
+  if(!d.isEmpty){
+    const cdtTxt=d.cdt?`CDT ${d.cdt}`:'CDT —';
+    if(proj){
+      const riskCls=proj.risk==='late'?'risk-late':proj.risk==='ok'?'risk-ok':'';
+      const riskMark=proj.risk==='late'?'✗':proj.risk==='ok'?'✓':'';
+      projHtml=`<div class="d-proj"><span title="DockFlow projected close (${proj.basis})">▸ close ~${proj.time}</span><span class="${riskCls}">${cdtTxt} ${riskMark}</span></div>`;
+    }else{
+      projHtml=`<div class="d-proj"><span>▸ close —</span><span>${cdtTxt}</span></div>`;
+    }
+  }
+  return`<div class="door-card ${cls}" title="DD${d.door} · ARC ${d.arc} · ${d.trailerType||'no trailer type'} · ${d.weight?d.weight.toLocaleString()+' lbs (SSP)':'empty'} · ${d.cdt?'CDT '+d.cdt:''} · ${d.status}">
     <div class="dh">
       <span class="d-num">${d.door}</span>
-      <span class="d-dest ${d.isEmpty?'na':''}">${d.destination}</span>
+      <span class="d-dest ${d.isEmpty?'na':''}" title="ARC (DockFlow)">${d.arc}</span>
     </div>
-    <div class="d-trailer">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">trailer type?</span>')}</div>
+    <div class="d-trailer" title="Trailer type (YMS)">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">trailer type?</span>')}</div>
     <div style="display:flex;align-items:baseline;justify-content:space-between">
-      <span class="d-wt" style="color:${d.isEmpty?'#94a3b8':barColor}">${wtStr}</span>
-      <span class="d-wt-sub">${d.isEmpty?'lbs':'lbs'}</span>
+      <span class="d-wt" style="color:${d.isEmpty?'#94a3b8':barColor}" title="Payload weight (SSP)">${wtStr}</span>
+      <span class="d-wt-sub">lbs · SSP</span>
     </div>
     <div class="wbar">
       <span style="width:${pctOf(d.weight)}%;background:${barColor}"></span>
-      <span class="bandmark" style="left:${pctOf(BAND_LO)}%"></span>
-      <span class="bandmark" style="left:${pctOf(BAND_HI)}%"></span>
+      <span class="bandmark" style="left:${pctOf(DOOR_LO)}%"></span>
+      <span class="bandmark" style="left:${pctOf(DOOR_HI)}%"></span>
+      <span class="bandmark exc" style="left:${pctOf(DOOR_EXC)}%"></span>
     </div>
     <span class="d-badge ${badgeCls}">${BAND_LABEL[b]}${b!=='empty'&&b!=='in'?' · '+d.status:''}</span>
+    ${projHtml}
   </div>`;
 }
 
@@ -588,7 +654,7 @@ function applyFilters(list){
     if(side&&d.side!==side)return false;
     if(bandF&&band(d)!==bandF)return false;
     if(hideEmpty&&d.isEmpty)return false;
-    if(q&&!(d.destination.toLowerCase().includes(q)||(d.trailerType||'').toLowerCase().includes(q)||d.door.includes(q)))return false;
+    if(q&&!(d.arc.toLowerCase().includes(q)||(d.trailerType||'').toLowerCase().includes(q)||d.door.includes(q)))return false;
     return true;
   });
 }
@@ -607,16 +673,18 @@ function renderAll(){
   document.getElementById('east-count').textContent=`${east.length} shown`;
   document.getElementById('west-count').textContent=`${west.length} shown`;
 
-  // Detail table
+  // Detail table — ARC (DockFlow) · Trailer (YMS) · Weight (SSP) · CDT · DockFlow proj close
   document.getElementById('detail-table').innerHTML=`<table>
-    <thead><tr><th>Side</th><th>Door</th><th>Destination</th><th>Trailer Type</th><th class="num">Weight (lbs)</th><th>Band</th><th>Status</th></tr></thead>
-    <tbody>${filtered.map(d=>{const b=band(d);const c=b==='in'?'tg':b==='under'||b==='hold'?'tr':b==='over'?'ta':'';return`<tr>
+    <thead><tr><th>Side</th><th>Door</th><th>ARC</th><th>Trailer Type</th><th class="num">Weight (SSP)</th><th>Band</th><th>CDT</th><th>Proj Close</th><th>Status</th></tr></thead>
+    <tbody>${filtered.map(d=>{const b=band(d);const c=b==='in'?'tg':b==='under'||b==='over'||b==='hold'?'tr':b==='exception'?'ta':'';const p=projectClose(d);const pCls=p&&p.risk==='late'?'tr':p&&p.risk==='ok'?'tg':'';return`<tr>
       <td>${d.side}</td>
       <td style="font-weight:800">${d.door}</td>
-      <td style="font-weight:700" class="${d.isEmpty?'':''}">${d.destination}</td>
+      <td style="font-weight:700">${d.arc}</td>
       <td style="color:#64748b">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">missing</span>')}</td>
       <td class="num">${d.weight?d.weight.toLocaleString():'—'}</td>
       <td class="${c}" style="font-weight:700">${BAND_LABEL[b]}</td>
+      <td>${d.cdt||'—'}</td>
+      <td class="${pCls}" style="font-weight:600">${p?p.time:'—'}</td>
       <td>${d.status}</td>
     </tr>`}).join('')}</tbody>
   </table>`;
@@ -630,7 +698,7 @@ function renderBanner(){
   if(live){
     el.innerHTML=`<div class="banner banner-live">✓ Live data loaded — ${live.source} · captured ${new Date(live.at).toLocaleString()}. ${live.note||''}</div>`;
   }else{
-    el.innerHTML=`<div class="banner banner-sample">⚠ Showing the door map with <strong>SAMPLE weights &amp; trailer types</strong>. Run a DockFlow + YMS pull (local proxy) or Paste CSV to load real values. Destinations match the DockFlow board.</div>`;
+    el.innerHTML=`<div class="banner banner-sample">⚠ Door map with <strong>SAMPLE</strong> trailer types, payload weights &amp; CDTs. Pull <strong>DockFlow</strong> (ARC + projection), <strong>SSP</strong> (payload + CDT) and <strong>YMS</strong> (trailer type) via the local proxy, or Paste CSV. ARCs match the DockFlow board.</div>`;
   }
 }
 
@@ -661,11 +729,12 @@ function uploadCsv(input){
     renderAll();
   });
 }
+const DOOR_HEAD='side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status';
+function doorToRow(d){return [d.side,d.door,d.arc,d.trailerType,d.weight,d.cdt,d.fillRate||'',d.projectedClose,d.status].join(',');}
 function exportCsv(){
   const rows=doors();
-  const head='side,door,destination,trailer_type,weight,status';
-  const body=rows.map(d=>[d.side,d.door,d.destination,d.trailerType,d.weight,d.status].join(',')).join('\n');
-  const blob=new Blob([head+'\n'+body],{type:'text/csv'});
+  const body=rows.map(doorToRow).join('\n');
+  const blob=new Blob([DOOR_HEAD+'\n'+body],{type:'text/csv'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=`obd-east-west-${new Date().toISOString().slice(0,10)}.csv`;
@@ -738,7 +807,7 @@ async function pullDockFlow(){
   const rows=extractRows(txt);
   if(!rows){alert('DockFlow responded but no rows could be parsed.\nDouble-check you captured the data request (not the HTML page), or use Paste CSV.');return;}
   mergeDockFlow(rows);
-  STORE.set('obd.lastPull',{source:'DockFlow MainSorter',at:Date.now(),note:'Destinations + weight merged.'});
+  STORE.set('obd.lastPull',{source:'DockFlow MainSorter',at:Date.now(),note:'ARC + close projection merged.'});
   renderAll();alert('FUSE: DockFlow data merged ('+rows.length+' rows).');
 }
 async function pullYms(){
@@ -770,33 +839,53 @@ function extractRows(txt){
 }
 function keyByDoor(){const m={};doors().forEach(d=>m[d.door]=d);return m;}
 function persist(map){
-  const head='side,door,destination,trailer_type,weight,status';
-  const body=Object.values(map).map(d=>[d.side,d.door,d.destination,d.trailerType,d.weight,d.status].join(',')).join('\n');
-  STORE.set('obd.doorsCsv',head+'\n'+body);
+  const body=Object.values(map).map(doorToRow).join('\n');
+  STORE.set('obd.doorsCsv',DOOR_HEAD+'\n'+body);
 }
 function fieldOf(o,names){for(const n of names){for(const k in o){if(k.toLowerCase().replace(/[^a-z]/g,'')===n)return o[k];}}return undefined;}
+// DockFlow → ARC/destination + fill rate + close projection (NOT weight; weight is SSP).
 function mergeDockFlow(rows){
   const map=keyByDoor();
   rows.forEach(o=>{
     const door=String(fieldOf(o,['door','dock','dockdoor','workcell','wc'])||'').replace(/[^0-9]/g,'');
     if(!door||!map[door])return;
-    const dest=fieldOf(o,['destination','dest','arc','lane','fc']);
-    const wt=fieldOf(o,['weight','wt','loadweight','lbs']);
-    if(dest!=null&&String(dest).trim())map[door].destination=String(dest).trim();
-    if(wt!=null&&String(wt).trim())map[door].weight=Number(String(wt).replace(/[^0-9.]/g,''))||map[door].weight;
-    if(map[door].weight>0&&map[door].isEmpty){map[door].isEmpty=false;map[door].status='Loading';}
+    const arc=fieldOf(o,['arc','destination','dest','lane','fc','sortdestination']);
+    const rate=fieldOf(o,['fillrate','rate','lbsperhour','lbshr','throughput','flowrate']);
+    const proj=fieldOf(o,['projectedclose','expectedclose','closetime','projectedcloseout','eta']);
+    if(arc!=null&&String(arc).trim()){map[door].arc=String(arc).trim();if(map[door].arc.toUpperCase()!=='N/A')map[door].isEmpty=false;}
+    if(rate!=null&&String(rate).trim())map[door].fillRate=Number(String(rate).replace(/[^0-9.]/g,''))||map[door].fillRate;
+    if(proj!=null&&String(proj).trim())map[door].projectedClose=String(proj).trim();
   });
   persist(map);
 }
+// YMS → trailer type per door.
 function mergeYms(rows){
   const map=keyByDoor();
   rows.forEach(o=>{
     const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
     if(!door||!map[door])return;
-    const tt=fieldOf(o,['trailertype','equipmenttype','equiptype','type','equipment','trailer']);
+    const tt=fieldOf(o,['trailertype','equipmenttype','equiptype','equipment','trailer','trailernumber','vrid']);
     if(tt!=null&&String(tt).trim())map[door].trailerType=String(tt).trim();
   });
   persist(map);
+}
+
+// SSP → payload weight + CDT (+ vrid) per door. Returns count of doors updated.
+function normTime(raw){const {hh,mm}=parseCdtTime(raw,null);return `${pad2(hh)}:${pad2(mm)}`;}
+function mergeSSP(rows){
+  const map=keyByDoor();let n=0;
+  rows.forEach(o=>{
+    const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
+    if(!door||!map[door])return;
+    const wt=fieldOf(o,['payloadweight','payload','weight','loadweight','wt','lbs']);
+    const cdtRaw=fieldOf(o,['cdt','criticalpulltime','cpt','departuretime','dpt','departure']);
+    const vrid=fieldOf(o,['vrid','trailer','load','loadid']);
+    if(wt!=null&&String(wt).trim()){map[door].weight=Number(String(wt).replace(/[^0-9.]/g,''))||map[door].weight;if(map[door].weight>0){map[door].isEmpty=false;if((map[door].status||'').toLowerCase()==='empty')map[door].status='Loading';}n++;}
+    if(cdtRaw!=null&&String(cdtRaw).trim())map[door].cdt=normTime(cdtRaw);
+    if(vrid!=null&&String(vrid).trim())map[door].vrid=String(vrid).trim();
+  });
+  persist(map);
+  return n;
 }
 
 // ── CDT (SSP) + divert (DockFlow) live pulls ──
@@ -844,12 +933,17 @@ function mergeDivert(rows){
   return out.length;
 }
 
-async function pullCdt(){
+// SSP feeds BOTH the per-door payload weight + CDT (door blocks) and the departure tracker.
+async function pullSSP(){
   const txt=await fetchEndpoint(endpoints().ssp,'SSP');
   if(txt==null)return;
   const rows=extractRows(txt);
-  if(!rows||!mergeCDT(rows)){alert('SSP responded but no CDT rows could be parsed.\nCheck you captured the departures data request, or keep sample.');return;}
-  renderCWM();alert('FUSE: CDT tracker updated from SSP ('+cdtRows().length+' departures).');
+  if(!rows){alert('SSP responded but no rows could be parsed.\nCheck you captured the OB load/departures request, or use Paste CSV.');return;}
+  const perDoor=mergeSSP(rows);
+  const tracker=mergeCDT(rows);
+  STORE.set('obd.lastPull',{source:'SSP OB payload',at:Date.now(),note:'Payload weight + CDT merged from SSP.'});
+  renderAll();renderCWM();
+  alert(`FUSE: SSP merged — ${perDoor} door payload weights, ${tracker} departures.`);
 }
 async function pullDivert(){
   const txt=await fetchEndpoint(endpoints().divert,'DockFlow divert');
@@ -1043,6 +1137,7 @@ function renderCWM(){
 
 function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 tick();setInterval(tick,1000);
+{const fr=document.getElementById('fill-rate');if(fr)fr.value=fillRateDefault();}
 renderAll();
 renderCWM();
 setInterval(renderCDT,30000);
