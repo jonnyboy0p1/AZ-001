@@ -1,0 +1,9 @@
+{
+  "name": "ob02-period-report-card",
+  "private": true,
+  "version": "2.2.0",
+  "description": "OB02 - Outbound Period Report Card with merged pace tracker and live status tiles",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

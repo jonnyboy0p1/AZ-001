@@ -18,7 +18,9 @@
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
 // @connect      localhost
+// @connect      neo.meta.amazon.dev
 // @connect      fclm-portal.amazon.com
+// @connect      monitorportal.amazon.com
 // @connect      zone-ra.amazon.dev
 // @run-at       document-idle
 // ==/UserScript==
