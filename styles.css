@@ -2184,3 +2184,45 @@ button.copy-success{
 .roster-group-row.good{color:var(--green);}
 .roster-group-row.warn{color:var(--yellow);}
 .roster-group-row.bad{color:var(--red);}
+/* Live Pull Status panel (bridge mirror) */
+.live-status-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;
+}
+.live-status-card{
+  background:var(--panel2);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 12px;
+}
+.ls-title{
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--blue);
+  margin-bottom:6px;
+}
+.ls-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:8px;
+  padding:1px 0;
+  font-size:12px;
+}
+.ls-row .ls-label{color:var(--muted);font-size:11px;white-space:nowrap;}
+.ls-row .ls-value{font-weight:700;text-align:right;}
+.ls-age{color:var(--green);font-weight:700;}
+.ls-age.stale{color:var(--yellow);}
+.ls-age.old{color:var(--red);}
+.ls-age.never{color:var(--muted);font-weight:400;}
+.ls-pos{color:var(--green);}
+.ls-neg{color:var(--red);}
+@media (max-width:1100px){
+  .live-status-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:640px){
+  .live-status-grid{grid-template-columns:1fr;}
+}

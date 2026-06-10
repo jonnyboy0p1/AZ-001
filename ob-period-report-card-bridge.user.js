@@ -1509,32 +1509,7 @@
       </div>
 
       <div id="prcV2HybridPanelBody" style="padding:10px 12px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-          <button class="prcBtn" id="openDash">Dashboard</button>
-          <button class="prcBtn" id="openNeo">NEO</button>
-          <button class="prcBtn" id="openFluidRoster" style="grid-column:span 2;">Fluid Roster</button>
-          <button class="prcBtn" id="openFclmFull">FCLM Full</button>
-          <button class="prcBtn" id="openFclmP1">FCLM P1</button>
-          <button class="prcBtn" id="openFclmP2">FCLM P2</button>
-          <button class="prcBtn" id="openFclmP3">FCLM P3</button>
-          <button class="prcBtn" id="openFclmMet" style="display:none;">FCLM MET</button>
-          <button class="prcBtn" id="openFlUtilP1">FL Util P1</button>
-          <button class="prcBtn" id="openFlUtilP2">FL Util P2</button>
-          <button class="prcBtn" id="openFlUtilP3">FL Util P3</button>
-          <button class="prcBtn" id="openFlUtilMet" style="display:none;">FL Util MET</button>
-          <button class="prcBtn" id="openBeltP1">Belt P1</button>
-          <button class="prcBtn" id="openBeltP2">Belt P2</button>
-          <button class="prcBtn" id="openBeltP3">Belt P3</button>
-          <button class="prcBtn" id="openBeltMet" style="display:none;">Belt MET</button>
-          <button class="prcBtn blue" id="openFclmPeriods" style="grid-column:span 2;">Open FCLM Period Tabs</button>
-          <button class="prcBtn blue" id="pullFclmOnly" style="grid-column:span 2;">Pull FCLM Now</button>
-          <button class="prcBtn blue" id="pullFlUtilOnly" style="grid-column:span 2;">Pull FL Utilization Now</button>
-          <button class="prcBtn blue" id="pullBeltOnly" style="grid-column:span 2;">Pull Battle of the Belt Now</button>
-          <button class="prcBtn blue" id="pullRosterOnly" style="grid-column:span 2;">Pull Fluid Roster Now</button>
-          <button class="prcBtn blue" id="pullFclmPeriods" style="grid-column:span 2;">Pull All Sources Now</button>
-          <button class="prcBtn blue" id="openFullSetup" style="grid-column:span 2;">Open Full Setup</button>
-          <button class="prcBtn blue" id="collectNow" style="grid-column:span 2;">Collect / Pull Now</button>
-        </div>
+        <button class="prcBtn blue" id="collectNow" type="button" style="width:100%;padding:9px;font-size:13px;margin-bottom:8px;">&#8635; Collect / Pull Now</button>
 
         <div id="prcV2HybridBody">Starting...</div>
       </div>
@@ -1578,43 +1553,18 @@
 
     document.body.appendChild(panel);
 
-    document.getElementById('openDash')?.addEventListener('click', () => openUrl(CONFIG.dashboardUrl));
-    document.getElementById('openNeo')?.addEventListener('click', () => openUrl(CONFIG.neoUrl));
-    document.getElementById('openFluidRoster')?.addEventListener('click', () => openUrl(CONFIG.fluidRosterUrl));
-    document.getElementById('openFclmFull')?.addEventListener('click', () => openUrl(buildFclmUrl('full')));
-    document.getElementById('openFclmP1')?.addEventListener('click', () => openUrl(buildFclmUrl('p1')));
-    document.getElementById('openFclmP2')?.addEventListener('click', () => openUrl(buildFclmUrl('p2')));
-    document.getElementById('openFclmP3')?.addEventListener('click', () => openUrl(buildFclmUrl('p3')));
-    document.getElementById('openFclmMet')?.addEventListener('click', () => openUrl(buildFclmUrl('met')));
-    document.getElementById('openFlUtilP1')?.addEventListener('click', () => openUrl(buildMonitorFlUtilUrl('p1')));
-    document.getElementById('openFlUtilP2')?.addEventListener('click', () => openUrl(buildMonitorFlUtilUrl('p2')));
-    document.getElementById('openFlUtilP3')?.addEventListener('click', () => openUrl(buildMonitorFlUtilUrl('p3')));
-    document.getElementById('openFlUtilMet')?.addEventListener('click', () => openUrl(buildMonitorFlUtilUrl('met')));
-    document.getElementById('openBeltP1')?.addEventListener('click', () => openUrl(buildMonitorBeltUrl('p1')));
-    document.getElementById('openBeltP2')?.addEventListener('click', () => openUrl(buildMonitorBeltUrl('p2')));
-    document.getElementById('openBeltP3')?.addEventListener('click', () => openUrl(buildMonitorBeltUrl('p3')));
-    document.getElementById('openBeltMet')?.addEventListener('click', () => openUrl(buildMonitorBeltUrl('met')));
-    document.getElementById('openFclmPeriods')?.addEventListener('click', openFclmPeriods);
-    document.getElementById('pullFclmOnly')?.addEventListener('click', () => pullFclmInBackground(undefined,{
-      shiftDate: document.getElementById('shiftDate')?.value || '',
-      includeMET: document.getElementById('useMET')?.value === 'true',
-      includeMonitor: false,
-      source: 'fclm'
-    }));
-    document.getElementById('pullFlUtilOnly')?.addEventListener('click', () => pullMonitorInBackground(undefined,['flUtil'],'flUtil'));
-    document.getElementById('pullBeltOnly')?.addEventListener('click', () => pullMonitorInBackground(undefined,['belt'],'belt'));
-    document.getElementById('pullRosterOnly')?.addEventListener('click', () => pullFluidRosterInBackground());
-    document.getElementById('pullFclmPeriods')?.addEventListener('click', () => {
-      pullFluidRosterInBackground();
-      pullFclmInBackground(undefined,{
-        shiftDate: document.getElementById('shiftDate')?.value || '',
-        includeMET: document.getElementById('useMET')?.value === 'true',
-        includeMonitor: true,
-        source: 'all'
-      });
+    document.getElementById('collectNow')?.addEventListener('click', () => {
+      run();
+      if(isDashboard){
+        pullFluidRosterInBackground();
+        pullFclmInBackground(undefined,{
+          shiftDate: document.getElementById('shiftDate')?.value || '',
+          includeMET: document.getElementById('useMET')?.value === 'true',
+          includeMonitor: true,
+          source: 'all'
+        });
+      }
     });
-    document.getElementById('openFullSetup')?.addEventListener('click', openFullSetup);
-    document.getElementById('collectNow')?.addEventListener('click', run);
 
     setupPanelDragAndMinimize(panel);
   }
@@ -1628,33 +1578,54 @@
     const roster=payload.roster?.fluid||{};
     const includeMET=Boolean(payload.shift?.includeMET) || document.getElementById('useMET')?.value === 'true';
     const lastPull=payload.lastPull;
-    ['openFclmMet','openFlUtilMet','openBeltMet'].forEach((id)=>{
-      const btn=document.getElementById(id);
-      if(btn) btn.style.display=includeMET?'':'none';
-    });
+const row=(label,value)=>
+      `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:1px 0;">
+        <span style="color:#94a3b8;font-size:11px;">${label}</span>
+        <span style="font-weight:700;text-align:right;">${value}</span>
+      </div>`;
+
+    const sep=()=>`<div style="border-top:1px solid rgba(148,163,184,.18);margin:6px 0;"></div>`;
+
+    const sectionLabel=(txt)=>
+      `<div style="color:#38bdf8;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;">${txt}</div>`;
+
+    const fmtAge=(ts)=>ts?`<span style="color:#a3e635;">${age(ts)}</span>`:`<span style="color:#475569;">—</span>`;
+
+    const zoneRows=(roster.groups||[]).map(g=>{
+      const gap=g.target?g.current-g.target:null;
+      const gapStr=gap!==null?` <span style="color:${gap>=0?'#4ade80':'#f87171'}">(${gap>=0?'+':''}${fmt(gap)})</span>`:'';
+      return row(g.label,`${fmt(g.current)}${g.target?`/${fmt(g.target)}`:''}${gapStr}`);
+    }).join('');
+
+    const rosterGap=roster.gap!=null?` <span style="color:${roster.gap>=0?'#4ade80':'#f87171'}">(${roster.gap>=0?'+':''}${fmt(roster.gap)})</span>`:'';
 
     body.innerHTML=`
-      ${msg?`<div style="color:#fde68a;font-weight:900;margin-bottom:6px;">${msg}</div>`:''}
+      ${msg?`<div style="color:#fde68a;font-weight:900;padding:4px 0 6px;">${msg}</div>`:''}
 
-      <div>Last Pull: <b>${lastPull?.label || 'Waiting'}</b>${lastPull?.updatedAt?` | ${age(lastPull.updatedAt)}`:''}</div>
+      ${sectionLabel('Sources')}
+      ${row('NEO',fmtAge(payload.neo?.updatedAt))}
+      ${row('Fluid Roster',fmtAge(roster.updatedAt))}
+      ${row('FCLM Full',fmtAge(payload.fclmFull?.updatedAt))}
+      ${row('Last Pull',lastPull?.label?`${lastPull.label} ${fmtAge(lastPull.updatedAt)}`:`<span style="color:#475569;">Waiting</span>`)}
 
-      <div>NEO: <b>${age(payload.neo?.updatedAt)}</b></div>
-      <div>Fluid Roster: <b>${age(roster.updatedAt)}</b> | HC ${fmt(roster.headcount)}${roster.target?`/${fmt(roster.target)} (${roster.gap>=0?'+':''}${fmt(roster.gap)})`:''}${roster.groups?.length?` | ${roster.groups.map((g)=>`${g.label} ${fmt(g.current)}${g.target?`/${fmt(g.target)}`:''}`).join(', ')}`:''}</div>
-      <div>FCLM Full: <b>${age(payload.fclmFull?.updatedAt)}</b></div>
+      ${sep()}
+      ${sectionLabel('Fluid Roster')}
+      ${row('Headcount',`${fmt(roster.headcount)}${roster.target?`/${fmt(roster.target)}`:''}${rosterGap}`)}
+      ${zoneRows}
 
-      <hr style="border:0;border-top:1px solid rgba(148,163,184,.25);margin:7px 0;">
+      ${sep()}
+      ${sectionLabel('FCLM')}
+      ${row('P1',`Jobs ${fmt(p.p1?.totalJobs)} &nbsp; JPLH ${fmt(p.p1?.jplh,2)} &nbsp; ${fmtAge(p.p1?.updatedAt)}`)}
+      ${row('P2',`Jobs ${fmt(p.p2?.totalJobs)} &nbsp; JPLH ${fmt(p.p2?.jplh,2)} &nbsp; ${fmtAge(p.p2?.updatedAt)}`)}
+      ${row('P3',`Jobs ${fmt(p.p3?.totalJobs)} &nbsp; JPLH ${fmt(p.p3?.jplh,2)} &nbsp; ${fmtAge(p.p3?.updatedAt)}`)}
+      ${includeMET?row('MET',`Jobs ${fmt(p.met?.totalJobs)} &nbsp; JPLH ${fmt(p.met?.jplh,2)} &nbsp; ${fmtAge(p.met?.updatedAt)}`):''}
 
-      <div>P1: <b>${age(p.p1?.updatedAt)}</b> | Jobs ${fmt(p.p1?.totalJobs)} | JPLH ${fmt(p.p1?.jplh,2)}</div>
-      <div>P2: <b>${age(p.p2?.updatedAt)}</b> | Jobs ${fmt(p.p2?.totalJobs)} | JPLH ${fmt(p.p2?.jplh,2)}</div>
-      <div>P3: <b>${age(p.p3?.updatedAt)}</b> | Jobs ${fmt(p.p3?.totalJobs)} | JPLH ${fmt(p.p3?.jplh,2)}</div>
-      ${includeMET?`<div>MET: <b>${age(p.met?.updatedAt)}</b> | Jobs ${fmt(p.met?.totalJobs)} | JPLH ${fmt(p.met?.jplh,2)}</div>`:''}
-
-      <hr style="border:0;border-top:1px solid rgba(148,163,184,.25);margin:7px 0;">
-
-      <div>Monitor P1: FL <b>${age(m.p1?.flUtil?.updatedAt)}</b> | Belt <b>${age(m.p1?.belt?.updatedAt)}</b></div>
-      <div>Monitor P2: FL <b>${age(m.p2?.flUtil?.updatedAt)}</b> | Belt <b>${age(m.p2?.belt?.updatedAt)}</b></div>
-      <div>Monitor P3: FL <b>${age(m.p3?.flUtil?.updatedAt)}</b> | Belt <b>${age(m.p3?.belt?.updatedAt)}</b></div>
-      ${includeMET?`<div>Monitor MET: FL <b>${age(m.met?.flUtil?.updatedAt)}</b> | Belt <b>${age(m.met?.belt?.updatedAt)}</b></div>`:''}
+      ${sep()}
+      ${sectionLabel('Monitor')}
+      ${row('P1',`FL ${fmtAge(m.p1?.flUtil?.updatedAt)} &nbsp; Belt ${fmtAge(m.p1?.belt?.updatedAt)}`)}
+      ${row('P2',`FL ${fmtAge(m.p2?.flUtil?.updatedAt)} &nbsp; Belt ${fmtAge(m.p2?.belt?.updatedAt)}`)}
+      ${row('P3',`FL ${fmtAge(m.p3?.flUtil?.updatedAt)} &nbsp; Belt ${fmtAge(m.p3?.belt?.updatedAt)}`)}
+      ${includeMET?row('MET',`FL ${fmtAge(m.met?.flUtil?.updatedAt)} &nbsp; Belt ${fmtAge(m.met?.belt?.updatedAt)}`):''}
     `;
   }
 
