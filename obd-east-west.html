@@ -339,11 +339,12 @@ tbody tr:hover td{background:#f8fafc}
       <button class="btn" style="margin-left:auto" onclick="resetSample()">↩ Reset to door map</button>
     </div>
     <p style="font-size:11px;color:#64748b;margin-top:10px">
-      <strong>Recommended:</strong> install <code>fuse-obd-collector.user.js</code> in Tampermonkey and open YMS / SSP /
-      DockFlow — it scrapes those authenticated pages and pushes to <code>proxy.py</code>'s <code>/collect</code> store;
-      then click <strong>⤓ Collector Sync</strong> (or tick <em>auto</em>). VRID joins SSP→door, ARC joins DockFlow forecast.
-      The individual <strong>DockFlow / SSP / YMS</strong> buttons are the manual fallback (set request URLs under
-      <strong>⚙ Endpoints</strong>; <strong>DockFlow Arcs</strong> = rate + Future forecast = the predictive engine).
+      <strong>Recommended:</strong> install <code>fuse-obd-terminal.user.js</code> in Tampermonkey. Visit YMS / SSP /
+      DockFlow once each (it <em>pulls</em> the data request each page makes — no scraping), then use its
+      <strong>FUSE OBD TERMINAL</strong> panel here → <strong>⟳ Pull All</strong> to fill the board (VRID joins SSP→door,
+      ARC joins DockFlow forecast). The buttons below are a no-userscript fallback via <code>proxy.py</code>: set request
+      URLs under <strong>⚙ Endpoints</strong> (<strong>DockFlow Arcs</strong> = rate + Future forecast = the predictive
+      engine), or <strong>⤓ Collector Sync</strong> to read the proxy <code>/collect</code> store.
       <strong>lbs/job</strong> converts forecast jobs→weight (auto per-trailer when SSP gives jobs); <strong>Fill rate</strong>
       is the lbs/hr fallback when an ARC has no DockFlow rate. Last resort: <strong>Paste CSV</strong> — columns
       <code>side,door,arc,vrid,vehicle_id,trailer_type,weight,jobs_current,sdt,cdt,status</code>.
@@ -1081,6 +1082,21 @@ function toggleAutoSync(on){
   if(on){collectorSync(true);_autoSyncTimer=setInterval(()=>collectorSync(true),20000);}
   STORE.set('obd.autoSync',!!on);
 }
+
+// Direct ingest entry point for the Tampermonkey terminal (fuse-obd-terminal.user.js).
+// It pulls each source all at once and hands us {yms:{rows},ssp:{rows},dockflow-arcs:{rows},
+// dockflow-sorter:{rows}} — either by calling this via unsafeWindow, or by writing the same
+// object to localStorage 'obd.collectorInbox' which we poll below. Reuses the tested merges.
+window.fuseIngest=function(store){
+  const res=mergeCollector(store||{});
+  if(res.total){renderAll();renderCWM();}
+  return res;
+};
+let _inboxAt=0;
+setInterval(()=>{
+  let inbox;try{inbox=STORE.get('obd.collectorInbox',null);}catch(e){return;}
+  if(inbox&&inbox.at&&inbox.at!==_inboxAt){_inboxAt=inbox.at;window.fuseIngest(inbox.sources||inbox);}
+},3000);
 
 // ── CDT (SSP) + divert (DockFlow) live pulls ──
 function truthy(v){if(v==null)return false;const s=String(v).toLowerCase().trim();return s==='true'||s==='yes'||s==='y'||s==='1'||s==='open';}

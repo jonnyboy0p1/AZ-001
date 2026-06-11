@@ -15,30 +15,32 @@ attaches the forecast by ARC. Projection = SSP current weight + DockFlow inflow 
 
 ## Pieces
 
-- **`obd-east-west.html`** — the dashboard. East DD104–126, West DD334–355. Open it in a browser
-  (double-click, or serve it). Ships with sample data until live data arrives.
-- **`proxy.py`** — local bridge. Two jobs: (1) proxy Midway-authed GETs to FCLM/DockFlow/YMS;
-  (2) a **`/collect`** store that the userscript pushes to and the dashboard reads.
-- **`fuse-obd-collector.user.js`** — Tampermonkey script. Runs inside the authenticated
-  YMS/SSP/DockFlow tabs, scrapes the data, and POSTs it to the proxy. **No credentials leave
-  your browser.**
+- **`obd-east-west.html`** — the dashboard / board. East DD104–126, West DD334–355. Open it in a
+  browser. Ships with sample data until live data arrives. Exposes `window.fuseIngest(...)` so the
+  terminal can fill it directly.
+- **`fuse-obd-terminal.user.js`** — Tampermonkey **terminal** (modeled on the OBR002 bridge):
+  **pulls, doesn't scrape**. On each source page it watches the page's own data request (the JSON
+  the SPA fetches) and "learns" it; on the board it replays all learned requests **at once** via
+  `GM_xmlhttpRequest` (auth'd by your live session) and fills the board. No credentials leave the browser.
+- **`proxy.py`** — optional. Midway-cookie proxy for the manual per-source pull buttons, plus a
+  `/collect` store. Not required when you use the terminal.
 
-## Setup
+## Setup (terminal — recommended)
 
-1. **Auth + proxy** (in a terminal):
-   ```
-   mwinit
-   python proxy.py            # listens on http://localhost:8765
-   ```
-2. **Install the userscript**: Tampermonkey → Create new script → paste
-   `fuse-obd-collector.user.js` → save. (It only runs on the three FUSE hosts.)
-3. **Open the pages** (logged in): YMS yard, SSP OB dock, DockFlow Arcs/Sorter. A small
-   **FUSE COLLECTOR** panel appears bottom-right showing what it captured. Leave **auto** on,
-   or click **⤴ Send now**.
-4. **Open `obd-east-west.html`** → **⤓ Collector Sync** (or tick **auto**). Done.
+1. **Install** `fuse-obd-terminal.user.js` in Tampermonkey (Create new script → paste → save).
+2. **Visit each source once** while logged in — YMS yard, SSP OB dock, DockFlow Sorter/Arcs. The
+   script silently records the data request each page makes (a small `[FUSE-TERM]` log appears).
+   This is the one-time "learn" step.
+3. **Open `obd-east-west.html`.** The **FUSE OBD TERMINAL** panel (bottom-right, draggable) lists the
+   four feeds. Click **⟳ Pull All** — it replays every learned request at once and fills the board.
+   Tick **auto** for a 15-minute refresh. Use **Open source tabs** if a feed shows `unlearned`.
 
-If a page is a single-page app and the scraper misses a field, the dashboard's **⚙ Endpoints**
-path (capture the XHR URL in DevTools) and **Paste CSV** remain as fallbacks.
+The join: **VRID** links SSP→door (set from YMS), **ARC** links DockFlow forecast→door.
+
+### Manual fallback (no terminal)
+
+`mwinit` → `python proxy.py`, open the board, set the data-request URLs under **⚙ Endpoints**
+(DevTools → Network), and use the per-source pull buttons or **Paste CSV**.
 
 ## How the prediction works
 
