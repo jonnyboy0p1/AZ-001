@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         Dockflow → Google Sheets (Live Recirc Feed)
-// @namespace    az-001
+// @name         FlowFone — Dockflow → Google Sheets Live Feed
+// @namespace    az-001.flowfone
 // @version      1.0.0
 // @description  Scrapes Dock Door / Utilization / Recirc / Cause from Dockflow and pushes it to a Google Sheet every minute.
 // @match        https://dockflow.amazon.com/*
@@ -62,11 +62,11 @@
     "position:fixed;bottom:12px;right:12px;z-index:99999;font:11px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;" +
     "padding:6px 12px;border-radius:14px;color:#fff;background:#444;opacity:.92;pointer-events:none;" +
     "box-shadow:0 2px 8px rgba(0,0,0,.3);transition:background .3s;";
-  badgeEl.textContent = "Sheets feed: starting…";
+  badgeEl.textContent = "FlowFone: starting…";
   document.body.appendChild(badgeEl);
 
   function badge(msg, state) {
-    badgeEl.textContent = "Sheets feed: " + msg;
+    badgeEl.textContent = "FlowFone: " + msg;
     badgeEl.style.background =
       state === "ok" ? "#2f855a" : state === "warn" ? "#c05621" : state === "err" ? "#c53030" : "#444";
   }
@@ -177,7 +177,7 @@
       ontimeout: () => badge("push timed out", "err"),
     });
 
-    if (manual) console.log("[Dockflow→Sheets] payload:", payload);
+    if (manual) console.log("[FlowFone] payload:", payload);
   }
 
   // ── Schedule ────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 /**
- * Dockflow → Google Sheets receiver
- * ---------------------------------
+ * FlowFone — Dockflow → Google Sheets receiver
+ * --------------------------------------------
  * Paste this into Extensions → Apps Script on your Google Sheet, then deploy
  * as a Web App (see README.md). The Tampermonkey script POSTs here every minute.
  *
@@ -47,7 +47,7 @@ function doPost(e) {
 
 // Handy for testing the deployment in a browser
 function doGet() {
-  return jsonOut({ ok: true, message: "Dockflow receiver is live. POST data here." });
+  return jsonOut({ ok: true, message: "FlowFone receiver is live. POST data here." });
 }
 
 // ── Live tab: overwrite with current snapshot ────────────────────────────────

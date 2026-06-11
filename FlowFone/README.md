@@ -1,4 +1,4 @@
-# Dockflow → Google Sheets (Tampermonkey live feed)
+# FlowFone — Dockflow → Google Sheets live feed
 
 Pulls **Dock Door · Utilization · Recirc · Cause** from the Dockflow page and
 pushes it to a Google Sheet **every 1 minute**, so the sheet always shows live
@@ -20,7 +20,7 @@ Google Sheet
 
 ### 1. Google Sheet + Apps Script
 
-1. Create a new Google Sheet (e.g. **"Dockflow Live"**).
+1. Create a new Google Sheet (e.g. **"FlowFone"**).
 2. **Extensions → Apps Script**, delete the placeholder code, paste in
    [`google-apps-script.gs`](google-apps-script.gs).
 3. Change `SHARED_SECRET` at the top to any random string you like.
@@ -33,12 +33,12 @@ Google Sheet
 
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
 2. Create a new script and paste in
-   [`dockflow-to-sheets.user.js`](dockflow-to-sheets.user.js).
+   [`flowfone.user.js`](flowfone.user.js).
 3. Edit two things in the script:
    - The `@match` lines at the top → set to your actual Dockflow URL
      (copy it from your address bar, keep a `/*` on the end).
    - `SHARED_SECRET` → the same string you set in the Apps Script.
-4. Save, then open Dockflow. You'll see a small **"Sheets feed"** badge in the
+4. Save, then open Dockflow. You'll see a small **"FlowFone"** badge in the
    bottom-right corner.
 5. Click the Tampermonkey icon → **Set Sheets Web App URL** → paste the `/exec`
    URL from step 1.5.
