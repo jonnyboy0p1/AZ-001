@@ -159,7 +159,7 @@ tbody tr:hover td{background:#f8fafc}
 <div class="shell">
   <div class="ph">
     <h1>FUSE-OBD · East/West Weight &amp; Trailer Map</h1>
-    <p>OB dock split — <strong>East DD104–126</strong> · <strong>West DD334–355</strong>. Per door: <strong>ARC</strong> (DockFlow) · <strong>trailer type</strong> (YMS) · <strong>payload weight</strong> (SSP) vs the <strong>33–40K band, exception to 42K</strong>, with a <strong>DockFlow close projection</strong> judged against the CDT window. Node RFD2.</p>
+    <p>OB dock split — <strong>East DD104–126</strong> · <strong>West DD334–355</strong>. Predictive door-close: <strong>SSP</strong> current payload + <strong>DockFlow</strong> ARC rate/forecast → projected close time, tested against <strong>SDT</strong> (finish loading) and <strong>CDT</strong> (latest departure). ARC←DockFlow · trailer+VRID←YMS · weight/jobs/SDT/CDT←SSP · band 33–40K (exc 42K). Node RFD2.</p>
   </div>
 
   <!-- Data-source banner -->
@@ -318,12 +318,16 @@ tbody tr:hover td{background:#f8fafc}
   <div class="card">
     <div class="ct">Data Controls</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn primary" onclick="pullDockFlow()">▶ DockFlow (ARC + projection)</button>
-      <button class="btn primary" onclick="pullSSP()">▶ SSP (payload + CDT)</button>
-      <button class="btn primary" onclick="pullYms()">▶ YMS (trailer type)</button>
+      <button class="btn primary" onclick="pullDockFlow()">▶ DockFlow doors (ARC)</button>
+      <button class="btn primary" onclick="pullArcs()">▶ DockFlow Arcs (forecast)</button>
+      <button class="btn primary" onclick="pullSSP()">▶ SSP (payload + CDT/SDT)</button>
+      <button class="btn primary" onclick="pullYms()">▶ YMS (trailer + VRID)</button>
       <button class="btn" onclick="showEndpoints()">⚙ Endpoints</button>
-      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px">Fill rate
-        <input type="number" id="fill-rate" min="0" step="500" style="width:70px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12px" onchange="setFillRate(this.value)"> lbs/hr
+      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px" title="lbs/hr fallback used only when an ARC has no DockFlow rate/forecast">Fill rate
+        <input type="number" id="fill-rate" min="0" step="500" style="width:64px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12px" onchange="setFillRate(this.value)"> lbs/hr
+      </label>
+      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px" title="lbs per DockFlow job — converts forecast jobs to weight (auto per-trailer when SSP gives jobs)">lbs/job
+        <input type="number" id="lbs-per-job" min="1" step="1" style="width:54px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12px" onchange="setLbsPerJob(this.value)">
       </label>
       <button class="btn" onclick="showPaste()">⌨ Paste CSV</button>
       <label class="btn" style="cursor:pointer">⭱ Upload CSV<input type="file" accept=".csv" style="display:none" onchange="uploadCsv(this)"></label>
@@ -333,12 +337,12 @@ tbody tr:hover td{background:#f8fafc}
     </div>
     <p style="font-size:11px;color:#64748b;margin-top:10px">
       Live pulls go through your local <code>proxy.py</code> (uses your Midway session). Start it with
-      <code>python proxy.py</code> after <code>mwinit</code>. DockFlow / YMS / SSP are single-page apps, so first set
-      the data request URLs under <strong>⚙ Endpoints</strong> (capture them in DevTools → Network): <strong>DockFlow</strong> =
-      ARC + close projection (fill rate), <strong>SSP</strong> = payload weight + CDT, <strong>YMS</strong> = trailer type,
-      DockFlow = divert mix. <strong>Fill rate</strong> is the lbs/hr fallback used to project close time when DockFlow
-      doesn't supply one. Fallback any time: <strong>Paste CSV</strong> — columns
-      <code>side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status</code>.
+      <code>python proxy.py</code> after <code>mwinit</code>. Set the data request URLs under <strong>⚙ Endpoints</strong>
+      (DevTools → Network): <strong>DockFlow doors</strong> = door→ARC, <strong>DockFlow Arcs</strong> = rate + Future forecast
+      (the predictive engine), <strong>SSP</strong> = payload weight + jobs + SDT/CDT, <strong>YMS</strong> = trailer + VRID.
+      <strong>lbs/job</strong> converts forecast jobs to weight (auto per-trailer when SSP gives jobs); <strong>Fill rate</strong>
+      is the lbs/hr fallback only when an ARC has no DockFlow rate. Fallback any time: <strong>Paste CSV</strong> — columns
+      <code>side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status</code>.
     </p>
   </div>
 </div>
@@ -367,8 +371,23 @@ tbody tr:hover td{background:#f8fafc}
       <textarea id="ep-df-body" style="height:60px" placeholder='{"query":"..."}'></textarea>
     </div>
 
-    <div style="display:grid;gap:6px">
-      <div style="font-weight:800;font-size:12px;color:#1d4ed8">YMS — trailer type per door (yesterday)</div>
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow Arcs — rate (jobs/hr) + Future forecast (predictive engine)</div>
+      <input id="ep-arcs-url" placeholder="https://prod-na.dockflow.robotics.a2z.com/...  (Arcs list Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-arcs-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-arcs-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#1d4ed8">YMS — trailer type + VRID per door (yesterday)</div>
       <input id="ep-yms-url" placeholder="https://trans-logistics.amazon.com/yms/...  (full Request URL)"
              style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
       <div style="display:flex;gap:8px;align-items:center">
@@ -383,7 +402,7 @@ tbody tr:hover td{background:#f8fafc}
     </div>
 
     <div style="display:grid;gap:6px;margin-top:14px">
-      <div style="font-weight:800;font-size:12px;color:#166534">SSP — payload weight + CDT (door blocks + tracker)</div>
+      <div style="font-weight:800;font-size:12px;color:#166534">SSP — payload weight + jobs + SDT/CDT + VRID (door blocks + tracker)</div>
       <input id="ep-ssp-url" placeholder="https://trans-logistics.amazon.com/ssp/dock/...  (full Request URL)"
              style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
       <div style="display:flex;gap:8px;align-items:center">
@@ -423,10 +442,10 @@ tbody tr:hover td{background:#f8fafc}
 <div class="modal" id="paste-modal">
   <div class="modal-card">
     <h2>Paste door data (CSV or TSV)</h2>
-    <p>Header row required. Columns: <code>side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status</code>.
-       <code>arc</code>←DockFlow, <code>trailer_type</code>←YMS, <code>weight</code> (lbs)←SSP, <code>cdt</code> HH:MM←SSP.
-       <code>fill_rate</code> (lbs/hr) and <code>projected_close</code> are optional (DockFlow). Tab-separated also works.</p>
-    <textarea id="paste-input" placeholder="side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status&#10;East,104,IND1,AZNU,33800,02:30,8200,,Loading&#10;..."></textarea>
+    <p>Header row required. Columns: <code>side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status</code>.
+       <code>arc</code>←DockFlow; <code>vrid</code>+<code>trailer_type</code>←YMS; <code>weight</code> (lbs), <code>jobs_current</code>,
+       <code>sdt</code> &amp; <code>cdt</code> (HH:MM)←SSP. Tab-separated also works. (DockFlow ARC rate/forecast loads via its own pull.)</p>
+    <textarea id="paste-input" placeholder="side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status&#10;East,104,IND1,11410477,AZNU,33800,1127,02:15,02:30,Loading&#10;..."></textarea>
     <div class="modal-actions">
       <button class="btn" onclick="hidePaste()">Cancel</button>
       <button class="btn primary" onclick="savePaste()">Load data</button>
@@ -445,54 +464,56 @@ const PROXY_BASE="http://localhost:8765";
 // 32–40K sorter band (BAND_LO/HI/WARN) — different measurement (belt vs trailer payload).
 const DOOR_LO=33000,DOOR_HI=40000,DOOR_EXC=42000,CLOSE_TARGET=40000;
 const BAND_LO=32000,BAND_HI=40000,WARN_LO=28000,WARN_HI=43000,GAUGE_MAX=48000;
-function fillRateDefault(){return Number(STORE.get('obd.fillRate',7000))||7000;} // lbs/hr fallback for projection
+function fillRateDefault(){return Number(STORE.get('obd.fillRate',7000))||7000;} // lbs/hr fallback when no ARC rate
 function setFillRate(v){STORE.set('obd.fillRate',Number(v)||7000);renderAll();}
+function lbsPerJobDefault(){return Number(STORE.get('obd.lbsPerJob',30))||30;} // lbs per DockFlow job (forecast→weight)
+function setLbsPerJob(v){STORE.set('obd.lbsPerJob',Number(v)||30);renderAll();}
 
-// ── Default door map (ARC from DockFlow board; trailer type from YMS; payload weight
-//    from SSP). Values below are SAMPLE until a live pull or paste replaces them. ──
-const sampleDoorsCsv=`side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status
-East,104,IND1,AZNU,33800,02:30,8200,,Loading
-East,105,MSP1,BXLU,31200,02:45,,,Loading
-East,106,PCW1,CMQU,36500,03:00,,,Loading
-East,107,DSM5,DLPU,41200,03:15,,,Loading
-East,108,QXX6,,0,,,,Hold
-East,109,MDW4,EJTU,38400,03:30,,,Loading
-East,110,CMH4,FRZU,33100,03:45,,,Loading
-East,111,CMH1,GHNU,39600,04:00,,,Loading
-East,113,STL8,HKLU,30500,02:20,,,Loading
-East,114,SBN1,JMPU,35900,04:15,,,Staged
-East,115,GRR1,KQRU,38900,04:30,,,Loading
-East,116,MKE1,LSTU,34200,03:50,,,Loading
-East,117,MKE2,MVWU,42600,02:10,,,Loading
-East,118,ORD5,NXYU,37000,04:45,,,Loading
-East,119,DET6,PZAU,32100,03:05,,,Loading
-East,120,LUK2,QBCU,34800,04:00,,,Loading
-East,121,IGQ1,RDEU,39100,05:00,,,Loading
-East,122,FSD1,SFGU,29800,02:35,,,Loading
-East,124,N/A,,0,,,,Empty
-East,125,N/A,,0,,,,Empty
-East,126,N/A,,0,,,,Empty
-West,334,N/A,,0,,,,Empty
-West,335,N/A,,0,,,,Empty
-West,336,N/A,,0,,,,Empty
-West,337,N/A,,0,,,,Empty
-West,338,MKC6,TGHU,35200,03:20,,,Loading
-West,339,DSM5,UJKU,38600,04:10,,,Loading
-West,341,MDW7,VLMU,33900,03:40,,,Loading
-West,342,FSD1,WNPU,41800,02:55,,,Loading
-West,343,MKE2,XQRU,36100,04:20,,,Loading
-West,344,HMW3,YSTU,30900,03:10,,,Loading
-West,345,KRB6,ZVWU,34500,04:35,,,Loading
-West,346,DTW1,AXYU,37600,05:05,,,Loading
-West,347,CLE2,BZAU,32800,03:25,,,Loading
-West,348,FWA6,CBDU,39400,04:50,,,Loading
-West,349,CLE3,DEFU,28700,02:40,,,Loading
-West,350,MLI1,AWO2A,35900,03:55,7600,,Loading
-West,351,OMA2,FHIU,33200,04:05,,,Loading
-West,352,DET3,GJKU,43100,02:25,,,Loading
-West,353,ORD5,HLMU,36400,04:40,,,Loading
-West,354,IGQ1,JNPU,31600,03:35,,,Loading
-West,355,PCW1,KQSU,38900,05:10,,,Loading`;
+// ── Default door map. ARC←DockFlow assignment, trailer_type+vrid←YMS, weight+jobs_current
+//    +sdt+cdt←SSP. SAMPLE until a live pull or paste replaces it. ──
+const sampleDoorsCsv=`side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status
+East,104,IND1,11410477,AZNU,33800,1127,02:15,02:30,Loading
+East,105,MSP1,11410577,BXLU,31200,1040,02:30,02:45,Loading
+East,106,PCW1,11410677,CMQU,36500,1217,02:45,03:00,Loading
+East,107,DSM5,11410777,DLPU,41200,1373,03:00,03:15,Loading
+East,108,QXX6,,,0,0,,,Hold
+East,109,MDW4,11410977,EJTU,38400,1280,03:15,03:30,Loading
+East,110,CMH4,11411077,FRZU,33100,1103,03:30,03:45,Loading
+East,111,CMH1,11411177,GHNU,39600,1320,03:45,04:00,Loading
+East,113,STL8,11411377,HKLU,30500,1017,02:05,02:20,Loading
+East,114,SBN1,11411477,JMPU,35900,1197,04:00,04:15,Staged
+East,115,GRR1,11411577,KQRU,38900,1297,04:15,04:30,Loading
+East,116,MKE1,11411677,LSTU,34200,1140,03:35,03:50,Loading
+East,117,MKE2,11411777,MVWU,42600,1420,01:55,02:10,Loading
+East,118,ORD5,11411877,NXYU,37000,1233,04:30,04:45,Loading
+East,119,DET6,11411977,PZAU,32100,1070,02:50,03:05,Loading
+East,120,LUK2,11412077,QBCU,34800,1160,03:45,04:00,Loading
+East,121,IGQ1,11412177,RDEU,39100,1303,04:45,05:00,Loading
+East,122,FSD1,11412277,SFGU,29800,993,02:20,02:35,Loading
+East,124,N/A,,,0,0,,,Empty
+East,125,N/A,,,0,0,,,Empty
+East,126,N/A,,,0,0,,,Empty
+West,334,N/A,,,0,0,,,Empty
+West,335,N/A,,,0,0,,,Empty
+West,336,N/A,,,0,0,,,Empty
+West,337,N/A,,,0,0,,,Empty
+West,338,MKC6,11433877,TGHU,35200,1173,03:05,03:20,Loading
+West,339,DSM5,11433977,UJKU,38600,1287,03:55,04:10,Loading
+West,341,MDW7,11434177,VLMU,33900,1130,03:25,03:40,Loading
+West,342,FSD1,11434277,WNPU,41800,1393,02:40,02:55,Loading
+West,343,MKE2,11434377,XQRU,36100,1203,04:05,04:20,Loading
+West,344,HMW3,11434477,YSTU,30900,1030,02:55,03:10,Loading
+West,345,KRB6,11434577,ZVWU,34500,1150,04:20,04:35,Loading
+West,346,DTW1,11434677,AXYU,37600,1253,04:50,05:05,Loading
+West,347,CLE2,11434777,BZAU,32800,1093,03:10,03:25,Loading
+West,348,FWA6,11434877,CBDU,39400,1313,04:35,04:50,Loading
+West,349,CLE3,11434977,DEFU,28700,957,02:25,02:40,Loading
+West,350,MLI1,11435077,AWO2A,35900,1197,03:40,03:55,Loading
+West,351,OMA2,11435177,FHIU,33200,1107,03:50,04:05,Loading
+West,352,DET3,11435277,GJKU,43100,1437,02:10,02:25,Loading
+West,353,ORD5,11435377,HLMU,36400,1213,04:25,04:40,Loading
+West,354,IGQ1,11435477,JNPU,31600,1053,03:20,03:35,Loading
+West,355,PCW1,11435577,KQSU,38900,1297,04:55,05:10,Loading`;
 
 function parseCsv(text){
   if(!text)return[];
@@ -516,10 +537,12 @@ function doors(){
       arc:isEmpty?'N/A':arc,                                    // ← DockFlow
       trailerType:(r.trailer_type||r.trailertype||'').trim(),   // ← YMS
       weight:Number(String(r.weight||'0').replace(/[^0-9.]/g,''))||0, // ← SSP payload
+      jobsCurrent:Number(String(r.jobs_current||r.jobs||'0').replace(/[^0-9.]/g,''))||0, // ← SSP current jobs
+      sdt:(r.sdt||'').trim(),                                   // ← SSP scheduled departure time
       cdt:(r.cdt||r.cpt||'').trim(),                            // ← SSP critical departure time
-      fillRate:Number(String(r.fill_rate||r.fillrate||'0').replace(/[^0-9.]/g,''))||0, // ← DockFlow ARC rate
-      projectedClose:(r.projected_close||r.expected_close||'').trim(), // ← DockFlow projection (if given)
-      vrid:(r.vrid||'').trim(),
+      fillRate:Number(String(r.fill_rate||r.fillrate||'0').replace(/[^0-9.]/g,''))||0, // optional per-door override
+      projectedClose:(r.projected_close||r.expected_close||'').trim(), // optional explicit projection
+      vrid:(r.vrid||'').trim(),                                 // ← SSP / YMS correlation key
       status:(r.status||(isEmpty?'Empty':'Loading')).trim(),
       isEmpty
     };
@@ -551,20 +574,81 @@ function minsToClock(t){
   const now=new Date(),d=new Date(now);d.setHours(+m[1],+m[2],0,0);if(d<now)d.setDate(d.getDate()+1);
   return Math.round((d-now)/60000);
 }
-// DockFlow close projection per door: when will payload reach the 40K close target,
-// given current SSP weight + ARC fill rate, judged against the CDT window.
-function projectClose(d){
-  if(d.isEmpty||d.weight<=0)return null;
-  if(d.projectedClose){const em=minsToClock(d.projectedClose);return{time:d.projectedClose,etaMin:em,basis:'DockFlow',risk:riskVsCdt(em,d)};}
-  if(d.weight>=CLOSE_TARGET){return{time:clockStr(new Date()),etaMin:0,basis:'at target',risk:riskVsCdt(0,d)};}
-  const rate=d.fillRate>0?d.fillRate:fillRateDefault();
-  if(!rate)return null;
-  const etaMin=Math.max(0,Math.round((CLOSE_TARGET-d.weight)/rate*60));
-  const dep=new Date(Date.now()+etaMin*60000);
-  return{time:clockStr(dep),etaMin,basis:d.fillRate>0?'DockFlow rate':'est rate',risk:riskVsCdt(etaMin,d)};
+// ════════ DockFlow ARC forecast layer (predictive engine) ════════
+// DockFlow's "Arcs" view gives, per ARC (e.g. CMH1_TOTE): current Rate (jobs/hr) and a
+// Future forecast curve — cumulative jobs expected by 15m/30m/1h/2h/4h/8h/24h. We use
+// that inflow + the SSP current payload to project WHEN the door fills to the close
+// target, then test it against SDT (finish loading) and CDT (latest legal departure).
+const SAMPLE_ARC_RATES={IND1:520,MSP1:140,PCW1:610,DSM5:0,QXX6:0,MDW4:480,CMH4:560,CMH1:0,STL8:90,SBN1:430,GRR1:500,MKE1:540,MKE2:120,ORD5:580,DET6:300,LUK2:470,IGQ1:510,FSD1:80,MKC6:450,MDW7:520,HMW3:110,KRB6:460,DTW1:540,CLE2:300,FWA6:560,CLE3:70,MLI1:430,OMA2:330,DET3:0};
+function sampleArcData(){
+  const out={};
+  for(const dest in SAMPLE_ARC_RATES){const r=SAMPLE_ARC_RATES[dest];
+    out[dest]={rate:r,process:'SingleDestination',assignment:'RTSorter01',
+      fc:{m15:Math.round(r*0.25),m30:Math.round(r*0.5),h1:r,h2:r*2,h4:r*4,h8:r*8,h24:r*24}};}
+  return out;
 }
-// 'late' = projected to hit weight after CDT (won't make weight in time); 'ok' otherwise.
-function riskVsCdt(etaMin,d){const c=minsToClock(d.cdt);if(c==null||etaMin==null)return null;return etaMin>c?'late':'ok';}
+function arcData(){return STORE.get('obd.arcData',null)||sampleArcData();}
+function destOf(arc){return String(arc||'').toUpperCase().split('_')[0];}
+// Find DockFlow forecast for a door's ARC: exact match, else sum CASE+TOTE variants of the destination.
+function arcFor(d){
+  if(!d.arc||d.arc==='N/A')return null;
+  const data=arcData(),key=d.arc.toUpperCase();
+  if(data[key])return data[key];
+  const dest=destOf(key),matches=Object.keys(data).filter(k=>destOf(k)===dest);
+  if(!matches.length)return null;
+  if(matches.length===1)return data[matches[0]];
+  const sum={rate:0,fc:{m15:0,m30:0,h1:0,h2:0,h4:0,h8:0,h24:0},process:'',assignment:''};
+  matches.forEach(k=>{const a=data[k];sum.rate+=a.rate||0;for(const b in sum.fc)sum.fc[b]+=(a.fc&&a.fc[b])||0;sum.assignment=a.assignment||sum.assignment;sum.process=a.process||sum.process;});
+  return sum;
+}
+// If several open doors share a destination, the ARC inflow splits between them.
+function doorsSharingArc(d){const dest=destOf(d.arc);return doors().filter(x=>!x.isEmpty&&band(x)!=='hold'&&destOf(x.arc)===dest).length||1;}
+// Per-trailer avg lbs/job (empirical from SSP weight÷jobs) else the configured default.
+function lbsPerJobFor(d){return(d.jobsCurrent>0&&d.weight>0)?(d.weight/d.jobsCurrent):lbsPerJobDefault();}
+function hasForecast(fc){return fc&&['m15','m30','h1','h2','h4','h8','h24'].some(k=>(Number(fc[k])||0)>0);}
+// Minutes until cumulative forecast jobs ≥ remJobs (interpolated). null = not within 24h.
+function crossTimeJobs(fc,remJobs){
+  if(remJobs<=0)return 0;
+  const pts=[[15,fc.m15],[30,fc.m30],[60,fc.h1],[120,fc.h2],[240,fc.h4],[480,fc.h8],[1440,fc.h24]].map(([m,j])=>[m,Number(j)||0]);
+  let pm=0,pj=0;
+  for(const [m,j] of pts){
+    if(j>=remJobs){const frac=j>pj?(remJobs-pj)/(j-pj):0;return Math.round(pm+frac*(m-pm));}
+    pm=m;pj=j;
+  }
+  return null;
+}
+function meetBy(etaMin,t){const c=minsToClock(t);if(c==null||etaMin==null)return null;return etaMin<=c?'ok':'late';}
+
+// Predictive close projection: SSP current weight + DockFlow ARC forecast inflow → time
+// to reach the 40K close target. Returns projected close clock time, the basis used,
+// the ARC rate, and whether it meets SDT / CDT.
+// Minutes for a door's payload to reach targetW lbs, using DockFlow ARC forecast/rate
+// (this door's share of the ARC), else a fill-rate fallback. Infinity = won't reach it.
+function etaToWeight(d,targetW){
+  const a=arcFor(d),share=doorsSharingArc(d);
+  const remLbs=Math.max(0,targetW-d.weight);
+  if(remLbs<=0)return{etaMin:0,basis:'at target',rate:a?Math.round((a.rate||0)/share):0,share};
+  if(a){
+    if(hasForecast(a.fc)){const remJobs=(remLbs/lbsPerJobFor(d))*share;const t=crossTimeJobs(a.fc,remJobs);return{etaMin:(t==null?Infinity:t),basis:(t==null?'forecast < target':'DockFlow forecast'),rate:Math.round((a.rate||0)/share),share};}
+    if(a.rate>0)return{etaMin:Math.round(remLbs/((a.rate/share)*lbsPerJobFor(d))*60),basis:'DockFlow rate',rate:Math.round(a.rate/share),share};
+    return{etaMin:Infinity,basis:'no inflow',rate:0,share};        // ARC present but no inflow → won't reach
+  }
+  const r=d.fillRate>0?d.fillRate:fillRateDefault();
+  return{etaMin:Math.round(remLbs/r*60),basis:'est rate',rate:0,share}; // no ARC data → fallback
+}
+// Predictive door-close: project time to the 40K close target (for SDT/finish-loading)
+// and separately to the 33K band floor (for CDT/will-it-make-weight).
+function projectClose(d){
+  if(d.isEmpty||band(d)==='hold')return null;
+  if(d.projectedClose){const em=minsToClock(d.projectedClose);return{time:d.projectedClose,etaMin:em,basis:'DockFlow',rate:(arcFor(d)||{}).rate||0,meetsSDT:meetBy(em,d.sdt),meetsCDT:meetBy(em,d.cdt)};}
+  const toTarget=etaToWeight(d,CLOSE_TARGET);   // full (~40K) → finish-loading / SDT
+  const toBand=etaToWeight(d,DOOR_LO);          // in-band floor (33K) → make-weight / CDT
+  const eta=toTarget.etaMin;
+  const time=eta===Infinity?"won't fill":eta>1440?'>24h':clockStr(new Date(Date.now()+eta*60000));
+  return{time,etaMin:eta,basis:toTarget.basis,rate:toTarget.rate,share:toTarget.share,
+    meetsSDT:meetBy(eta,d.sdt),               // full by Scheduled Departure
+    meetsCDT:meetBy(toBand.etaMin,d.cdt)};    // at least in-band by Critical Departure
+}
 
 // ── Side summary card ──
 function sideSummary(side,list){
@@ -578,8 +662,9 @@ function sideSummary(side,list){
   const hold=list.filter(d=>band(d)==='hold').length;
   const empty=list.filter(d=>band(d)==='empty').length;
   const active=list.length-empty;
-  // projected to close after CDT (at risk of departing light / late)
-  const late=loaded.filter(d=>{const p=projectClose(d);return p&&p.risk==='late';}).length;
+  // projected to reach close target after CDT (will depart light / forced out)
+  const late=loaded.filter(d=>{const p=projectClose(d);return p&&p.meetsCDT==='late';}).length;
+  const missSdt=loaded.filter(d=>{const p=projectClose(d);return p&&p.meetsSDT==='late';}).length;
   const avgColor=avgWt>=DOOR_LO&&avgWt<=DOOR_HI?'#16a34a':(avgWt>=DOOR_LO-3000&&avgWt<=DOOR_EXC)?'#d97706':'#dc2626';
   const DLO=30000;
   return`
@@ -590,7 +675,7 @@ function sideSummary(side,list){
     <div class="side-stat-row">
       <div class="kpi"><div class="kl">Avg / door</div><div class="kv" style="font-size:18px;color:${avgColor}">${(avgWt/1000).toFixed(1)}K</div><div class="ks">band 33–40K</div></div>
       <div class="kpi"><div class="kl">In band</div><div class="kv tg" style="font-size:18px">${inB}</div><div class="ks">${under} under · ${exc} exc · ${over} over</div></div>
-      <div class="kpi"><div class="kl">Proj. late</div><div class="kv ${late?'tr':'tg'}" style="font-size:18px">${late}</div><div class="ks">close after CDT</div></div>
+      <div class="kpi"><div class="kl">Miss CDT</div><div class="kv ${late?'tr':'tg'}" style="font-size:18px">${late}</div><div class="ks">${missSdt} miss SDT</div></div>
       <div class="kpi"><div class="kl">Flags</div><div class="kv ${hold?'tr':''}" style="font-size:18px">${hold}</div><div class="ks">${empty} empty</div></div>
     </div>
     <div class="gauge-wrap">
@@ -614,15 +699,12 @@ function doorCard(d){
   const wtStr=(d.isEmpty||d.weight<=0)?'—':`${(d.weight/1000).toFixed(1)}K`;
   const proj=projectClose(d);
   let projHtml='';
-  if(!d.isEmpty){
-    const cdtTxt=d.cdt?`CDT ${d.cdt}`:'CDT —';
-    if(proj){
-      const riskCls=proj.risk==='late'?'risk-late':proj.risk==='ok'?'risk-ok':'';
-      const riskMark=proj.risk==='late'?'✗':proj.risk==='ok'?'✓':'';
-      projHtml=`<div class="d-proj"><span title="DockFlow projected close (${proj.basis})">▸ close ~${proj.time}</span><span class="${riskCls}">${cdtTxt} ${riskMark}</span></div>`;
-    }else{
-      projHtml=`<div class="d-proj"><span>▸ close —</span><span>${cdtTxt}</span></div>`;
-    }
+  if(!d.isEmpty&&b!=='hold'&&proj){
+    const mark=v=>v==='ok'?'✓':v==='late'?'✗':'';
+    const rc=v=>v==='late'?'risk-late':v==='ok'?'risk-ok':'';
+    projHtml=`
+      <div class="d-proj"><span title="Projected door close (${proj.basis})">▸ close ~${proj.time}</span><span title="ARC rate (DockFlow)">${proj.rate?proj.rate+' /hr':''}</span></div>
+      <div class="d-proj"><span class="${rc(proj.meetsSDT)}" title="Scheduled Departure Time">SDT ${d.sdt||'—'} ${mark(proj.meetsSDT)}</span><span class="${rc(proj.meetsCDT)}" title="Critical Departure Time">CDT ${d.cdt||'—'} ${mark(proj.meetsCDT)}</span></div>`;
   }
   return`<div class="door-card ${cls}" title="DD${d.door} · ARC ${d.arc} · ${d.trailerType||'no trailer type'} · ${d.weight?d.weight.toLocaleString()+' lbs (SSP)':'empty'} · ${d.cdt?'CDT '+d.cdt:''} · ${d.status}">
     <div class="dh">
@@ -673,18 +755,21 @@ function renderAll(){
   document.getElementById('east-count').textContent=`${east.length} shown`;
   document.getElementById('west-count').textContent=`${west.length} shown`;
 
-  // Detail table — ARC (DockFlow) · Trailer (YMS) · Weight (SSP) · CDT · DockFlow proj close
+  // Detail table — ARC+rate (DockFlow) · VRID+trailer (YMS) · weight+SDT+CDT (SSP) · predicted close
   document.getElementById('detail-table').innerHTML=`<table>
-    <thead><tr><th>Side</th><th>Door</th><th>ARC</th><th>Trailer Type</th><th class="num">Weight (SSP)</th><th>Band</th><th>CDT</th><th>Proj Close</th><th>Status</th></tr></thead>
-    <tbody>${filtered.map(d=>{const b=band(d);const c=b==='in'?'tg':b==='under'||b==='over'||b==='hold'?'tr':b==='exception'?'ta':'';const p=projectClose(d);const pCls=p&&p.risk==='late'?'tr':p&&p.risk==='ok'?'tg':'';return`<tr>
+    <thead><tr><th>Side</th><th>Door</th><th>ARC</th><th>VRID</th><th>Trailer</th><th class="num">Weight (SSP)</th><th>Band</th><th class="num">Rate j/hr</th><th>SDT</th><th>CDT</th><th>Proj Close</th><th>Status</th></tr></thead>
+    <tbody>${filtered.map(d=>{const b=band(d);const c=b==='in'?'tg':b==='under'||b==='over'||b==='hold'?'tr':b==='exception'?'ta':'';const p=projectClose(d);const pCls=p&&p.meetsCDT==='late'?'tr':p&&p.meetsCDT==='ok'?'tg':'';return`<tr>
       <td>${d.side}</td>
       <td style="font-weight:800">${d.door}</td>
       <td style="font-weight:700">${d.arc}</td>
+      <td style="color:#64748b;font-size:11px">${d.vrid||'—'}</td>
       <td style="color:#64748b">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">missing</span>')}</td>
       <td class="num">${d.weight?d.weight.toLocaleString():'—'}</td>
       <td class="${c}" style="font-weight:700">${BAND_LABEL[b]}</td>
+      <td class="num">${p&&p.rate?p.rate:'—'}</td>
+      <td>${d.sdt||'—'}</td>
       <td>${d.cdt||'—'}</td>
-      <td class="${pCls}" style="font-weight:600">${p?p.time:'—'}</td>
+      <td class="${pCls}" style="font-weight:700">${p?p.time:'—'}</td>
       <td>${d.status}</td>
     </tr>`}).join('')}</tbody>
   </table>`;
@@ -698,7 +783,7 @@ function renderBanner(){
   if(live){
     el.innerHTML=`<div class="banner banner-live">✓ Live data loaded — ${live.source} · captured ${new Date(live.at).toLocaleString()}. ${live.note||''}</div>`;
   }else{
-    el.innerHTML=`<div class="banner banner-sample">⚠ Door map with <strong>SAMPLE</strong> trailer types, payload weights &amp; CDTs. Pull <strong>DockFlow</strong> (ARC + projection), <strong>SSP</strong> (payload + CDT) and <strong>YMS</strong> (trailer type) via the local proxy, or Paste CSV. ARCs match the DockFlow board.</div>`;
+    el.innerHTML=`<div class="banner banner-sample">⚠ <strong>SAMPLE</strong> data — door close projections use synthetic ARC forecasts. Pull <strong>DockFlow doors</strong>, <strong>DockFlow Arcs</strong> (rate+forecast), <strong>SSP</strong> (payload/jobs/SDT/CDT) and <strong>YMS</strong> (trailer+VRID) via the local proxy, or Paste CSV.</div>`;
   }
 }
 
@@ -729,8 +814,8 @@ function uploadCsv(input){
     renderAll();
   });
 }
-const DOOR_HEAD='side,door,arc,trailer_type,weight,cdt,fill_rate,projected_close,status';
-function doorToRow(d){return [d.side,d.door,d.arc,d.trailerType,d.weight,d.cdt,d.fillRate||'',d.projectedClose,d.status].join(',');}
+const DOOR_HEAD='side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status';
+function doorToRow(d){return [d.side,d.door,d.arc,d.vrid,d.trailerType,d.weight,d.jobsCurrent||'',d.sdt,d.cdt,d.status].join(',');}
 function exportCsv(){
   const rows=doors();
   const body=rows.map(doorToRow).join('\n');
@@ -742,7 +827,7 @@ function exportCsv(){
 }
 function resetSample(){
   STORE.set('obd.doorsCsv',sampleDoorsCsv);
-  ['obd.lastPull','obd.cdtRows','obd.divertRows'].forEach(k=>localStorage.removeItem(k));
+  ['obd.lastPull','obd.cdtRows','obd.divertRows','obd.arcData'].forEach(k=>localStorage.removeItem(k));
   renderAll();renderCWM();
 }
 
@@ -755,6 +840,7 @@ function showEndpoints(){
   const e=endpoints();
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
   set('ep-df-url',e.dockflow?.url||'');set('ep-df-method',e.dockflow?.method||'GET');set('ep-df-body',e.dockflow?.body||'');
+  set('ep-arcs-url',e.arcs?.url||'');set('ep-arcs-method',e.arcs?.method||'GET');set('ep-arcs-body',e.arcs?.body||'');
   set('ep-yms-url',e.yms?.url||'');set('ep-yms-method',e.yms?.method||'GET');set('ep-yms-body',e.yms?.body||'');
   set('ep-ssp-url',e.ssp?.url||'');set('ep-ssp-method',e.ssp?.method||'GET');set('ep-ssp-body',e.ssp?.body||'');
   set('ep-divert-url',e.divert?.url||'');set('ep-divert-method',e.divert?.method||'GET');set('ep-divert-body',e.divert?.body||'');
@@ -765,6 +851,7 @@ function saveEndpoints(){
   const val=id=>document.getElementById(id).value.trim();
   STORE.set('obd.endpoints',{
     dockflow:{url:val('ep-df-url'),method:val('ep-df-method'),body:val('ep-df-body')},
+    arcs:{url:val('ep-arcs-url'),method:val('ep-arcs-method'),body:val('ep-arcs-body')},
     yms:{url:val('ep-yms-url'),method:val('ep-yms-method'),body:val('ep-yms-body')},
     ssp:{url:val('ep-ssp-url'),method:val('ep-ssp-method'),body:val('ep-ssp-body')},
     divert:{url:val('ep-divert-url'),method:val('ep-divert-method'),body:val('ep-divert-body')}
@@ -824,7 +911,7 @@ async function pullYms(){
 function extractRows(txt){
   try{
     const j=JSON.parse(txt);
-    let arr=Array.isArray(j)?j:(j.data||j.rows||j.workcells||j.results||j.loads||j.departures||j.trailers||j.diverts||j.items||j.content||null);
+    let arr=Array.isArray(j)?j:(j.data||j.rows||j.workcells||j.arcs||j.results||j.loads||j.departures||j.trailers||j.diverts||j.items||j.content||null);
     // one level deeper, e.g. {data:{loads:[...]}}
     if(!Array.isArray(arr)&&j&&typeof j==='object'){for(const k in j){if(j[k]&&typeof j[k]==='object'){const inner=j[k].rows||j[k].loads||j[k].departures||j[k].results||j[k].items;if(Array.isArray(inner)&&inner.length){arr=inner;break;}}}}
     if(Array.isArray(arr)&&arr.length)return arr;
@@ -878,14 +965,54 @@ function mergeSSP(rows){
     const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
     if(!door||!map[door])return;
     const wt=fieldOf(o,['payloadweight','payload','weight','loadweight','wt','lbs']);
-    const cdtRaw=fieldOf(o,['cdt','criticalpulltime','cpt','departuretime','dpt','departure']);
+    const jobs=fieldOf(o,['jobs','jobcount','jobscurrent','units','packages','currentjobs']);
+    const sdtRaw=fieldOf(o,['sdt','scheduleddeparturetime','scheduleddeparture','planneddeparture']);
+    const cdtRaw=fieldOf(o,['cdt','criticalpulltime','cpt','criticaldeparturetime','departuretime','dpt','departure']);
     const vrid=fieldOf(o,['vrid','trailer','load','loadid']);
     if(wt!=null&&String(wt).trim()){map[door].weight=Number(String(wt).replace(/[^0-9.]/g,''))||map[door].weight;if(map[door].weight>0){map[door].isEmpty=false;if((map[door].status||'').toLowerCase()==='empty')map[door].status='Loading';}n++;}
+    if(jobs!=null&&String(jobs).trim())map[door].jobsCurrent=Number(String(jobs).replace(/[^0-9.]/g,''))||map[door].jobsCurrent;
+    if(sdtRaw!=null&&String(sdtRaw).trim())map[door].sdt=normTime(sdtRaw);
     if(cdtRaw!=null&&String(cdtRaw).trim())map[door].cdt=normTime(cdtRaw);
     if(vrid!=null&&String(vrid).trim())map[door].vrid=String(vrid).trim();
   });
   persist(map);
   return n;
+}
+
+// DockFlow "Arcs" view → per-ARC rate + Future forecast curve, keyed by ARC name.
+function arcBucket(src,keys){for(const kk in src){const n=kk.toLowerCase().replace(/[^a-z0-9]/g,'');if(keys.includes(n)){const v=Number(String(src[kk]).replace(/[^0-9.]/g,''));if(!isNaN(v))return v;}}return 0;}
+function arcForecastOf(o){
+  let src=o.future||o.forecast||o.futureForecast||o.forecasts||o;
+  if(Array.isArray(src)){const m={};src.forEach(p=>{const h=String(p.horizon||p.bucket||p.minutes||p.label||'').toLowerCase().replace(/[^a-z0-9]/g,'');m[h]=Number(String(p.jobs??p.value??p.count??'0').replace(/[^0-9.]/g,''))||0;});src=m;}
+  return{
+    m15:arcBucket(src,['15min','min15','15m','pt15m']),
+    m30:arcBucket(src,['30min','min30','30m','pt30m']),
+    h1:arcBucket(src,['1hr','hr1','60min','pt1h','1hour']),
+    h2:arcBucket(src,['2hr','hr2','pt2h','2hour']),
+    h4:arcBucket(src,['4hr','hr4','pt4h','4hour']),
+    h8:arcBucket(src,['8hr','hr8','pt8h','8hour']),
+    h24:arcBucket(src,['24hr','hr24','pt24h','24hour','1d'])
+  };
+}
+function mergeArcForecast(rows){
+  const data={};
+  rows.forEach(o=>{
+    const name=String(fieldOf(o,['arc','arcname','name','destination'])||'').trim();
+    if(!name)return;
+    const rate=Number(String(fieldOf(o,['currentrate','rate','jobshr','jobsperhour','ratejobshr'])||'0').replace(/[^0-9.]/g,''))||0;
+    data[name.toUpperCase()]={rate,process:String(fieldOf(o,['process','tags','tag'])||'').trim(),assignment:String(fieldOf(o,['assignment','sorter','arcassignment'])||'').trim(),fc:arcForecastOf(o)};
+  });
+  const n=Object.keys(data).length;
+  if(n)STORE.set('obd.arcData',data);
+  return n;
+}
+async function pullArcs(){
+  const txt=await fetchEndpoint(endpoints().arcs,'DockFlow Arcs');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows||!mergeArcForecast(rows)){alert('DockFlow Arcs responded but no ARC rows could be parsed.\nCheck you captured the Arcs list request (rate + forecast), or keep sample.');return;}
+  STORE.set('obd.lastPull',{source:'DockFlow Arc forecasts',at:Date.now(),note:'Per-ARC rate + forecast merged → projections recomputed.'});
+  renderAll();alert('FUSE: DockFlow Arc forecasts merged ('+Object.keys(arcData()).length+' arcs).');
 }
 
 // ── CDT (SSP) + divert (DockFlow) live pulls ──
@@ -1137,7 +1264,7 @@ function renderCWM(){
 
 function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 tick();setInterval(tick,1000);
-{const fr=document.getElementById('fill-rate');if(fr)fr.value=fillRateDefault();}
+{const fr=document.getElementById('fill-rate');if(fr)fr.value=fillRateDefault();const lj=document.getElementById('lbs-per-job');if(lj)lj.value=lbsPerJobDefault();}
 renderAll();
 renderCWM();
 setInterval(renderCDT,30000);
