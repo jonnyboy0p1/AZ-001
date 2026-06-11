@@ -1045,6 +1045,15 @@ body.met-enabled .view-tabs{
   min-height:38px;
   white-space:nowrap;
 }
+.ops-start-card{
+  border-color:rgba(47,111,234,.45);
+}
+.ops-start-row{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto auto;
+  gap:8px;
+  align-items:end;
+}
 .downtime-card input,
 .downtime-card select{
   min-height:38px;
@@ -3321,6 +3330,57 @@ function stampDowntimeAnchor(key) {
   }
 }
 
+// Operations Start: when a shutdown delays the start of operations, the actual
+// start time shifts every data window with it - FCLM links/pulls, the FL
+// Utilization and Battle of the Belt windows, and the per-period rate math.
+// The pace table stays driven by the bypass entries, so nothing double-counts.
+function opsStartInfo() {
+  const raw = $('opsStartTime')?.value || '';
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const minute = Number(match[2]);
+  const shiftDate = $('shiftDate')?.value || new Date().toISOString().slice(0, 10);
+  const [y, m, d] = shiftDate.split('-').map(Number);
+  // Shift runs 19:00 -> 05:30 CT: afternoon/evening times belong to the shift
+  // date, early-morning times to the next calendar day.
+  const day = h >= 12 ? { y, m, d } : addDays(y, m, d, 1);
+  return { date: zonedTimeToUtc(day.y, day.m, day.d, h, minute), h, m: minute, day };
+}
+
+function scheduledShiftStart() {
+  const shiftDate = $('shiftDate')?.value || new Date().toISOString().slice(0, 10);
+  const [y, m, d] = shiftDate.split('-').map(Number);
+  return zonedTimeToUtc(y, m, d, 19, 0);
+}
+
+function totalBypassMinutes() {
+  return activePeriods().reduce((sum, row) => sum + downtimeMinutes(row.key), 0);
+}
+
+function mpClock(date) {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Los_Angeles'
+  }).format(date);
+}
+
+function renderOpsStartStatus() {
+  const el = $('opsStartStatus');
+  if (!el) return;
+  const ops = opsStartInfo();
+  if (!ops) {
+    el.textContent = 'Scheduled start 19:00 CT - all windows unchanged. Hit Start Now when the belt comes back up, or After Bypass to add the submitted bypass time to 19:00.';
+    return;
+  }
+  const scheduled = scheduledShiftStart();
+  const deltaH = (ops.date.getTime() - scheduled.getTime()) / 3600000;
+  if (deltaH <= 0) {
+    el.textContent = `Ops start ${ctClock(ops.date.getTime())} CT is at/before the scheduled 19:00 - windows unchanged.`;
+    return;
+  }
+  el.textContent = `Ops start ${ctClock(ops.date.getTime())} CT (+${fmt(deltaH, deltaH % 1 ? 1 : 0)}h after 19:00). FCLM, FL Utilization, and Battle of the Belt windows now start there.`;
+}
+
 function downtimeNotes(rows = activePeriods()) {
   return rows
     .map((row) => {
@@ -3608,7 +3668,22 @@ function buildPeriodRows() {
 function buildDowntimeRows() {
   const target = $('downtimeBypass');
   if (!target) return;
-  target.innerHTML = PERIODS.map((p) => `
+  const opsCard = `
+    <section class="downtime-card ops-start-card">
+      <h3>Operations Start</h3>
+      <div class="ops-start-row">
+        <div>
+          <label>Actual start (CT)</label>
+          <input id="opsStartTime" type="time" step="60" />
+        </div>
+        <div><button class="primary downtime-submit" id="opsStartNowBtn">Start Now</button></div>
+        <div><button class="downtime-submit" id="opsStartBypassBtn">After Bypass</button></div>
+        <div><button class="downtime-submit" id="opsStartResetBtn">Reset</button></div>
+      </div>
+      <div id="opsStartStatus" class="downtime-note"></div>
+    </section>
+  `;
+  target.innerHTML = opsCard + PERIODS.map((p) => `
     <section class="downtime-card" data-period-row="${p.key}">
       <h3>${p.label} Bypass</h3>
       <div class="downtime-row">
@@ -6131,6 +6206,19 @@ function buildFclmUrl(period = 'full') {
 
   if (!win) return '';
 
+  // Late ops start: move the FCLM window start to when operations actually
+  // began, if that time falls inside this window.
+  const ops = opsStartInfo();
+  if (ops) {
+    const winStart = zonedTimeToUtc(win.sd.y, win.sd.m, win.sd.d, win.sh, win.sm);
+    const winEnd = zonedTimeToUtc(win.ed.y, win.ed.m, win.ed.d, win.eh, win.em);
+    if (ops.date > winStart && ops.date < winEnd) {
+      win.sd = ops.day;
+      win.sh = ops.h;
+      win.sm = ops.m;
+    }
+  }
+
   const u = new URL('https://fclm-portal.amazon.com/reports/functionRollup');
   u.searchParams.set('reportFormat', 'HTML');
   u.searchParams.set('warehouseId', 'RFD2');
@@ -6210,6 +6298,20 @@ function monitorWindows() {
     p3: make('p3', 'P3', next, 3, 0, next, 5, 30),
     met: make('met', 'MET', next, 5, 30, next, 6, 30)
   };
+
+  // A late operations start pushes the start of every window it lands inside
+  // (full + the period it falls in). Windows that ended before ops started are
+  // left alone - they pull zeros, which is what actually happened.
+  const ops = opsStartInfo();
+  if (ops) {
+    Object.values(windows).forEach((win) => {
+      if (ops.date > win.start && ops.date < win.end) {
+        win.start = ops.date;
+        win.opsAdjusted = true;
+        win.display = `${win.label} MP ${mpClock(win.start)} to ${mpClock(win.end)} - ops start`;
+      }
+    });
+  }
 
   return windows;
 }
@@ -6895,7 +6997,10 @@ function bridgePullRequestPayload(source) {
     source,
     periods: pullPeriodsForShift(),
     shiftDate: $('shiftDate')?.value || defaultShiftDateString(),
-    includeMET
+    includeMET,
+    // Late operations start (HH:MM CT, or null) so bridge-side window builders
+    // can line up with the dashboard's adjusted windows.
+    opsStart: $('opsStartTime')?.value || null
   };
 }
 
@@ -7207,6 +7312,38 @@ function bind() {
   });
 
   document.addEventListener('click', (event) => {
+    const input = $('opsStartTime');
+    if (!input) return;
+    if (event.target.closest('#opsStartNowBtn')) {
+      input.value = ctClock(Date.now());
+      saveState(false);
+      renderAll();
+      updateMiniStatus(`Operations start set to now (${input.value} CT). Data windows updated.`);
+      return;
+    }
+    if (event.target.closest('#opsStartBypassBtn')) {
+      const minutes = totalBypassMinutes();
+      if (!minutes) {
+        updateMiniStatus('No bypass time entered yet - submit a bypass first or use Start Now.');
+        return;
+      }
+      const startMs = scheduledShiftStart().getTime() + minutes * 60000;
+      input.value = ctClock(startMs);
+      saveState(false);
+      renderAll();
+      updateMiniStatus(`Operations start set to ${input.value} CT (19:00 + ${formatDowntime(minutes)} bypass).`);
+      return;
+    }
+    if (event.target.closest('#opsStartResetBtn')) {
+      if (!input.value) return;
+      input.value = '';
+      saveState(false);
+      renderAll();
+      updateMiniStatus('Operations start reset - windows back to the scheduled 19:00.');
+    }
+  });
+
+  document.addEventListener('click', (event) => {
     const openBtn = event.target.closest('[data-fclm-source-open]');
     if (openBtn) {
       openFclmPeriod(openBtn.dataset.fclmSourceOpen);
@@ -7261,6 +7398,7 @@ function renderAll() {
   renderGoals();
   const rows = plan();
   updateDowntimeVisibility(rows);
+  renderOpsStartStatus();
   const full = renderFullShiftJplh(rows);
   const board = renderBoard(rows);
   renderSnapshot(full, board);
