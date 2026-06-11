@@ -9,7 +9,6 @@
 <body>
   <main class="app-shell">
     <section class="editor">
-      <div class="move-handle" title="Drag to move. Double-click to snap back.">⠿ Move panel</div>
       <header class="topbar">
         <div>
           <h1>Fluid West Handoff</h1>
@@ -89,14 +88,14 @@
           <label>Dayshift action items <textarea id="followUps" rows="3" placeholder="What dayshift needs to do, monitor, or double check"></textarea></label>
         </section>
 
-        <section class="panel">
-          <h2>Floor Notes</h2>
+        <details class="panel" data-section="floorNotes" open>
+          <summary>Floor Notes</summary>
           <label>Available carriers at the EOS <input id="availableCarriers" type="number" min="0" value="796"></label>
           <label>Standard floor notes <textarea id="floorNotes" rows="4" placeholder="Only add floor notes that matter for handoff"></textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Shipclerk Notes</h2>
+        <details class="panel" data-section="shipclerk" open>
+          <summary>Shipclerk Notes</summary>
           <h3>Trailer Pool</h3>
           <div class="grid five">
             <label>AZNG <input id="azng" value="4"></label>
@@ -114,10 +113,10 @@
           <label>True pause load details <textarea id="truePauseDetails" rows="3">ORD5 PS1141 112HDBFBD AZNG SV2700902</textarea></label>
           <label>Smart lock note <textarea id="smartLockNote" rows="3">SMARTLOCKS EOS HAS BEEN POSTED IN THE CHAT</textarea></label>
           <label>Next SDT to expire soon <textarea id="nextSdt" rows="3">DET3 DD352 112KLVBT2 AZNG WV2501131 01-Jun-26 15:06</textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Problem Solver Notes</h2>
+        <details class="panel" data-section="problemSolver" open>
+          <summary>Problem Solver Notes</summary>
           <label>Staffing note <textarea id="psStaffing" rows="3">We DID have a problem solver staffed, they bounced between both sides. Here is what is left:</textarea></label>
           <div class="grid two">
             <label>PS Case <input id="psCase" type="number" min="0" value="49"></label>
@@ -127,36 +126,36 @@
             <label>PS piles <input id="psPiles" type="number" min="0" value=""></label>
             <label>Fluid load details <input id="fluidLoadDetails" value=""></label>
           </div>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Busy Arcs / Heavy Arcs</h2>
+        <details class="panel" data-section="busyArcs" open>
+          <summary>Busy Arcs / Heavy Arcs</summary>
           <label>Current period top arcs <textarea id="busyArcs" rows="4">DD352 DET3
 DD354 IGQ1
 DD349 CLE2</textarea></label>
           <label>All shift top arcs <textarea id="allShiftArcs" rows="5"></textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Downstack Notes</h2>
+        <details class="panel" data-section="downstack" open>
+          <summary>Downstack Notes</summary>
           <div class="grid three">
             <label>Total U-Boat count <input id="totalUBoats" type="number" min="0" value="43"></label>
             <label>Down stack U-Boats <input id="downstackUBoats" type="number" min="0" value="3"></label>
             <label>Jackpot U-Boats/Pallets <input id="jackpot" value="0"></label>
           </div>
           <label>Down stack details <textarea id="downstackDetails" rows="3">DD347 CLE2 3 U boats</textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Jam Notes</h2>
+        <details class="panel" data-section="jams" open>
+          <summary>Jam Notes</summary>
           <label>Constant/Reoccurring jams <textarea id="jamNotes" rows="5">DD355 Lower Divert Before the Merge
 DD338 Mistimed at the Merge
 DD345 Ecc Fault After the Merge</textarea></label>
           <label>Pending RME trouble tickets/pending support issues <textarea id="pendingRme" rows="3">NONE</textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>TDR Notes</h2>
+        <details class="panel" data-section="tdr" open>
+          <summary>TDR Notes</summary>
           <label>SSP weight/load notes <textarea id="sspLoadNotes" rows="4"></textarea></label>
           <label>Doors next to close near SOS <textarea id="doorsNextToClose" rows="4">DD355 PCW1 85%
 DD342 KRB6 80%</textarea></label>
@@ -164,7 +163,7 @@ DD342 KRB6 80%</textarea></label>
 DD346 DTW1
 DD350 MLI1</textarea></label>
           <label>Percentages updated <input id="percentagesUpdated" value="06:25am"></label>
-        </section>
+        </details>
       </div>
 
       <div class="tab-content" data-tab="counterpart" hidden>
@@ -175,12 +174,32 @@ DD350 MLI1</textarea></label>
           </div>
           <p class="hint">Short version for your general counterparts. Pull auto-fills from what you already typed in the Full EOS Handoff tab, then tweak anything by hand.</p>
           <label>Busy ARCs (one per line) <textarea id="cpBusyArcs" rows="3" placeholder="DD344 HMW3&#10;DD354 IGQ1&#10;DD350 MLI1"></textarea></label>
-          <label>Downstack remaining (one per line) <textarea id="cpDownstack" rows="3" placeholder="DD342 FSD1 (2 U-Boats)&#10;DD347 CLE2 (1 U-Boat)"></textarea></label>
-          <label>Problem solve (one per line) <textarea id="cpProblemSolve" rows="2" placeholder="1 PA pallet remaining near DD339"></textarea></label>
-          <label>Watch out (one per line) <textarea id="cpWatchOut" rows="3" placeholder="DD339 recurring divert jams&#10;DD352 ECC fault after merge"></textarea></label>
-          <label>SOS to do (one per line) <textarea id="cpSosTodo" rows="3" placeholder="Open DD347 CLE2&#10;Open DD350 MLI1"></textarea></label>
-          <label>RME / closing note <input id="cpRme" value="No active RME tickets."></label>
         </section>
+
+        <details class="panel" data-section="cpDownstack" open>
+          <summary>Downstack Remaining</summary>
+          <label>Downstack remaining (one per line) <textarea id="cpDownstack" rows="3" placeholder="DD342 FSD1 (2 U-Boats)&#10;DD347 CLE2 (1 U-Boat)"></textarea></label>
+        </details>
+
+        <details class="panel" data-section="cpProblemSolve" open>
+          <summary>Problem Solve</summary>
+          <label>Problem solve (one per line) <textarea id="cpProblemSolve" rows="2" placeholder="1 PA pallet remaining near DD339"></textarea></label>
+        </details>
+
+        <details class="panel" data-section="cpWatchOut" open>
+          <summary>Watch Out</summary>
+          <label>Watch out (one per line) <textarea id="cpWatchOut" rows="3" placeholder="DD339 recurring divert jams&#10;DD352 ECC fault after merge"></textarea></label>
+        </details>
+
+        <details class="panel" data-section="cpSosTodo" open>
+          <summary>SOS To Do</summary>
+          <label>SOS to do (one per line) <textarea id="cpSosTodo" rows="3" placeholder="Open DD347 CLE2&#10;Open DD350 MLI1"></textarea></label>
+        </details>
+
+        <details class="panel" data-section="cpRme" open>
+          <summary>RME / Closing Note</summary>
+          <label>RME / closing note <input id="cpRme" value="No active RME tickets."></label>
+        </details>
       </div>
 
       <div class="tab-content" data-tab="leadership" hidden>
@@ -192,8 +211,8 @@ DD350 MLI1</textarea></label>
           <p class="hint">Plug-and-play snapshot for your AMs. Empty fields show as ___ in the report so it's obvious what still needs a number. Pull grabs smart locks, pause loads, recurring issues, and 85%+ trailers from the Full EOS Handoff tab.</p>
         </section>
 
-        <section class="panel">
-          <h2>Yard Health</h2>
+        <details class="panel" data-section="lsYard" open>
+          <summary>Yard Health</summary>
           <div class="grid two">
             <label>East Yard <input id="lsEastYard" placeholder="e.g. Healthy / 12 empties"></label>
             <label>West Yard <input id="lsWestYard" placeholder="e.g. Tight / 4 empties"></label>
@@ -202,34 +221,34 @@ DD350 MLI1</textarea></label>
             <label>Smart Locks <input id="lsSmartLocks" placeholder="e.g. 5 used"></label>
             <label>Pause Loads <input id="lsPauseLoads" placeholder="e.g. 1"></label>
           </div>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Trailer Status</h2>
+        <details class="panel" data-section="lsTrailer" open>
+          <summary>Trailer Status</summary>
           <div class="grid three">
             <label>Ready for Close <input id="lsReadyForClose" placeholder="e.g. 3"></label>
             <label>Doors Closing &lt;2hr <input id="lsDoorsClosing" placeholder="e.g. DD355, DD342"></label>
             <label>Open Capacity <input id="lsOpenCapacity" placeholder="e.g. 6 doors"></label>
           </div>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Operations Risk</h2>
+        <details class="panel" data-section="lsRisk" open>
+          <summary>Operations Risk</summary>
           <label>Recurring issues (one per line) <textarea id="lsRecurringIssues" rows="3" placeholder="DD339 recurring divert jams&#10;DD352 ECC fault after merge"></textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Critical Trailers</h2>
+        <details class="panel" data-section="lsCritical" open>
+          <summary>Critical Trailers</summary>
           <label>Trailers at 85%+ or at risk (one per line) <textarea id="lsCriticalTrailers" rows="3" placeholder="DD355 PCW1 85%&#10;DD342 KRB6 92%"></textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Escalations Needed</h2>
+        <details class="panel" data-section="lsEscalations" open>
+          <summary>Escalations Needed</summary>
           <label>Escalations (one per line) <textarea id="lsEscalations" rows="3" placeholder="RME ticket for DD352 ECC fault&#10;Yard hostler support 0500-0600"></textarea></label>
-        </section>
+        </details>
 
-        <section class="panel">
-          <h2>Shift Health</h2>
+        <details class="panel" data-section="lsHealth" open>
+          <summary>Shift Health</summary>
           <div class="grid two">
             <label>Status
               <select id="lsShiftHealth">
@@ -241,12 +260,11 @@ DD350 MLI1</textarea></label>
             </label>
           </div>
           <label>Reason <textarea id="lsHealthReason" rows="3" placeholder="Why are we green / yellow / red?"></textarea></label>
-        </section>
+        </details>
       </div>
     </section>
 
     <aside class="preview">
-      <div class="move-handle" title="Drag to move. Double-click to snap back.">⠿ Move panel</div>
       <div class="preview-actions">
         <button id="copyBtn" type="button">Copy Report</button>
         <button id="resetBtn" type="button">Reset</button>

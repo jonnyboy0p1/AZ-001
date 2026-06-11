@@ -633,66 +633,17 @@ document.querySelector("#clearCaptureBtn").addEventListener("click", clearCaptur
 document.querySelector("#pullCounterpartBtn").addEventListener("click", pullCounterpartFromBuilder);
 document.querySelector("#pullLeadershipBtn").addEventListener("click", pullLeadershipFromBuilder);
 
-function makeMovable(panel, posKey) {
-  if (!panel) {
-    return;
+const collapseKey = "fluidWestHandoffCollapse";
+const collapseState = JSON.parse(localStorage.getItem(collapseKey) || "{}");
+document.querySelectorAll("details.panel[data-section]").forEach((panel) => {
+  const key = panel.dataset.section;
+  if (key in collapseState) {
+    panel.open = collapseState[key];
   }
-  const handle = panel.querySelector(".move-handle");
-  if (!handle) {
-    return;
-  }
-  let offset = JSON.parse(localStorage.getItem(posKey) || "null") || { x: 0, y: 0 };
-  let dragging = false;
-  let startX = 0;
-  let startY = 0;
-  let baseX = 0;
-  let baseY = 0;
-
-  function apply() {
-    panel.style.transform = offset.x || offset.y ? `translate(${offset.x}px, ${offset.y}px)` : "";
-  }
-  apply();
-
-  handle.addEventListener("pointerdown", (event) => {
-    dragging = true;
-    startX = event.clientX;
-    startY = event.clientY;
-    baseX = offset.x;
-    baseY = offset.y;
-    panel.classList.add("dragging");
-    handle.setPointerCapture(event.pointerId);
-    event.preventDefault();
+  panel.addEventListener("toggle", () => {
+    collapseState[key] = panel.open;
+    localStorage.setItem(collapseKey, JSON.stringify(collapseState));
   });
-
-  handle.addEventListener("pointermove", (event) => {
-    if (!dragging) {
-      return;
-    }
-    offset.x = baseX + (event.clientX - startX);
-    offset.y = baseY + (event.clientY - startY);
-    apply();
-  });
-
-  function endDrag() {
-    if (!dragging) {
-      return;
-    }
-    dragging = false;
-    panel.classList.remove("dragging");
-    localStorage.setItem(posKey, JSON.stringify(offset));
-  }
-
-  handle.addEventListener("pointerup", endDrag);
-  handle.addEventListener("pointercancel", endDrag);
-
-  handle.addEventListener("dblclick", () => {
-    offset = { x: 0, y: 0 };
-    apply();
-    localStorage.removeItem(posKey);
-  });
-}
-
-makeMovable(document.querySelector(".editor"), "fluidEditorPos");
-makeMovable(document.querySelector(".preview"), "fluidPreviewPos");
+});
 
 setTab(activeTab);

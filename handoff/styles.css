@@ -1,6 +1,6 @@
 :root {
   color-scheme: light;
-  --bg: #ccff00;
+  --bg: #191970;
   --panel: #ffffff;
   --text: #17202a;
   --muted: #5d6775;
@@ -32,36 +32,6 @@ body {
 .editor,
 .preview {
   min-width: 0;
-  position: relative;
-}
-
-.move-handle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding: 6px 12px;
-  width: fit-content;
-  border: 1px dashed var(--accent-dark);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.75);
-  color: var(--accent-dark);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  cursor: move;
-  user-select: none;
-  touch-action: none;
-}
-
-.move-handle:hover {
-  background: #fff;
-}
-
-.dragging {
-  z-index: 50;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
 }
 
 .topbar {
@@ -96,9 +66,13 @@ h3 {
   text-transform: uppercase;
 }
 
+.topbar h1 {
+  color: #ffffff;
+}
+
 .topbar p {
   margin-top: 6px;
-  color: var(--muted);
+  color: #b9c4e8;
 }
 
 .quick-links {
@@ -261,8 +235,20 @@ summary {
   cursor: pointer;
 }
 
-.capture-panel[open] summary {
-  margin-bottom: 10px;
+details.panel > summary {
+  margin: -14px;
+  padding: 14px;
+  border-radius: 8px;
+}
+
+details.panel[open] > summary {
+  margin: -14px -14px 12px;
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+details.panel > summary:hover {
+  background: #eef1f7;
 }
 
 .capture-panel p {
