@@ -3368,17 +3368,15 @@ function renderOpsStartStatus() {
   const el = $('opsStartStatus');
   if (!el) return;
   const ops = opsStartInfo();
-  if (!ops) {
-    el.textContent = 'Scheduled start 19:00 CT - all windows unchanged. Hit Start Now when the belt comes back up, or After Bypass to add the submitted bypass time to 19:00.';
-    return;
+  let text = '';
+  if (ops) {
+    const deltaH = (ops.date.getTime() - scheduledShiftStart().getTime()) / 3600000;
+    text = deltaH > 0
+      ? `Ops start ${ctClock(ops.date.getTime())} CT (+${fmt(deltaH, deltaH % 1 ? 1 : 0)}h) - windows shifted.`
+      : `Ops start at/before 19:00 - windows unchanged.`;
   }
-  const scheduled = scheduledShiftStart();
-  const deltaH = (ops.date.getTime() - scheduled.getTime()) / 3600000;
-  if (deltaH <= 0) {
-    el.textContent = `Ops start ${ctClock(ops.date.getTime())} CT is at/before the scheduled 19:00 - windows unchanged.`;
-    return;
-  }
-  el.textContent = `Ops start ${ctClock(ops.date.getTime())} CT (+${fmt(deltaH, deltaH % 1 ? 1 : 0)}h after 19:00). FCLM, FL Utilization, and Battle of the Belt windows now start there.`;
+  el.textContent = text;
+  el.style.display = text ? '' : 'none';
 }
 
 function downtimeNotes(rows = activePeriods()) {
@@ -3713,7 +3711,6 @@ function buildDowntimeRows() {
           <button class="primary downtime-submit" data-downtime-submit="${p.key}">Submit</button>
         </div>
       </div>
-      <div class="downtime-note">Submit stamps the bypass at the current time so it lands on the right pace block. Over 30 min takes over the whole block; shorter bypasses flag it in orange. Time is subtracted from the live pace clock and handoff miss logic.</div>
     </section>
   `).join('');
 }
