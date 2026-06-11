@@ -35,13 +35,32 @@ backend the "Search for Metrics" UI uses — and parses raw series data:
 4. Totals flow into the existing bridge payload (`monitorPeriods` /
    `monitorFull`) so all current panels, manual-override locks, and age chips
    keep working unchanged.
-5. This repeats **every 15 minutes** automatically, plus on the
-   "Pull FL Utilization", "Pull Battle of the Belt", "Pull All Sources", and
-   "Pull Live Metrics Now" buttons.
+5. Auto pulls are **clock-aligned to the quarter hour** (:00, :15, :30, :45 —
+   a few seconds after the mark), plus on the "Pull FL Utilization",
+   "Pull Battle of the Belt", "Pull All Sources", and "Pull Live Metrics Now"
+   buttons.
 
-Status + a per-window diagnostic live in **Goals view → MonitorPortal Windows →
-Live Metrics – Search API**. If a pull fails, open the diagnostic and
-screenshot it — it shows every endpoint attempt and why it failed.
+### Hourly Pull Tracker (FL Utilization)
+
+Each quarter-hour pull also queries an **hour-aligned FL Utilization window**
+(top of the hour → now). Example for the 9 o'clock hour: the 9:15 / 9:30 / 9:45
+pulls show the hour-to-date count, and the 10:00 pull queries the full
+9:00–10:00 window, locks that hour into the completed-hours table, and the
+next hour starts over from zero. If a :00 pull is missed (machine asleep,
+browser closed), the next pull backfills the missed hour as a full-hour query
+so the history stays accurate.
+
+The tracker panel (under **Goals view → MonitorPortal Windows → Live
+Metrics – Search API**) shows:
+
+- **This hour** — the quarter-hour samples so far with MP/FL/RWC breakdown.
+- **Completed hours** — per-hour pulled-in totals (MP / FL / RWC / Total), CT.
+- **Per period** — P1/P2/P3(/MET)/Full totals from the same pulls plus a
+  per-hour run rate (total ÷ elapsed hours in the window).
+
+Status + a per-window diagnostic live in the same panel. If a pull fails, open
+the diagnostic and screenshot it — it shows every endpoint attempt and why it
+failed.
 
 ### Setup (one time)
 

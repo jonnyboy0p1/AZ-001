@@ -920,6 +920,88 @@ body.met-enabled .view-tabs{
 }
 .live-metrics-diag-list .good{color:var(--green)}
 .live-metrics-diag-list .bad{color:var(--red)}
+.hourly-tracker{
+  display:grid;
+  gap:10px;
+  padding:12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--panel);
+}
+.hourly-tracker-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.hourly-tracker-head h4{
+  margin:0;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+#hourlyTrackerNext{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.hourly-tracker-body{
+  display:grid;
+  gap:12px;
+  font-size:12px;
+}
+.hourly-section-label{
+  margin-bottom:6px;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.hourly-current-chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.hourly-chip{
+  padding:4px 9px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:var(--panel2);
+  font-size:11px;
+  font-weight:800;
+}
+.hourly-chip.latest{border-color:rgba(47,111,234,.65);color:var(--text)}
+.hourly-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+.hourly-table th,
+.hourly-table td{
+  padding:5px 8px;
+  border-bottom:1px solid var(--line);
+  text-align:right;
+  white-space:nowrap;
+}
+.hourly-table th:first-child,
+.hourly-table td:first-child{text-align:left}
+.hourly-table th{
+  background:var(--thead);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.hourly-state{
+  color:var(--muted);
+  font-size:10px;
+  font-weight:800;
+  text-transform:uppercase;
+}
+.hourly-tracker-empty{color:var(--muted);font-weight:800}
 .board-breakout{
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -2534,12 +2616,21 @@ button.copy-success{
           <div class="live-metrics-head">
             <div>
               <h3>Live Metrics - Search API</h3>
-              <p>Background data pull straight from the MonitorPortal Search data endpoint. No tabs, no page scraping. Auto-refreshes every 15 minutes.</p>
+              <p>Background data pull straight from the MonitorPortal Search data endpoint. No tabs, no page scraping. Auto pulls on the quarter hour (:00 / :15 / :30 / :45).</p>
             </div>
             <span id="liveMetricsBridgeState">Userscript bridge not detected yet</span>
             <button id="pullLiveMetricsBtn" class="primary">Pull Live Metrics Now</button>
           </div>
-          <div id="liveMetricsStatus" class="source-auto-status">Live metrics auto pull starts with the dashboard (every 15 min).</div>
+          <div id="liveMetricsStatus" class="source-auto-status">Live metrics auto pull arms with the dashboard (quarter-hour schedule: :00 / :15 / :30 / :45).</div>
+          <div class="hourly-tracker">
+            <div class="hourly-tracker-head">
+              <h4>FL Utilization - Hourly Pull Tracker</h4>
+              <span id="hourlyTrackerNext">Auto pulls at :00 / :15 / :30 / :45</span>
+            </div>
+            <div id="hourlyTrackerBody" class="hourly-tracker-body">
+              <div class="hourly-tracker-empty">No hourly samples yet - the tracker fills in as the quarter-hour pulls run.</div>
+            </div>
+          </div>
           <details class="live-metrics-diag">
             <summary>Live Metrics Diagnostic</summary>
             <div id="liveMetricsDiag" class="live-metrics-diag-list"><div>No live metrics pull has run yet.</div></div>
@@ -6014,6 +6105,10 @@ function monitorWindows() {
 
 function buildFlUtilUrl(windowKey = 'full') {
   const win = monitorWindows()[windowKey] || monitorWindows().full;
+  return buildFlUtilRangeUrl(win.start, win.end, win.label);
+}
+
+function buildFlUtilRangeUrl(start, end, label) {
   const u = new URL('https://monitorportal.amazon.com/igraph');
   const patterns = [
     'dataset=$Prod$ schemaname=Service marketplace=$RFD2-MainSorter1Controller$ hostgroup=$ALL$ host=$ALL$ servicename=$WarehouseControlService$ methodname=$SortationOrchestrator.divert$ client=$ALL$ metricclass=$NONE$ instance=$NONE$ schemaname=Service metric=$finalActualDestination-MP AND :SUCCESS$',
@@ -6031,12 +6126,12 @@ function buildFlUtilUrl(windowKey = 'full') {
   u.searchParams.set('Stat1', 'sum');
   u.searchParams.set('HeightInPixels', '300');
   u.searchParams.set('WidthInPixels', '600');
-  u.searchParams.set('GraphTitle', `FL Utilization - ${win.label}`);
+  u.searchParams.set('GraphTitle', `FL Utilization - ${label}`);
   u.searchParams.set('DecoratePoints', 'true');
   u.searchParams.set('GraphType', 'pie');
   u.searchParams.set('TZ', 'US/Pacific@TZ: Pacific');
-  u.searchParams.set('StartTime1', isoNoMs(win.start));
-  u.searchParams.set('EndTime1', isoNoMs(win.end));
+  u.searchParams.set('StartTime1', isoNoMs(start));
+  u.searchParams.set('EndTime1', isoNoMs(end));
   u.searchParams.set('FunctionExpression1', 'SUM(S1)');
   u.searchParams.set('FunctionLabel1', 'TOTAL MP[total: {sum}]');
   u.searchParams.set('FunctionYAxisPreference1', 'left');
@@ -6098,13 +6193,15 @@ function copyMonitorUrl(type, windowKey) {
 // JS app shell with no numbers in it, so background pulls must hit the data
 // API. Fetches go through the Tampermonkey fetch bridge when present (CORS),
 // with a direct fetch fallback. All parsing happens here in the dashboard.
-const LIVE_METRICS_INTERVAL_MS = 15 * 60 * 1000;
+// Auto pulls are clock-aligned to the quarter hour (:00/:15/:30/:45) so the
+// :00 pull closes out a full wall-clock hour for the hourly tracker.
 const LIVE_METRICS_VARIANT_KEY = 'ob_prc_vscode_live_metrics_variant';
 const LIVE_METRICS_BODY_LIMIT = 800000;
 const LIVE_METRIC_TYPE_LABELS = { flUtil: 'FL Utilization', belt: 'Battle of the Belt' };
 let liveMetricsTimer = null;
 let liveMetricsRunning = false;
 let liveMetricsBridgeVersion = '';
+let nextLiveMetricsPullAt = null;
 const liveFetchWaiters = new Map();
 
 function liveMetricsVariants(graphUrl) {
@@ -6341,7 +6438,146 @@ function renderLiveMetricsDiag(entries) {
 }
 
 function liveMetricsWindowLabel(key) {
-  return key === 'full' ? 'Full' : String(key).toUpperCase();
+  if (key === 'full') return 'Full';
+  if (key === 'hour') return 'This Hour';
+  if (key === 'hourPrev') return 'Prev Hour';
+  return String(key).toUpperCase();
+}
+
+// Hourly tracker: every quarter-hour pull also queries an hour-aligned FL
+// Utilization window (top of the hour -> now). The :00 pull covers the full
+// hour that just ended (e.g. 21:00-22:00), locks it into the completed-hours
+// list, and the next hour starts over from zero.
+const HOURLY_TRACKER_KEY = 'ob_prc_vscode_hourly_fl_v1';
+const HOURLY_TRACKER_MAX_HOURS = 14;
+const HOUR_MS = 3600000;
+
+function readHourlyTracker() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HOURLY_TRACKER_KEY) || 'null');
+    if (parsed && typeof parsed === 'object') {
+      const current = parsed.current && Array.isArray(parsed.current.samples) ? parsed.current : null;
+      return { current, hours: Array.isArray(parsed.hours) ? parsed.hours : [] };
+    }
+  } catch {}
+  return { current: null, hours: [] };
+}
+
+function writeHourlyTracker(tracker) {
+  try { localStorage.setItem(HOURLY_TRACKER_KEY, JSON.stringify(tracker)); } catch {}
+}
+
+function trackedHourStartMs(now = Date.now()) {
+  // Lag by 2 min so the :00 pull still belongs to the hour it just closed.
+  return Math.floor((now - 120000) / HOUR_MS) * HOUR_MS;
+}
+
+function ctClock(ms) {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Chicago'
+  }).format(new Date(ms));
+}
+
+function recordHourlySample(hourStartMs, hourEndMs, values, isFinal) {
+  const tracker = readHourlyTracker();
+  const mp = Math.round(num(values.mp));
+  const fl = Math.round(num(values.fl));
+  const rwc = Math.round(num(values.rwc));
+  const entry = { mp, fl, rwc, total: mp + fl + rwc, at: Date.now() };
+  if (isFinal) {
+    tracker.hours = tracker.hours.filter((h) => h.hourStartMs !== hourStartMs);
+    tracker.hours.push({ hourStartMs, ...entry });
+    tracker.hours.sort((a, b) => b.hourStartMs - a.hourStartMs);
+    tracker.hours = tracker.hours.slice(0, HOURLY_TRACKER_MAX_HOURS);
+    if (tracker.current && tracker.current.hourStartMs <= hourStartMs) tracker.current = null;
+  } else {
+    if (!tracker.current || tracker.current.hourStartMs !== hourStartMs) {
+      tracker.current = { hourStartMs, samples: [] };
+    }
+    const slot = Math.floor((hourEndMs - hourStartMs) / 60000 / 15);
+    tracker.current.samples = tracker.current.samples.filter((s) => s.slot !== slot);
+    tracker.current.samples.push({ slot, endMs: hourEndMs, ...entry });
+    tracker.current.samples.sort((a, b) => a.endMs - b.endMs);
+  }
+  writeHourlyTracker(tracker);
+}
+
+function updateHourlyTrackerNext() {
+  const el = $('hourlyTrackerNext');
+  if (!el) return;
+  el.textContent = nextLiveMetricsPullAt
+    ? `Auto pulls :00 / :15 / :30 / :45 - next ${ctClock(nextLiveMetricsPullAt)} CT`
+    : 'Auto pulls at :00 / :15 / :30 / :45';
+}
+
+function renderHourlyTracker() {
+  const el = $('hourlyTrackerBody');
+  if (!el) return;
+  const tracker = readHourlyTracker();
+  const blocks = [];
+
+  if (tracker.current && tracker.current.samples.length) {
+    const samples = tracker.current.samples;
+    const latest = samples[samples.length - 1];
+    const chips = samples
+      .map((s, i) => `<span class="hourly-chip${i === samples.length - 1 ? ' latest' : ''}">${ctClock(s.endMs)} - ${fmt(s.total)}</span>`)
+      .join('');
+    blocks.push(`
+      <div>
+        <div class="hourly-section-label">This hour ${ctClock(tracker.current.hourStartMs)}-${ctClock(tracker.current.hourStartMs + HOUR_MS)} CT - so far ${fmt(latest.total)} (MP ${fmt(latest.mp)} / FL ${fmt(latest.fl)} / RWC ${fmt(latest.rwc)})</div>
+        <div class="hourly-current-chips">${chips}</div>
+      </div>`);
+  }
+
+  if (tracker.hours.length) {
+    const rows = tracker.hours
+      .map((h) => `<tr><td>${ctClock(h.hourStartMs)}-${ctClock(h.hourStartMs + HOUR_MS)}</td><td>${fmt(h.mp)}</td><td>${fmt(h.fl)}</td><td>${fmt(h.rwc)}</td><td><b>${fmt(h.total)}</b></td></tr>`)
+      .join('');
+    blocks.push(`
+      <div>
+        <div class="hourly-section-label">Completed hours - pulled in per hour (CT)</div>
+        <table class="hourly-table">
+          <thead><tr><th>Hour</th><th>MP</th><th>FL</th><th>RWC</th><th>Total</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`);
+  }
+
+  const payload = latestBridgePayload || readStoredBridgePayload() || {};
+  const wins = monitorWindows();
+  const now = Date.now();
+  const orderedKeys = [...pullPeriodsForShift().filter((key) => key !== 'full'), 'full'];
+  const periodRows = orderedKeys
+    .map((key) => {
+      const values = key === 'full' ? payload.monitorFull?.flUtil : payload.monitorPeriods?.[key]?.flUtil;
+      const win = wins[key];
+      if (!values || !win) return '';
+      const total = Math.round(num(values.mp) + num(values.fl) + num(values.rwc));
+      const durationH = (win.end.getTime() - win.start.getTime()) / HOUR_MS;
+      const elapsedH = clamp((now - win.start.getTime()) / HOUR_MS, 0, durationH);
+      let state = 'live';
+      if (now < win.start.getTime()) state = 'not started';
+      else if (now >= win.end.getTime()) state = 'done';
+      const rate = elapsedH >= 0.2 ? total / elapsedH : null;
+      return `<tr><td>${escapeHtml(liveMetricsWindowLabel(key))} <span class="hourly-state">${state}</span></td><td>${fmt(total)}</td><td>${rate == null ? '-' : fmt(rate)}</td><td>${fmt(num(values.mp))} / ${fmt(num(values.fl))} / ${fmt(num(values.rwc))}</td></tr>`;
+    })
+    .filter(Boolean)
+    .join('');
+  if (periodRows) {
+    blocks.push(`
+      <div>
+        <div class="hourly-section-label">Per period - from the same quarter-hour pulls</div>
+        <table class="hourly-table">
+          <thead><tr><th>Window</th><th>Total</th><th>Per hour</th><th>MP / FL / RWC</th></tr></thead>
+          <tbody>${periodRows}</tbody>
+        </table>
+      </div>`);
+  }
+
+  el.innerHTML = blocks.length
+    ? blocks.join('')
+    : '<div class="hourly-tracker-empty">No hourly samples yet - the tracker fills in as the quarter-hour pulls run.</div>';
+  updateHourlyTrackerNext();
 }
 
 async function runLiveMetricsPull(trigger = 'manual') {
@@ -6357,6 +6593,40 @@ async function runLiveMetricsPull(trigger = 'manual') {
   pullPeriodsForShift().forEach((key) => {
     items.push({ key, type: 'flUtil', id: `${key}_flUtil`, variants: liveMetricsVariants(buildFlUtilUrl(key)), attempts: [] });
     items.push({ key, type: 'belt', id: `${key}_belt`, variants: liveMetricsVariants(buildBattleBeltUrl(key)), attempts: [] });
+  });
+
+  // Hour-aligned FL Utilization windows for the hourly tracker. If the tracked
+  // hour fell behind (missed :00 pull, machine asleep), backfill it as a full
+  // hour first so no completed hour is lost.
+  const nowMs = Date.now();
+  const hourStartMs = trackedHourStartMs(nowMs);
+  const hourItems = [];
+  const trackerState = readHourlyTracker();
+  if (trackerState.current
+      && trackerState.current.hourStartMs < hourStartMs
+      && nowMs - trackerState.current.hourStartMs < 8 * HOUR_MS
+      && !trackerState.hours.some((h) => h.hourStartMs === trackerState.current.hourStartMs)) {
+    hourItems.push({
+      key: 'hourPrev',
+      hourStartMs: trackerState.current.hourStartMs,
+      hourEndMs: trackerState.current.hourStartMs + HOUR_MS,
+      isFinalHour: true
+    });
+  }
+  hourItems.push({
+    key: 'hour',
+    hourStartMs,
+    hourEndMs: Math.min(nowMs, hourStartMs + HOUR_MS),
+    isFinalHour: hourStartMs + HOUR_MS <= nowMs
+  });
+  hourItems.forEach((hourItem) => {
+    items.push({
+      ...hourItem,
+      type: 'flUtil',
+      id: `${hourItem.key}_flUtil`,
+      variants: liveMetricsVariants(buildFlUtilRangeUrl(new Date(hourItem.hourStartMs), new Date(hourItem.hourEndMs), 'Hourly')),
+      attempts: []
+    });
   });
 
   const startVariant = clamp(num(localStorage.getItem(LIVE_METRICS_VARIANT_KEY)), 0, 2);
@@ -6416,11 +6686,22 @@ async function runLiveMetricsPull(trigger = 'manual') {
       : 'FAILED'} | ${item.attempts.join(' | ')}`
   })));
 
+  // Route hour-window results to the tracker; finalized hours first so the
+  // backfilled hour closes out before the new hour's first sample lands.
+  items
+    .filter((item) => (item.key === 'hour' || item.key === 'hourPrev') && item.values)
+    .sort((a, b) => (b.isFinalHour ? 1 : 0) - (a.isFinalHour ? 1 : 0))
+    .forEach((item) => recordHourlySample(item.hourStartMs, item.hourEndMs, item.values, item.isFinalHour));
+  const windowCollected = {};
+  Object.entries(collected).forEach(([key, row]) => {
+    if (key !== 'hour' && key !== 'hourPrev') windowCollected[key] = row;
+  });
+
   if (okCount) {
     if (workingVariant != null) localStorage.setItem(LIVE_METRICS_VARIANT_KEY, String(workingVariant));
-    applyLiveMetricsResults(collected);
+    if (Object.keys(windowCollected).length) applyLiveMetricsResults(windowCollected);
     const seconds = Math.round((Date.now() - startedAt) / 1000);
-    updateLiveMetricsStatus(`Live metrics updated ${okCount}/${items.length} windows in ${seconds}s. Auto pull every 15 min.`, 'good');
+    updateLiveMetricsStatus(`Live metrics updated ${okCount}/${items.length} windows in ${seconds}s. Next auto pull on the quarter hour.`, 'good');
   } else {
     updateLiveMetricsStatus(
       liveMetricsBridgeVersion
@@ -6429,15 +6710,37 @@ async function runLiveMetricsPull(trigger = 'manual') {
       'warn'
     );
   }
+  renderHourlyTracker();
   liveMetricsRunning = false;
 }
 
+function msUntilNextQuarterHour(graceSeconds = 5) {
+  const now = new Date();
+  const next = new Date(now);
+  next.setMinutes(Math.floor(now.getMinutes() / 15) * 15 + 15, graceSeconds, 0);
+  return Math.max(1000, next.getTime() - now.getTime());
+}
+
+function armLiveMetricsTimer() {
+  if (liveMetricsTimer) clearTimeout(liveMetricsTimer);
+  const wait = msUntilNextQuarterHour();
+  nextLiveMetricsPullAt = Date.now() + wait;
+  liveMetricsTimer = setTimeout(async () => {
+    try {
+      await runLiveMetricsPull('auto');
+    } finally {
+      armLiveMetricsTimer();
+    }
+  }, wait);
+  updateHourlyTrackerNext();
+}
+
 function startLiveMetricsAutoRefresh() {
-  if (liveMetricsTimer) clearInterval(liveMetricsTimer);
-  liveMetricsTimer = setInterval(() => runLiveMetricsPull('auto'), LIVE_METRICS_INTERVAL_MS);
+  armLiveMetricsTimer();
   setTimeout(() => runLiveMetricsPull('startup'), 8000);
-  updateLiveMetricsStatus('Auto pull armed: every 15 min through the Search API. First pull starts shortly.');
+  updateLiveMetricsStatus('Auto pull armed: on the quarter hour (:00 / :15 / :30 / :45) through the Search API. First pull starts shortly.');
   updateLiveMetricsBridgeState();
+  renderHourlyTracker();
 }
 
 function embeddedMonitorPeriod() {
