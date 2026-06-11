@@ -16,6 +16,7 @@
   --blue:#2f6fea;
   --green:#72f0a4;
   --yellow:#fde68a;
+  --orange:#fb923c;
   --red:#ff8f9a;
   --shadow:0 12px 28px rgba(0,0,0,.26);
   --radius:18px;
@@ -1036,9 +1037,13 @@ body.met-enabled .view-tabs{
 }
 .downtime-row{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 90px 82px;
+  grid-template-columns:minmax(0,1fr) 90px 82px 92px;
   gap:8px;
   align-items:end;
+}
+.downtime-submit{
+  min-height:38px;
+  white-space:nowrap;
 }
 .downtime-card input,
 .downtime-card select{
@@ -1733,6 +1738,38 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   font-size:10px;
   font-weight:950;
   text-transform:uppercase;
+}
+.pace-bypass-note{
+  display:inline-flex;
+  margin-left:6px;
+  padding:2px 6px;
+  border:1px solid var(--orange);
+  border-radius:999px;
+  color:var(--orange);
+  font-size:10px;
+  font-weight:950;
+  text-transform:uppercase;
+}
+.pace-override-tag{
+  display:inline-flex;
+  margin-left:6px;
+  padding:2px 7px;
+  border:1px solid var(--orange);
+  border-radius:999px;
+  background:rgba(251,146,60,.16);
+  color:var(--orange);
+  font-size:10px;
+  font-weight:950;
+  text-transform:uppercase;
+}
+.projection-segment-row.is-overridden{
+  background:rgba(251,146,60,.07);
+}
+.projection-segment-row.is-overridden td{
+  color:var(--muted);
+}
+.projection-segment-row.is-overridden .projection-actual{
+  opacity:.55;
 }
 .projection-card{
   min-height:78px;
@@ -3216,9 +3253,9 @@ function periodActualCaptureTotal(rows = activePeriods()) {
 }
 
 function downtimeMinutes(key) {
-  const amount = clamp(val(`${key}_downtime_amount`), 0, 12);
+  const amount = val(`${key}_downtime_amount`);
   const unit = $(`${key}_downtime_unit`)?.value || 'min';
-  return unit === 'hr' ? amount * 60 : amount;
+  return unit === 'hr' ? clamp(amount, 0, 12) * 60 : clamp(amount, 0, 720);
 }
 
 function downtimeHours(key) {
@@ -3241,14 +3278,55 @@ function downtimeReason(key) {
   return $(`${key}_downtime_reason`)?.value || 'none';
 }
 
+const DOWNTIME_REASON_LABELS = {
+  xbelt: 'XBelt down',
+  maintenance: 'Maintenance',
+  system: 'System down',
+  'no-run': 'No-run bypass',
+  other: 'Bypass',
+  none: 'Bypass'
+};
+
+function downtimeReasonLabel(key) {
+  return DOWNTIME_REASON_LABELS[downtimeReason(key)] || 'Bypass';
+}
+
+// Submitting a bypass stamps when it was reported, so the bypass window lands
+// on the pace block(s) where the downtime actually happened instead of being
+// front-loaded onto the start of the period.
+const DOWNTIME_ANCHOR_PREFIX = 'ob_prc_downtime_anchor_';
+
+function downtimeAnchorMs(key) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(`${DOWNTIME_ANCHOR_PREFIX}${key}`) || 'null');
+    return parsed && Number.isFinite(parsed.at) ? parsed.at : null;
+  } catch {
+    return null;
+  }
+}
+
+function stampDowntimeAnchor(key) {
+  const anchorKey = `${DOWNTIME_ANCHOR_PREFIX}${key}`;
+  const reason = downtimeReason(key);
+  if (!downtimeMinutes(key) || reason === 'none') {
+    localStorage.removeItem(anchorKey);
+    return;
+  }
+  let anchor = null;
+  try { anchor = JSON.parse(localStorage.getItem(anchorKey) || 'null'); } catch {}
+  // Keep the original stamp while the same event is being extended; re-stamp
+  // when the reason changes or the stamp is from a previous shift.
+  if (!anchor || anchor.reason !== reason || Date.now() - anchor.at > 24 * 3600000) {
+    localStorage.setItem(anchorKey, JSON.stringify({ at: Date.now(), reason }));
+  }
+}
+
 function downtimeNotes(rows = activePeriods()) {
   return rows
     .map((row) => {
       const minutes = downtimeMinutes(row.key);
       if (!minutes) return null;
-      const reason = downtimeReason(row.key);
-      const label = reason === 'xbelt' ? 'X-belt down' : reason === 'system' ? 'System down' : reason === 'no-run' ? 'No-run bypass' : 'Bypass';
-      return `${row.label}: ${formatDowntime(minutes)} ${label}`;
+      return `${row.label}: ${formatDowntime(minutes)} ${downtimeReasonLabel(row.key)}`;
     })
     .filter(Boolean);
 }
@@ -3538,7 +3616,8 @@ function buildDowntimeRows() {
           <label>Reason</label>
           <select id="${p.key}_downtime_reason">
             <option value="none">No bypass</option>
-            <option value="xbelt">X-belt down</option>
+            <option value="xbelt">XBelt down</option>
+            <option value="maintenance">Maintenance</option>
             <option value="system">System down</option>
             <option value="no-run">No-run window</option>
             <option value="other">Other</option>
@@ -3555,8 +3634,11 @@ function buildDowntimeRows() {
             <option value="hr">Hr</option>
           </select>
         </div>
+        <div>
+          <button class="primary downtime-submit" data-downtime-submit="${p.key}">Submit</button>
+        </div>
       </div>
-      <div class="downtime-note">Subtracts no-run time from the live pace clock and handoff miss logic.</div>
+      <div class="downtime-note">Submit stamps the bypass at the current time so it lands on the right pace block. Over 30 min takes over the whole block; shorter bypasses flag it in orange. Time is subtracted from the live pace clock and handoff miss logic.</div>
     </section>
   `).join('');
 }
@@ -4268,18 +4350,42 @@ function segmentDate(base, time, offset = 0) {
 function periodTimedSegments(key) {
   const base = shiftBaseDate();
   const now = new Date();
-  let bypassLeft = downtimeHours(key);
-  return periodHourSegments(key).map((segment) => {
+  const totalBypassHours = downtimeHours(key);
+  const anchorMs = totalBypassHours > 0 ? downtimeAnchorMs(key) : null;
+  const anchorEndMs = anchorMs != null ? anchorMs + totalBypassHours * 3600000 : null;
+
+  const segments = periodHourSegments(key).map((segment) => {
     const start = segmentDate(base, segment.start, segment.startOffset || 0);
     const end = segmentDate(base, segment.end, segment.endOffset || 0);
     const wallElapsedHours = clamp((now - start) / 3600000, 0, segment.hours);
-    const bypassApplied = Math.min(bypassLeft, segment.hours);
-    bypassLeft -= bypassApplied;
-    const effectiveHours = Math.max(0, segment.hours - bypassApplied);
-    const elapsedHours = clamp(wallElapsedHours - bypassApplied, 0, effectiveHours);
     const state = wallElapsedHours <= 0 ? 'future' : wallElapsedHours >= segment.hours ? 'complete' : 'current';
-    return { ...segment, startDate: start, endDate: end, elapsedHours, wallElapsedHours, bypassApplied, effectiveHours, state };
+    // Submitted bypasses occupy a concrete time window starting at the stamp;
+    // each block takes the slice of that window that overlaps it.
+    const anchored = anchorMs == null ? 0
+      : Math.max(0, Math.min(end.getTime(), anchorEndMs) - Math.max(start.getTime(), anchorMs)) / 3600000;
+    return { ...segment, startDate: start, endDate: end, wallElapsedHours, state, bypassApplied: anchored };
   });
+
+  // Whatever the stamped window did not cover (no submit yet, or the window
+  // runs past the period) is front-loaded across the blocks like before.
+  let bypassLeft = totalBypassHours - segments.reduce((sum, segment) => sum + segment.bypassApplied, 0);
+  segments.forEach((segment) => {
+    const extra = clamp(bypassLeft, 0, segment.hours - segment.bypassApplied);
+    segment.bypassApplied += extra;
+    bypassLeft -= extra;
+    const bypassMinutes = Math.round(segment.bypassApplied * 60);
+    // Over 30 min of bypass takes over the whole block: nothing is expected
+    // from it. 30 min or less just trims the time and flags the block.
+    const overridden = bypassMinutes > 30;
+    const effectiveHours = overridden ? 0 : Math.max(0, segment.hours - segment.bypassApplied);
+    Object.assign(segment, {
+      bypassMinutes,
+      overridden,
+      effectiveHours,
+      elapsedHours: clamp(segment.wallElapsedHours - segment.bypassApplied, 0, effectiveHours)
+    });
+  });
+  return segments;
 }
 
 function splitGoalBySegments(total, segments) {
@@ -4722,14 +4828,19 @@ function renderHourlyProjection(rows) {
         : diff < -segExpected * 0.5 ? 'perf-bad'
         : 'perf-warn';
       const stateLabel = segment.state === 'current' ? ` <span class="projection-now">now ${fmt(segment.elapsedHours, 1)}h active</span>` : '';
-      const bypassLabel = segment.bypassApplied ? ` <span class="projection-now">${formatDowntime(segment.bypassApplied * 60)} bypass</span>` : '';
-      const bypassTag = downtimeMinutes(row.key) ? `<span class="pace-bypass">${formatDowntime(downtimeMinutes(row.key))} bypass</span>` : '';
+      const bypassLabel = segment.overridden
+        ? ` <span class="pace-override-tag">${downtimeReasonLabel(row.key)} - ${formatDowntime(segment.bypassMinutes)} - block override</span>`
+        : segment.bypassMinutes
+          ? ` <span class="pace-bypass-note">${downtimeReasonLabel(row.key)} - ${formatDowntime(segment.bypassMinutes)}</span>`
+          : '';
+      const bypassTag = downtimeMinutes(row.key) ? `<span class="pace-bypass">${formatDowntime(downtimeMinutes(row.key))} ${downtimeReasonLabel(row.key)}</span>` : '';
       const rowClasses = [
         'projection-segment-row',
         `projection-period-${row.key}`,
         `projection-segment-${index + 1}`,
         segment.state === 'current' ? 'is-current' : '',
         segment.state === 'future' ? 'is-future' : '',
+        segment.overridden ? 'is-overridden' : '',
         perfClass
       ].filter(Boolean).join(' ');
       return `
@@ -7079,6 +7190,20 @@ function bind() {
     if (!btn) return;
     localStorage.setItem(PACE_STREAM_KEY, btn.dataset.paceStream);
     renderAll();
+  });
+
+  document.addEventListener('click', (event) => {
+    const btn = event.target.closest('[data-downtime-submit]');
+    if (!btn) return;
+    const key = btn.dataset.downtimeSubmit;
+    stampDowntimeAnchor(key);
+    saveState(false);
+    renderAll();
+    const label = PERIODS.find((p) => p.key === key)?.label || String(key).toUpperCase();
+    const minutes = downtimeMinutes(key);
+    updateMiniStatus(minutes
+      ? `${label} bypass submitted: ${formatDowntime(minutes)} ${downtimeReasonLabel(key)}.`
+      : `${label} bypass cleared.`);
   });
 
   document.addEventListener('click', (event) => {
