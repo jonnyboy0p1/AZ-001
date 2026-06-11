@@ -9,6 +9,11 @@ Upstreams (selected by URL prefix after /api):
   /api/yms/...         → YMS shipclerk yard       (trailer type per door)
   /api/fclm/...        → FCLM portal (explicit)
 
+Collector endpoints (used by fuse-obd-collector.user.js + the dashboard):
+  POST /collect        ← Tampermonkey pushes scraped rows {source, rows, ...}
+  GET  /collect        → dashboard reads the latest capture per source
+  GET  /collect?source=yms  → one source only
+
 Usage:
   python proxy.py                  # default port 8765, warehouse RFD2
   python proxy.py --port 9000
@@ -26,9 +31,11 @@ import urllib.request
 import urllib.error
 import json
 import os
+import re
 import sys
 import time
 import argparse
+import threading
 from socketserver import ThreadingMixIn
 
 FCLM_BASE      = "https://fclm-portal.amazon.com"
@@ -95,6 +102,42 @@ CORS_HEADERS = {
 }
 
 
+# ── Collector capture store ───────────────────────────────────────────────────
+# The Tampermonkey userscript (fuse-obd-collector.user.js) runs inside the already
+# authenticated YMS / SSP / DockFlow pages, scrapes the rendered data, and POSTs it
+# here via GM_xmlhttpRequest (which bypasses the https→http-localhost mixed-content
+# block). The dashboard then GETs /collect and merges by source. Nothing here needs
+# the Midway cookie — the browser already did the auth.
+
+_collect_lock = threading.Lock()
+_collect_store: dict = {}          # source -> capture entry
+
+
+def store_capture(payload: dict) -> dict:
+    source = (str(payload.get("source", "") or "unknown").lower().strip()) or "unknown"
+    rows = payload.get("rows") or []
+    entry = {
+        "source":     source,
+        "capturedAt": payload.get("capturedAt") or int(time.time() * 1000),
+        "url":        payload.get("url", ""),
+        "node":       payload.get("node", ""),
+        "rows":       rows,
+        "raw":        payload.get("raw"),
+        "count":      len(rows) if isinstance(rows, list) else 0,
+    }
+    with _collect_lock:
+        _collect_store[source] = entry
+    return entry
+
+
+def collect_snapshot(source: str | None = None) -> dict:
+    with _collect_lock:
+        if source:
+            return _collect_store.get(source, {})
+        # shallow copy so we don't serialize under the lock indefinitely
+        return dict(_collect_store)
+
+
 # ── Request handler ───────────────────────────────────────────────────────────
 
 class ProxyHandler(http.server.BaseHTTPRequestHandler):
@@ -107,10 +150,19 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
             self._handle_health()
+        elif self.path == "/collect" or self.path.startswith("/collect?"):
+            self._handle_collect_get()
         elif self.path.startswith("/api/"):
             self._route_proxy(self.path[4:])   # strip /api → /<prefix>/<path> or /reports/...
         else:
             self._json({"error": "not found"}, 404)
+
+    def _handle_collect_get(self):
+        source = None
+        if "?" in self.path:
+            from urllib.parse import parse_qs, urlparse
+            source = (parse_qs(urlparse(self.path).query).get("source", [None])[0])
+        self._json(collect_snapshot(source.lower() if source else None))
 
     def _route_proxy(self, rest: str, method: str = "GET",
                      body: bytes | None = None, content_type: str | None = None):
@@ -123,7 +175,9 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         self._handle_proxy(FCLM_BASE, rest, method, body, content_type)
 
     def do_POST(self):
-        if self.path == "/set-cookie":
+        if self.path == "/collect":
+            self._handle_collect_post()
+        elif self.path == "/set-cookie":
             self._handle_set_cookie()
         elif self.path.startswith("/api/"):
             length = int(self.headers.get("Content-Length", 0))
@@ -212,6 +266,15 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         except Exception as exc:
             self._json({"error": str(exc)}, 400)
 
+    def _handle_collect_post(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            payload = json.loads(self.rfile.read(length) or b"{}")
+            entry = store_capture(payload)
+            self._json({"ok": True, "source": entry["source"], "count": entry["count"]})
+        except Exception as exc:
+            self._json({"ok": False, "error": str(exc)}, 400)
+
     # ── Low-level response helpers ────────────────────────────────────────────
 
     def _json(self, obj: dict, code: int = 200, extra_headers: dict | None = None):
@@ -261,6 +324,7 @@ def main():
     print(f"  Listening on  http://localhost:{args.port}")
     print(f"  Warehouse     {args.warehouse}")
     print(f"  Upstreams     FCLM · DockFlow · YMS")
+    print(f"  Collector     POST/GET /collect  (Tampermonkey → dashboard)")
     print()
 
     age = cookie_file_age_seconds()

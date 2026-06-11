@@ -318,10 +318,13 @@ tbody tr:hover td{background:#f8fafc}
   <div class="card">
     <div class="ct">Data Controls</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <button class="btn primary" onclick="pullDockFlow()">▶ DockFlow doors (ARC)</button>
-      <button class="btn primary" onclick="pullArcs()">▶ DockFlow Arcs (forecast)</button>
-      <button class="btn primary" onclick="pullSSP()">▶ SSP (payload + CDT/SDT)</button>
-      <button class="btn primary" onclick="pullYms()">▶ YMS (trailer + VRID)</button>
+      <button class="btn primary" onclick="collectorSync()" title="Pull whatever the Tampermonkey collector captured from YMS / SSP / DockFlow and merge it">⤓ Collector Sync</button>
+      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px;cursor:pointer" title="Auto-sync the collector every 20s"><input type="checkbox" id="auto-sync" onchange="toggleAutoSync(this.checked)"> auto</label>
+      <span style="width:1px;height:22px;background:var(--line)"></span>
+      <button class="btn" onclick="pullDockFlow()">DockFlow doors</button>
+      <button class="btn" onclick="pullArcs()">DockFlow Arcs</button>
+      <button class="btn" onclick="pullSSP()">SSP</button>
+      <button class="btn" onclick="pullYms()">YMS</button>
       <button class="btn" onclick="showEndpoints()">⚙ Endpoints</button>
       <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px" title="lbs/hr fallback used only when an ARC has no DockFlow rate/forecast">Fill rate
         <input type="number" id="fill-rate" min="0" step="500" style="width:64px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12px" onchange="setFillRate(this.value)"> lbs/hr
@@ -336,13 +339,14 @@ tbody tr:hover td{background:#f8fafc}
       <button class="btn" style="margin-left:auto" onclick="resetSample()">↩ Reset to door map</button>
     </div>
     <p style="font-size:11px;color:#64748b;margin-top:10px">
-      Live pulls go through your local <code>proxy.py</code> (uses your Midway session). Start it with
-      <code>python proxy.py</code> after <code>mwinit</code>. Set the data request URLs under <strong>⚙ Endpoints</strong>
-      (DevTools → Network): <strong>DockFlow doors</strong> = door→ARC, <strong>DockFlow Arcs</strong> = rate + Future forecast
-      (the predictive engine), <strong>SSP</strong> = payload weight + jobs + SDT/CDT, <strong>YMS</strong> = trailer + VRID.
-      <strong>lbs/job</strong> converts forecast jobs to weight (auto per-trailer when SSP gives jobs); <strong>Fill rate</strong>
-      is the lbs/hr fallback only when an ARC has no DockFlow rate. Fallback any time: <strong>Paste CSV</strong> — columns
-      <code>side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status</code>.
+      <strong>Recommended:</strong> install <code>fuse-obd-collector.user.js</code> in Tampermonkey and open YMS / SSP /
+      DockFlow — it scrapes those authenticated pages and pushes to <code>proxy.py</code>'s <code>/collect</code> store;
+      then click <strong>⤓ Collector Sync</strong> (or tick <em>auto</em>). VRID joins SSP→door, ARC joins DockFlow forecast.
+      The individual <strong>DockFlow / SSP / YMS</strong> buttons are the manual fallback (set request URLs under
+      <strong>⚙ Endpoints</strong>; <strong>DockFlow Arcs</strong> = rate + Future forecast = the predictive engine).
+      <strong>lbs/job</strong> converts forecast jobs→weight (auto per-trailer when SSP gives jobs); <strong>Fill rate</strong>
+      is the lbs/hr fallback when an ARC has no DockFlow rate. Last resort: <strong>Paste CSV</strong> — columns
+      <code>side,door,arc,vrid,vehicle_id,trailer_type,weight,jobs_current,sdt,cdt,status</code>.
     </p>
   </div>
 </div>
@@ -543,6 +547,7 @@ function doors(){
       fillRate:Number(String(r.fill_rate||r.fillrate||'0').replace(/[^0-9.]/g,''))||0, // optional per-door override
       projectedClose:(r.projected_close||r.expected_close||'').trim(), // optional explicit projection
       vrid:(r.vrid||'').trim(),                                 // ← SSP / YMS correlation key
+      vehicleId:(r.vehicle_id||r.vehicleid||'').trim(),        // ← YMS Vehicle ID
       status:(r.status||(isEmpty?'Empty':'Loading')).trim(),
       isEmpty
     };
@@ -706,7 +711,7 @@ function doorCard(d){
       <div class="d-proj"><span title="Projected door close (${proj.basis})">▸ close ~${proj.time}</span><span title="ARC rate (DockFlow)">${proj.rate?proj.rate+' /hr':''}</span></div>
       <div class="d-proj"><span class="${rc(proj.meetsSDT)}" title="Scheduled Departure Time">SDT ${d.sdt||'—'} ${mark(proj.meetsSDT)}</span><span class="${rc(proj.meetsCDT)}" title="Critical Departure Time">CDT ${d.cdt||'—'} ${mark(proj.meetsCDT)}</span></div>`;
   }
-  return`<div class="door-card ${cls}" title="DD${d.door} · ARC ${d.arc} · ${d.trailerType||'no trailer type'} · ${d.weight?d.weight.toLocaleString()+' lbs (SSP)':'empty'} · ${d.cdt?'CDT '+d.cdt:''} · ${d.status}">
+  return`<div class="door-card ${cls}" title="DD${d.door} · ARC ${d.arc} · ${d.trailerType||'no trailer type'}${d.vrid?' · VRID '+d.vrid:''}${d.vehicleId?' · Veh '+d.vehicleId:''} · ${d.weight?d.weight.toLocaleString()+' lbs (SSP)':'empty'} · ${d.sdt?'SDT '+d.sdt:''} ${d.cdt?'CDT '+d.cdt:''} · ${d.status}">
     <div class="dh">
       <span class="d-num">${d.door}</span>
       <span class="d-dest ${d.isEmpty?'na':''}" title="ARC (DockFlow)">${d.arc}</span>
@@ -757,12 +762,13 @@ function renderAll(){
 
   // Detail table — ARC+rate (DockFlow) · VRID+trailer (YMS) · weight+SDT+CDT (SSP) · predicted close
   document.getElementById('detail-table').innerHTML=`<table>
-    <thead><tr><th>Side</th><th>Door</th><th>ARC</th><th>VRID</th><th>Trailer</th><th class="num">Weight (SSP)</th><th>Band</th><th class="num">Rate j/hr</th><th>SDT</th><th>CDT</th><th>Proj Close</th><th>Status</th></tr></thead>
+    <thead><tr><th>Side</th><th>Door</th><th>ARC</th><th>VRID</th><th>Vehicle ID</th><th>Trailer</th><th class="num">Weight (SSP)</th><th>Band</th><th class="num">Rate j/hr</th><th>SDT</th><th>CDT</th><th>Proj Close</th><th>Status</th></tr></thead>
     <tbody>${filtered.map(d=>{const b=band(d);const c=b==='in'?'tg':b==='under'||b==='over'||b==='hold'?'tr':b==='exception'?'ta':'';const p=projectClose(d);const pCls=p&&p.meetsCDT==='late'?'tr':p&&p.meetsCDT==='ok'?'tg':'';return`<tr>
       <td>${d.side}</td>
       <td style="font-weight:800">${d.door}</td>
       <td style="font-weight:700">${d.arc}</td>
       <td style="color:#64748b;font-size:11px">${d.vrid||'—'}</td>
+      <td style="color:#64748b;font-size:11px">${d.vehicleId||'—'}</td>
       <td style="color:#64748b">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">missing</span>')}</td>
       <td class="num">${d.weight?d.weight.toLocaleString():'—'}</td>
       <td class="${c}" style="font-weight:700">${BAND_LABEL[b]}</td>
@@ -814,8 +820,8 @@ function uploadCsv(input){
     renderAll();
   });
 }
-const DOOR_HEAD='side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status';
-function doorToRow(d){return [d.side,d.door,d.arc,d.vrid,d.trailerType,d.weight,d.jobsCurrent||'',d.sdt,d.cdt,d.status].join(',');}
+const DOOR_HEAD='side,door,arc,vrid,vehicle_id,trailer_type,weight,jobs_current,sdt,cdt,status';
+function doorToRow(d){return [d.side,d.door,d.arc,d.vrid,d.vehicleId,d.trailerType,d.weight,d.jobsCurrent||'',d.sdt,d.cdt,d.status].join(',');}
 function exportCsv(){
   const rows=doors();
   const body=rows.map(doorToRow).join('\n');
@@ -932,7 +938,7 @@ function persist(map){
 function fieldOf(o,names){for(const n of names){for(const k in o){if(k.toLowerCase().replace(/[^a-z]/g,'')===n)return o[k];}}return undefined;}
 // DockFlow → ARC/destination + fill rate + close projection (NOT weight; weight is SSP).
 function mergeDockFlow(rows){
-  const map=keyByDoor();
+  const map=keyByDoor();let n=0;
   rows.forEach(o=>{
     const door=String(fieldOf(o,['door','dock','dockdoor','workcell','wc'])||'').replace(/[^0-9]/g,'');
     if(!door||!map[door])return;
@@ -942,38 +948,58 @@ function mergeDockFlow(rows){
     if(arc!=null&&String(arc).trim()){map[door].arc=String(arc).trim();if(map[door].arc.toUpperCase()!=='N/A')map[door].isEmpty=false;}
     if(rate!=null&&String(rate).trim())map[door].fillRate=Number(String(rate).replace(/[^0-9.]/g,''))||map[door].fillRate;
     if(proj!=null&&String(proj).trim())map[door].projectedClose=String(proj).trim();
+    n++;
   });
-  persist(map);
+  persist(map);return n;
 }
-// YMS → trailer type per door.
-function mergeYms(rows){
-  const map=keyByDoor();
-  rows.forEach(o=>{
-    const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
-    if(!door||!map[door])return;
-    const tt=fieldOf(o,['trailertype','equipmenttype','equiptype','equipment','trailer','trailernumber','vrid']);
-    if(tt!=null&&String(tt).trim())map[door].trailerType=String(tt).trim();
-  });
-  persist(map);
-}
+// "AZNG (AKQJP)" → "AZNG"; "AWDJA" → "AWDJA" (4–5 char Owner code is the trailer type)
+function ownerToTrailerType(owner){return String(owner||'').split('(')[0].trim().split(/\s+/)[0]||'';}
+// "NCSL, AZNG, RFD2->IND1" or "RFD2->IND1" → "IND1"
+function destFromLoad(s){const m=String(s||'').match(/->\s*([A-Z0-9]{3,5})/i);return m?m[1].toUpperCase():'';}
+function keyByVrid(map){const m={};Object.values(map).forEach(d=>{if(d.vrid)m[String(d.vrid).toUpperCase()]=d;});return m;}
 
-// SSP → payload weight + CDT (+ vrid) per door. Returns count of doors updated.
-function normTime(raw){const {hh,mm}=parseCdtTime(raw,null);return `${pad2(hh)}:${pad2(mm)}`;}
-function mergeSSP(rows){
+// YMS → Owner(trailer type) + Vehicle ID + VRID + ARC destination, per DD.
+function mergeYms(rows){
   const map=keyByDoor();let n=0;
   rows.forEach(o=>{
     const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
     if(!door||!map[door])return;
+    const ownerRaw=fieldOf(o,['owner','operator','owneroperator']);
+    const ttRaw=fieldOf(o,['trailertype','trailer','equipmenttype','equiptype','equipment'])||ownerRaw;
+    const vehId=fieldOf(o,['vehicleid','vehicle','vid','vehicleident']);
+    const vrid=fieldOf(o,['vrid']);
+    const arcRaw=fieldOf(o,['arc','destination','dest']);
+    const load=fieldOf(o,['loadidentifier','loadidentifiers','loadid','load','loads','notes']);
+    const dest=(arcRaw&&String(arcRaw).trim())?String(arcRaw).trim():destFromLoad(load);
+    if(ttRaw!=null&&String(ttRaw).trim())map[door].trailerType=ownerToTrailerType(String(ttRaw))||String(ttRaw).trim();
+    if(vehId!=null&&String(vehId).trim())map[door].vehicleId=String(vehId).trim();
+    if(vrid!=null&&String(vrid).trim())map[door].vrid=String(vrid).trim();
+    if(dest){map[door].arc=dest.toUpperCase();if(map[door].arc!=='N/A'){map[door].isEmpty=false;if((map[door].status||'').toLowerCase()==='empty')map[door].status='Loading';}}
+    n++;
+  });
+  persist(map);return n;
+}
+
+// SSP → payload weight + jobs + SDT + CDT. SSP is keyed by VRID, so we match on the
+// door's VRID (set from YMS) first, then fall back to a door field if present.
+function normTime(raw){const {hh,mm}=parseCdtTime(raw,null);return `${pad2(hh)}:${pad2(mm)}`;}
+function mergeSSP(rows){
+  const map=keyByDoor();const byVrid=keyByVrid(map);let n=0;
+  rows.forEach(o=>{
+    const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
+    const vrid=String(fieldOf(o,['vrid','trailer','load','loadid'])||'').trim().toUpperCase();
+    const d=(door&&map[door])?map[door]:(vrid&&byVrid[vrid])?byVrid[vrid]:null;
+    if(!d)return;
     const wt=fieldOf(o,['payloadweight','payload','weight','loadweight','wt','lbs']);
     const jobs=fieldOf(o,['jobs','jobcount','jobscurrent','units','packages','currentjobs']);
     const sdtRaw=fieldOf(o,['sdt','scheduleddeparturetime','scheduleddeparture','planneddeparture']);
     const cdtRaw=fieldOf(o,['cdt','criticalpulltime','cpt','criticaldeparturetime','departuretime','dpt','departure']);
-    const vrid=fieldOf(o,['vrid','trailer','load','loadid']);
-    if(wt!=null&&String(wt).trim()){map[door].weight=Number(String(wt).replace(/[^0-9.]/g,''))||map[door].weight;if(map[door].weight>0){map[door].isEmpty=false;if((map[door].status||'').toLowerCase()==='empty')map[door].status='Loading';}n++;}
-    if(jobs!=null&&String(jobs).trim())map[door].jobsCurrent=Number(String(jobs).replace(/[^0-9.]/g,''))||map[door].jobsCurrent;
-    if(sdtRaw!=null&&String(sdtRaw).trim())map[door].sdt=normTime(sdtRaw);
-    if(cdtRaw!=null&&String(cdtRaw).trim())map[door].cdt=normTime(cdtRaw);
-    if(vrid!=null&&String(vrid).trim())map[door].vrid=String(vrid).trim();
+    if(wt!=null&&String(wt).trim()){d.weight=Number(String(wt).replace(/[^0-9.]/g,''))||d.weight;if(d.weight>0){d.isEmpty=false;if((d.status||'').toLowerCase()==='empty')d.status='Loading';}}
+    if(jobs!=null&&String(jobs).trim())d.jobsCurrent=Number(String(jobs).replace(/[^0-9.]/g,''))||d.jobsCurrent;
+    if(sdtRaw!=null&&String(sdtRaw).trim())d.sdt=normTime(sdtRaw);
+    if(cdtRaw!=null&&String(cdtRaw).trim())d.cdt=normTime(cdtRaw);
+    if(vrid&&!d.vrid)d.vrid=vrid;
+    n++;
   });
   persist(map);
   return n;
@@ -995,14 +1021,24 @@ function arcForecastOf(o){
   };
 }
 function mergeArcForecast(rows){
-  const data={};
+  // Merge into existing ARC data (don't replace) so partial/incremental captures
+  // accumulate rather than wiping arcs that weren't in this batch.
+  const data=Object.assign({},STORE.get('obd.arcData',null)||{});
+  let n=0;
   rows.forEach(o=>{
     const name=String(fieldOf(o,['arc','arcname','name','destination'])||'').trim();
     if(!name)return;
+    const key=name.toUpperCase();
     const rate=Number(String(fieldOf(o,['currentrate','rate','jobshr','jobsperhour','ratejobshr'])||'0').replace(/[^0-9.]/g,''))||0;
-    data[name.toUpperCase()]={rate,process:String(fieldOf(o,['process','tags','tag'])||'').trim(),assignment:String(fieldOf(o,['assignment','sorter','arcassignment'])||'').trim(),fc:arcForecastOf(o)};
+    const fc=arcForecastOf(o);
+    const prev=data[key]||{};
+    const hasFc=['m15','m30','h1','h2','h4','h8','h24'].some(k=>fc[k]>0);
+    data[key]={rate:rate||prev.rate||0,
+      process:String(fieldOf(o,['process','tags','tag'])||'').trim()||prev.process||'',
+      assignment:String(fieldOf(o,['assignment','sorter','arcassignment'])||'').trim()||prev.assignment||'',
+      fc:hasFc?fc:(prev.fc||fc)};
+    n++;
   });
-  const n=Object.keys(data).length;
   if(n)STORE.set('obd.arcData',data);
   return n;
 }
@@ -1013,6 +1049,37 @@ async function pullArcs(){
   if(!rows||!mergeArcForecast(rows)){alert('DockFlow Arcs responded but no ARC rows could be parsed.\nCheck you captured the Arcs list request (rate + forecast), or keep sample.');return;}
   STORE.set('obd.lastPull',{source:'DockFlow Arc forecasts',at:Date.now(),note:'Per-ARC rate + forecast merged → projections recomputed.'});
   renderAll();alert('FUSE: DockFlow Arc forecasts merged ('+Object.keys(arcData()).length+' arcs).');
+}
+
+// ── Tampermonkey collector ──
+// The userscript (fuse-obd-collector.user.js) scrapes YMS / SSP / DockFlow inside the
+// authenticated pages and POSTs rows to the proxy's /collect store. We read that store
+// and merge by source. Order matters: YMS first (sets door↔VRID↔ARC), then SSP (joins
+// payload/CDT by VRID), then DockFlow arc forecasts.
+function mergeCollector(store){
+  if(!store||typeof store!=='object')return{total:0,parts:[]};
+  const pick=(...names)=>{for(const n of names){const e=store[n];if(e&&Array.isArray(e.rows)&&e.rows.length)return e;}return null;};
+  const parts=[];let total=0;
+  const yms=pick('yms');                              if(yms){const k=mergeYms(yms.rows);parts.push(`${k} YMS`);total+=k;}
+  const ssp=pick('ssp');                              if(ssp){const k=mergeSSP(ssp.rows);parts.push(`${k} SSP`);total+=k;}
+  const arcs=pick('dockflow-arcs','dockflowarcs','arcs'); if(arcs){const k=mergeArcForecast(arcs.rows);parts.push(`${k} arcs`);total+=k;}
+  const sorter=pick('dockflow-sorter','dockflowsorter','sorter'); if(sorter){const k=mergeDockFlow(sorter.rows);parts.push(`${k} sorter`);total+=k;}
+  if(total)STORE.set('obd.lastPull',{source:'Tampermonkey collector',at:Date.now(),note:parts.join(' · ')+' merged.'});
+  return{total,parts,ages:Object.fromEntries(Object.entries(store).map(([s,e])=>[s,e&&e.capturedAt]))};
+}
+async function collectorSync(silent){
+  let store;
+  try{const r=await fetch(PROXY_BASE+'/collect',{signal:AbortSignal.timeout(8000)});store=await r.json();}
+  catch(e){if(!silent)alert('Could not reach the collector on the local proxy.\nStart proxy.py, install the Tampermonkey script, and open YMS / SSP / DockFlow.');return;}
+  const res=mergeCollector(store);
+  if(res.total){renderAll();renderCWM();if(!silent)alert('FUSE: collector sync — '+res.parts.join(' · ')+' merged.');}
+  else if(!silent)alert('Collector reachable but no captures yet.\nOpen YMS / SSP / DockFlow with the Tampermonkey script active, then sync.');
+}
+let _autoSyncTimer=null;
+function toggleAutoSync(on){
+  if(_autoSyncTimer){clearInterval(_autoSyncTimer);_autoSyncTimer=null;}
+  if(on){collectorSync(true);_autoSyncTimer=setInterval(()=>collectorSync(true),20000);}
+  STORE.set('obd.autoSync',!!on);
 }
 
 // ── CDT (SSP) + divert (DockFlow) live pulls ──
@@ -1268,6 +1335,8 @@ tick();setInterval(tick,1000);
 renderAll();
 renderCWM();
 setInterval(renderCDT,30000);
+// Restore collector auto-sync if it was on (starts a 20s poll of the proxy /collect store)
+{const as=document.getElementById('auto-sync');if(as&&STORE.get('obd.autoSync',false)){as.checked=true;toggleAutoSync(true);}}
 </script>
 </body>
 </html>
