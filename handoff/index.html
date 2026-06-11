@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fluid West Handoff Builder</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="editor">
+      <header class="topbar">
+        <div>
+          <h1>Fluid West Handoff</h1>
+          <p>Build the Fluid EOS handoff, copy it, and send it.</p>
+        </div>
+        <div class="quick-links">
+          <a href="https://prod-na.dockflow.robotics.a2z.com/RFD2/wc/MainSorter/Sorter?workAreasTableConfig=%7B%22Sorter%22%3A%7B%22filterConfig%22%3A%22%3A_br_dd3%22%2C%22preferences%22%3A%7B%22workcellAttributesTable%22%3A%7B%22wrapLines%22%3Afalse%2C%22visibleContent%22%3A%5B%22Status%22%2C%22Arc%22%2C%22ArcRelatedWorkcells%22%2C%22Utilization%22%2C%22Recircs%22%5D%2C%22hiddenContent%22%3A%5B%22Name%22%2C%22Total+Recircs%22%2C%22Average+Dwell+Time%22%2C%22Defects%22%2C%22Re-Injects%22%5D%2C%22pageSize%22%3A100%7D%7D%7D%7D" target="_blank" rel="noreferrer">DockFlow</a>
+          <a href="https://trans-logistics.amazon.com/yms/shipclerk/#/yard" target="_blank" rel="noreferrer">YMS</a>
+          <a href="https://trans-logistics.amazon.com/ssp/dock/hrz/ob?" target="_blank" rel="noreferrer">SSP</a>
+          <a href="https://ont-base.corp.amazon.com/RFD2/icqa/piles?locale=en" target="_blank" rel="noreferrer">Piles</a>
+          <a href="https://cgi.contguard.com/shipment-manager" target="_blank" rel="noreferrer">Smartlocks</a>
+        </div>
+      </header>
+
+      <nav class="tab-nav" aria-label="Handoff type">
+        <button class="tab-btn" type="button" data-tab="full">Full EOS Handoff</button>
+        <button class="tab-btn" type="button" data-tab="counterpart">Counterpart Fluid Handoff</button>
+        <button class="tab-btn" type="button" data-tab="leadership">Leadership Snapshot</button>
+      </nav>
+
+      <div class="tab-content" data-tab="full">
+        <details class="panel capture-panel">
+          <summary>Import tools</summary>
+          <p>Paste capture JSON from DockFlow, YMS, SSP, Piles, or Smartlocks.</p>
+          <label>Captured JSON <textarea id="captureJson" rows="4" placeholder="Paste Fluid handoff capture JSON here"></textarea></label>
+          <div class="inline-actions">
+            <button id="importCaptureBtn" type="button">Import Capture</button>
+            <button id="clearCaptureBtn" type="button">Clear Capture</button>
+          </div>
+          <p id="importStatus" role="status" aria-live="polite"></p>
+        </details>
+
+        <section class="panel">
+          <h2>Shift Setup</h2>
+          <div class="grid three">
+            <label>Greeting <input id="greeting" value="GOOD MORNING TEAM!!"></label>
+            <label>Shift type
+              <select id="shiftType">
+                <option value="">Regular</option>
+                <option value="MET">MET</option>
+              </select>
+            </label>
+            <label>Overall status
+              <select id="overallStatus">
+                <option value="">Choose status</option>
+                <option value="SMOOTH">Smooth</option>
+                <option value="WATCH">Watch</option>
+                <option value="ESCALATE">Escalate</option>
+              </select>
+            </label>
+          </div>
+          <div class="grid two">
+            <label>Main risk
+              <select id="mainRisk">
+                <option value="">Choose risk</option>
+                <option value="Heavy arcs / recirc">Heavy arcs / recirc</option>
+                <option value="SDT / TDR">SDT / TDR</option>
+                <option value="RME / jams">RME / jams</option>
+                <option value="Yard / trailer pool">Yard / trailer pool</option>
+                <option value="Problem solve">Problem solve</option>
+                <option value="Smartlocks">Smartlocks</option>
+                <option value="Staffing">Staffing</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label>Dayshift action needed
+              <select id="actionNeeded">
+                <option value="">Choose action</option>
+                <option value="NO">No</option>
+                <option value="YES">Yes</option>
+                <option value="MONITOR">Monitor</option>
+              </select>
+            </label>
+          </div>
+          <label>What happened this shift <textarea id="handoffNotes" rows="4" placeholder="Short shift recap: what changed, what broke, what got fixed"></textarea></label>
+          <label>Yard / flow notes <textarea id="yardNotes" rows="3" placeholder="What we have in the yard, low pools, close VRIDs, doors to watch"></textarea></label>
+          <label>Dayshift action items <textarea id="followUps" rows="3" placeholder="What dayshift needs to do, monitor, or double check"></textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Floor Notes</h2>
+          <label>Available carriers at the EOS <input id="availableCarriers" type="number" min="0" value="796"></label>
+          <label>Standard floor notes <textarea id="floorNotes" rows="4" placeholder="Only add floor notes that matter for handoff"></textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Shipclerk Notes</h2>
+          <h3>Trailer Pool</h3>
+          <div class="grid five">
+            <label>AZNG <input id="azng" value="4"></label>
+            <label>AZNU <input id="aznu" value="20+"></label>
+            <label>HGIU <input id="hgiu" value="3"></label>
+            <label>JBHU <input id="jbhu" value="0"></label>
+            <label>AWDJA <input id="awdja" value="0"></label>
+          </div>
+          <label>AWDJA note <input id="awdjaNote" value="AWDJA Empties Case ID 20436562551"></label>
+          <div class="grid two">
+            <label>True pause load count <input id="truePauseLoad" type="number" min="0" value="1"></label>
+            <label>Locks used <input id="locksUsed" type="number" min="0" value="5"></label>
+          </div>
+          <label>Smartlocks created this shift <input id="smartLocksCreated" type="number" min="0" value=""></label>
+          <label>True pause load details <textarea id="truePauseDetails" rows="3">ORD5 PS1141 112HDBFBD AZNG SV2700902</textarea></label>
+          <label>Smart lock note <textarea id="smartLockNote" rows="3">SMARTLOCKS EOS HAS BEEN POSTED IN THE CHAT</textarea></label>
+          <label>Next SDT to expire soon <textarea id="nextSdt" rows="3">DET3 DD352 112KLVBT2 AZNG WV2501131 01-Jun-26 15:06</textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Problem Solver Notes</h2>
+          <label>Staffing note <textarea id="psStaffing" rows="3">We DID have a problem solver staffed, they bounced between both sides. Here is what is left:</textarea></label>
+          <div class="grid two">
+            <label>PS Case <input id="psCase" type="number" min="0" value="49"></label>
+            <label>PS Tote <input id="psTote" type="number" min="0" value="10"></label>
+          </div>
+          <div class="grid two">
+            <label>PS piles <input id="psPiles" type="number" min="0" value=""></label>
+            <label>Fluid load details <input id="fluidLoadDetails" value=""></label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Busy Arcs / Heavy Arcs</h2>
+          <label>Current period top arcs <textarea id="busyArcs" rows="4">DD352 DET3
+DD354 IGQ1
+DD349 CLE2</textarea></label>
+          <label>All shift top arcs <textarea id="allShiftArcs" rows="5"></textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Downstack Notes</h2>
+          <div class="grid three">
+            <label>Total U-Boat count <input id="totalUBoats" type="number" min="0" value="43"></label>
+            <label>Down stack U-Boats <input id="downstackUBoats" type="number" min="0" value="3"></label>
+            <label>Jackpot U-Boats/Pallets <input id="jackpot" value="0"></label>
+          </div>
+          <label>Down stack details <textarea id="downstackDetails" rows="3">DD347 CLE2 3 U boats</textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Jam Notes</h2>
+          <label>Constant/Reoccurring jams <textarea id="jamNotes" rows="5">DD355 Lower Divert Before the Merge
+DD338 Mistimed at the Merge
+DD345 Ecc Fault After the Merge</textarea></label>
+          <label>Pending RME trouble tickets/pending support issues <textarea id="pendingRme" rows="3">NONE</textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>TDR Notes</h2>
+          <label>SSP weight/load notes <textarea id="sspLoadNotes" rows="4"></textarea></label>
+          <label>Doors next to close near SOS <textarea id="doorsNextToClose" rows="4">DD355 PCW1 85%
+DD342 KRB6 80%</textarea></label>
+          <label>Doors to open at SOS <textarea id="doorsToOpen" rows="4">DD354 IGQ1
+DD346 DTW1
+DD350 MLI1</textarea></label>
+          <label>Percentages updated <input id="percentagesUpdated" value="06:25am"></label>
+        </section>
+      </div>
+
+      <div class="tab-content" data-tab="counterpart" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>🌅 Counterpart Fluid Handoff</h2>
+            <button id="pullCounterpartBtn" type="button" class="ghost">Pull from Full Handoff</button>
+          </div>
+          <p class="hint">Short version for your general counterparts. Pull auto-fills from what you already typed in the Full EOS Handoff tab, then tweak anything by hand.</p>
+          <label>Busy ARCs (one per line) <textarea id="cpBusyArcs" rows="3" placeholder="DD344 HMW3&#10;DD354 IGQ1&#10;DD350 MLI1"></textarea></label>
+          <label>Downstack remaining (one per line) <textarea id="cpDownstack" rows="3" placeholder="DD342 FSD1 (2 U-Boats)&#10;DD347 CLE2 (1 U-Boat)"></textarea></label>
+          <label>Problem solve (one per line) <textarea id="cpProblemSolve" rows="2" placeholder="1 PA pallet remaining near DD339"></textarea></label>
+          <label>Watch out (one per line) <textarea id="cpWatchOut" rows="3" placeholder="DD339 recurring divert jams&#10;DD352 ECC fault after merge"></textarea></label>
+          <label>SOS to do (one per line) <textarea id="cpSosTodo" rows="3" placeholder="Open DD347 CLE2&#10;Open DD350 MLI1"></textarea></label>
+          <label>RME / closing note <input id="cpRme" value="No active RME tickets."></label>
+        </section>
+      </div>
+
+      <div class="tab-content" data-tab="leadership" hidden>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>📊 Leadership Snapshot</h2>
+            <button id="pullLeadershipBtn" type="button" class="ghost">Pull from Full Handoff</button>
+          </div>
+          <p class="hint">Plug-and-play snapshot for your AMs. Empty fields show as ___ in the report so it's obvious what still needs a number. Pull grabs smart locks, pause loads, recurring issues, and 85%+ trailers from the Full EOS Handoff tab.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Yard Health</h2>
+          <div class="grid two">
+            <label>East Yard <input id="lsEastYard" placeholder="e.g. Healthy / 12 empties"></label>
+            <label>West Yard <input id="lsWestYard" placeholder="e.g. Tight / 4 empties"></label>
+          </div>
+          <div class="grid two">
+            <label>Smart Locks <input id="lsSmartLocks" placeholder="e.g. 5 used"></label>
+            <label>Pause Loads <input id="lsPauseLoads" placeholder="e.g. 1"></label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Trailer Status</h2>
+          <div class="grid three">
+            <label>Ready for Close <input id="lsReadyForClose" placeholder="e.g. 3"></label>
+            <label>Doors Closing &lt;2hr <input id="lsDoorsClosing" placeholder="e.g. DD355, DD342"></label>
+            <label>Open Capacity <input id="lsOpenCapacity" placeholder="e.g. 6 doors"></label>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Operations Risk</h2>
+          <label>Recurring issues (one per line) <textarea id="lsRecurringIssues" rows="3" placeholder="DD339 recurring divert jams&#10;DD352 ECC fault after merge"></textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Critical Trailers</h2>
+          <label>Trailers at 85%+ or at risk (one per line) <textarea id="lsCriticalTrailers" rows="3" placeholder="DD355 PCW1 85%&#10;DD342 KRB6 92%"></textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Escalations Needed</h2>
+          <label>Escalations (one per line) <textarea id="lsEscalations" rows="3" placeholder="RME ticket for DD352 ECC fault&#10;Yard hostler support 0500-0600"></textarea></label>
+        </section>
+
+        <section class="panel">
+          <h2>Shift Health</h2>
+          <div class="grid two">
+            <label>Status
+              <select id="lsShiftHealth">
+                <option value="">Choose status</option>
+                <option value="🟢 Green">🟢 Green</option>
+                <option value="🟡 Yellow">🟡 Yellow</option>
+                <option value="🔴 Red">🔴 Red</option>
+              </select>
+            </label>
+          </div>
+          <label>Reason <textarea id="lsHealthReason" rows="3" placeholder="Why are we green / yellow / red?"></textarea></label>
+        </section>
+      </div>
+    </section>
+
+    <aside class="preview">
+      <div class="preview-actions">
+        <button id="copyBtn" type="button">Copy Report</button>
+        <button id="resetBtn" type="button">Reset</button>
+      </div>
+      <pre id="reportOutput" aria-label="Generated Fluid handoff report"></pre>
+      <p id="copyStatus" role="status" aria-live="polite"></p>
+    </aside>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
