@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Zone-RA Unified Suite
-// @version      2.1
+// @version      2.2
 // @description  All-in-one: Labor Tracker, Enhancement Suite, Staffing Lookup - unified left-side toolbar (any site)
 // @author       zavaedua
 // @match        https://zone-ra.amazon.dev/*
@@ -304,6 +304,47 @@
     function getBadgeData(login) { return badgeDataStore.get(login); }
     function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+    // Place a panel beside the toolbar's current location (flips to the left edge if no room)
+    function zruPositionPanel(panel) {
+        const tb = document.getElementById('zru-toolbar'); if (!tb || !panel) return;
+        const r = tb.getBoundingClientRect();
+        const pw = panel.offsetWidth || 320, ph = panel.offsetHeight || 400;
+        let x = r.right + 12;
+        if (x + pw > window.innerWidth - 8) x = Math.max(8, r.left - 12 - pw);
+        const y = Math.min(Math.max(r.bottom - ph, 8), Math.max(8, window.innerHeight - ph - 8));
+        panel.style.left = x + 'px'; panel.style.top = y + 'px'; panel.style.bottom = 'auto'; panel.style.right = 'auto';
+    }
+    function zruRepositionOpenPanels() {
+        ['lt-area-panel','lt-list-panel'].forEach(id => { const p = document.getElementById(id); if (p && p.classList.contains('open')) zruPositionPanel(p); });
+    }
+    // Generic Alt+Click drag for any fixed-position element
+    function zruMakeAltDraggable(el, opts) {
+        opts = opts || {};
+        let dragging = false, offX = 0, offY = 0;
+        el.addEventListener('mousedown', e => {
+            if (!e.altKey) return;
+            e.preventDefault(); e.stopPropagation();
+            const r = el.getBoundingClientRect();
+            offX = e.clientX - r.left; offY = e.clientY - r.top;
+            dragging = true; el.style.transition = 'none'; el.style.cursor = 'grabbing';
+        }, true);
+        // Alt+Click is reserved for moving — swallow it so buttons don't fire
+        el.addEventListener('click', e => { if (e.altKey || dragging) { e.preventDefault(); e.stopPropagation(); } }, true);
+        document.addEventListener('mousemove', e => {
+            if (!dragging) return;
+            e.preventDefault();
+            const x = Math.min(Math.max(e.clientX - offX, 0), window.innerWidth - el.offsetWidth);
+            const y = Math.min(Math.max(e.clientY - offY, 0), window.innerHeight - el.offsetHeight);
+            el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.bottom = 'auto'; el.style.right = 'auto';
+            if (opts.onMove) opts.onMove(el);
+        });
+        document.addEventListener('mouseup', () => {
+            if (!dragging) return;
+            dragging = false; el.style.transition = ''; el.style.cursor = '';
+            if (opts.onDrop) opts.onDrop(el);
+        });
+    }
+
     // ==========================================================
     //  SECTION 5 — BUILD LEFT TOOLBAR + ALL PANELS
     // ==========================================================
@@ -323,8 +364,6 @@
                 <div class="zru-section-label">Click Name \u2192</div>
                 <button class="zru-btn zru-link-btn active" data-link="timecard"><span class="zru-icon">\ud83d\udd52</span><span class="zru-label">Timecard</span></button>
                 <button class="zru-btn zru-link-btn" data-link="simba"><span class="zru-icon">\ud83d\udcca</span><span class="zru-label">SIMBA</span></button>
-                <button class="zru-btn zru-link-btn" data-link="timehub"><span class="zru-icon">\u23f0</span><span class="zru-label">TimeHub</span></button>
-                <button class="zru-btn zru-link-btn" data-link="lenel"><span class="zru-icon">\ud83d\udd12</span><span class="zru-label">Lenel</span></button>
                 <div class="zru-link-status" id="zru-link-status">Click name \u2192 Timecard</div>
             </div>
         `;
@@ -336,7 +375,7 @@
         tb.appendChild(fab);
         document.body.appendChild(tb);
 
-        // === ALT+CLICK DRAG — hold Alt and drag the toolbar anywhere ===
+        // === ALT+CLICK DRAG — hold Alt and drag the toolbar anywhere; open panels follow ===
         tb.title = 'Alt + Click to move';
         const savedPos = (function(){ try { return JSON.parse(GM_getValue('zru_toolbar_pos', 'null')); } catch(e) { return null; } })();
         if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
@@ -344,27 +383,9 @@
             tb.style.top = Math.min(Math.max(savedPos.top, 0), window.innerHeight - tb.offsetHeight) + 'px';
             tb.style.bottom = 'auto';
         }
-        let tbDragging = false, tbOffX = 0, tbOffY = 0;
-        tb.addEventListener('mousedown', e => {
-            if (!e.altKey) return;
-            e.preventDefault(); e.stopPropagation();
-            const rect = tb.getBoundingClientRect();
-            tbOffX = e.clientX - rect.left; tbOffY = e.clientY - rect.top;
-            tbDragging = true; tb.style.transition = 'none'; tb.style.cursor = 'grabbing';
-        }, true);
-        // Alt+Click is reserved for moving — swallow it so buttons don't fire
-        tb.addEventListener('click', e => { if (e.altKey || tbDragging) { e.preventDefault(); e.stopPropagation(); } }, true);
-        document.addEventListener('mousemove', e => {
-            if (!tbDragging) return;
-            e.preventDefault();
-            const x = Math.min(Math.max(e.clientX - tbOffX, 0), window.innerWidth - tb.offsetWidth);
-            const y = Math.min(Math.max(e.clientY - tbOffY, 0), window.innerHeight - tb.offsetHeight);
-            tb.style.left = x + 'px'; tb.style.top = y + 'px'; tb.style.bottom = 'auto';
-        });
-        document.addEventListener('mouseup', () => {
-            if (!tbDragging) return;
-            tbDragging = false; tb.style.transition = ''; tb.style.cursor = '';
-            GM_setValue('zru_toolbar_pos', JSON.stringify({ left: tb.offsetLeft, top: tb.offsetTop }));
+        zruMakeAltDraggable(tb, {
+            onMove: zruRepositionOpenPanels,
+            onDrop: () => GM_setValue('zru_toolbar_pos', JSON.stringify({ left: tb.offsetLeft, top: tb.offsetTop }))
         });
 
         // === TOOLBAR TOGGLE PILL (shows when collapsed) ===
@@ -386,7 +407,7 @@
                 tb.querySelectorAll('.zru-link-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedLinkType = btn.dataset.link;
-                const labels = { timecard:'Timecard', simba:'SIMBA', timehub:'TimeHub', lenel:'Lenel' };
+                const labels = { timecard:'Timecard', simba:'SIMBA' };
                 document.getElementById('zru-link-status').textContent = `Click name \u2192 ${labels[selectedLinkType]}`;
             });
         });
@@ -396,11 +417,13 @@
 
         // === LT AREA PANEL ===
         const ap = document.createElement('div'); ap.id = 'lt-area-panel'; document.body.appendChild(ap);
+        zruMakeAltDraggable(ap);
 
         // === LT LIST PANEL ===
         const lp = document.createElement('div'); lp.id = 'lt-list-panel';
         lp.innerHTML = '<div id="lt-list-header"><span>\ud83d\udccb Tracked This Session</span><button id="lt-clear-all">Clear</button></div><div id="lt-list-body"><div class="lt-list-empty">No badges tracked yet</div></div>';
         document.body.appendChild(lp);
+        zruMakeAltDraggable(lp);
         document.getElementById('lt-clear-all').addEventListener('click', ltClearAll);
 
         // Card click handler for labor tracking
@@ -444,7 +467,9 @@
     }
 
     function ltShowAreaList() {
-        var panel=document.getElementById('lt-area-panel'); panel.classList.add('open');
+        var panel=document.getElementById('lt-area-panel');
+        var wasOpen=panel.classList.contains('open');
+        panel.classList.add('open');
         ltPanelLevel='codes';
         var codesHtml = LT_CODES.map(function(c){ return '<button class="lt-code-btn '+(ltActiveCalmCode===c?'selected':'')+'" data-code="'+c+'"><span class="lt-code-id">'+c+'</span><span class="lt-code-check">\u2713</span></button>'; }).join('');
         if (!codesHtml) codesHtml = '<div style="color:#888;font-size:11px;text-align:center;padding:16px;">No codes yet. Type below and press +</div>';
@@ -456,6 +481,7 @@
             btn.addEventListener('click', function(){ ltActivate(btn.dataset.code, btn.dataset.code, 'Custom', 'Custom'); });
             btn.addEventListener('contextmenu', function(e){ e.preventDefault(); ltRemoveCode(btn.dataset.code); });
         });
+        if(!wasOpen) zruPositionPanel(panel);
     }
 
     function ltAddCode() {
@@ -481,7 +507,7 @@
     function ltShowCodes() { ltShowAreaList(); }
 
     function ltClosePanels() { document.getElementById('lt-area-panel').classList.remove('open'); ltPanelLevel='closed'; }
-    function toggleListPanel() { document.getElementById('lt-list-panel').classList.toggle('open'); }
+    function toggleListPanel() { var p=document.getElementById('lt-list-panel'); p.classList.toggle('open'); if(p.classList.contains('open')) zruPositionPanel(p); }
 
     function handleLTCardClick(e) {
         if(!ltTrackingMode||!ltActiveCalmCode) return;
