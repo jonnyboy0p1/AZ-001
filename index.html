@@ -318,8 +318,8 @@ button.soft{background:#1e293b}
 .insights-panel{order:2}
 .shift-goals-panel{order:0}
 .quick-tools-panel{order:1}
-.checklist-panel{order:0}
-.workboards-panel{order:1}
+.workboards-panel{order:0}
+.ops-override-panel{order:1}
 .projection-panel{order:0}
 .output-panel{order:0}
 .simple-copy-panel{order:1}
@@ -509,9 +509,6 @@ body[data-view="goals"] .chart-panel{order:3}
 .panel-collapse:not([open]) .panel-collapse-toggle::before,
 .source-panel-collapse:not([open]) .source-panel-toggle::before{
   content:'â–¸ ';
-}
-.checklist-panel .panel-collapse{
-  overflow:hidden;
 }
 .source-panel-head{
   display:flex;
@@ -1045,14 +1042,99 @@ body.met-enabled .view-tabs{
   min-height:38px;
   white-space:nowrap;
 }
-.ops-start-card{
-  border-color:rgba(47,111,234,.45);
+.shift-source-bar{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  padding:13px 16px;
 }
-.ops-start-row{
+.shift-source-bar h2{
+  margin:0;
+  font-size:16px;
+}
+.shift-source-stats{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-left:auto;
+  font-size:14px;
+  font-weight:850;
+}
+.shift-source-stats b{
+  font-variant-numeric:tabular-nums;
+  font-weight:950;
+}
+.shift-source-sep{color:var(--muted)}
+.jplh-source-body.hidden{display:none}
+.ops-override-form{
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto auto auto;
-  gap:8px;
+  grid-template-columns:minmax(130px,1fr) minmax(130px,1fr) minmax(130px,auto) auto;
+  gap:10px;
   align-items:end;
+  padding:0 16px 12px;
+}
+.ops-override-list{
+  display:grid;
+  gap:8px;
+  padding:0 16px 16px;
+}
+.ops-override-empty{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+}
+.ops-override-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--panel2);
+}
+.ops-override-row.pending{opacity:.55}
+.ops-override-row.live{border-color:rgba(114,240,164,.5)}
+.ops-ovr-chip{
+  padding:3px 9px;
+  border:1px solid var(--blue);
+  border-radius:999px;
+  color:var(--blue);
+  font-size:11px;
+  font-weight:950;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.ops-ovr-reason{font-weight:900}
+.ops-ovr-window{
+  color:var(--muted);
+  font-weight:800;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+.ops-ovr-start{
+  color:var(--orange);
+  font-weight:900;
+  white-space:nowrap;
+}
+.ops-ovr-state{
+  margin-left:auto;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.ops-override-row.live .ops-ovr-state{color:var(--green)}
+.ops-ovr-remove{
+  min-height:0;
+  padding:3px 10px;
+  border-radius:8px;
+}
+@media (max-width:760px){
+  .ops-override-form{grid-template-columns:1fr 1fr}
 }
 .downtime-card input,
 .downtime-card select{
@@ -1099,8 +1181,12 @@ body.met-enabled .view-tabs{
 }
 .period-pulse-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:12px;
+}
+.period-pulse-card.struggle{grid-column:1/-1}
+@media (max-width:720px){
+  .period-pulse-grid{grid-template-columns:1fr}
 }
 .period-pulse-card{
   min-width:0;
@@ -2013,63 +2099,6 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   gap:16px;
   padding:16px;
 }
-.period-checklist{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
-  gap:12px;
-  padding:16px;
-}
-.check-card{
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:var(--panel2);
-  overflow:hidden;
-}
-.check-card-head{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-  padding:12px 13px;
-  border-bottom:1px solid var(--line);
-  background:var(--thead);
-}
-.check-card-head span{
-  color:var(--muted);
-  font-size:12px;
-  font-weight:850;
-}
-.check-list{
-  display:grid;
-  gap:8px;
-  padding:12px;
-}
-.check-item{
-  display:grid;
-  grid-template-columns:auto 1fr;
-  gap:9px;
-  align-items:start;
-  margin:0;
-  color:var(--text);
-  cursor:pointer;
-}
-.check-item input{
-  width:auto;
-  margin-top:2px;
-}
-.check-item b{
-  display:block;
-  font-size:13px;
-}
-.check-item small{
-  display:block;
-  margin-top:2px;
-  color:var(--muted);
-  font-size:11px;
-  font-weight:800;
-}
-.check-item.done b{
-  color:var(--green);
-}
 .log-lock{
   display:grid;
   gap:3px;
@@ -2552,13 +2581,18 @@ button.copy-success{
       </section>
 
       <section class="panel span-12 jplh-panel shift-source-panel" data-view="overview periods">
-        <div class="panel-head">
-          <div>
-            <h2>Shift Source Data</h2>
-            <p class="panel-sub">FCLM feeds jobs and JPLH; FL Utilization feeds FL, MP, RWC capture and pace</p>
+        <div class="shift-source-bar">
+          <h2>Shift Source Data</h2>
+          <div class="shift-source-stats">
+            <div>Total Jobs : <b id="ssdTotalJobs">0</b></div>
+            <span class="shift-source-sep">|</span>
+            <div>WB Rate : <b id="ssdWbRate">0</b></div>
+            <span class="shift-source-sep">|</span>
+            <div>JPLH : <b id="ssdJplh">0.00</b></div>
           </div>
+          <button id="toggleShiftSourceEditBtn" class="soft">Edit</button>
         </div>
-        <div class="jplh-source-body">
+        <div id="shiftSourceEditWrap" class="jplh-source-body hidden">
           <div class="jplh-source-inputs">
             <div class="grid-2">
               <div><label>Full Totes</label><input id="fullTotes" value="0" /></div>
@@ -2809,19 +2843,6 @@ button.copy-success{
 
       <section class="periods-shell span-12" data-view="periods">
         <div class="periods-stack">
-          <section class="panel checklist-panel">
-            <details class="panel-collapse" id="periodChecklistPanel" open>
-              <summary class="panel-collapse-summary">
-                <div class="panel-collapse-title">
-                  <h2>Period Close Checklist</h2>
-                  <p class="panel-sub">Quick pass before copying notes or saving the shift</p>
-                </div>
-                <span class="panel-collapse-toggle">Collapse</span>
-              </summary>
-              <div id="periodChecklist" class="period-checklist"></div>
-            </details>
-          </section>
-
           <section class="panel workboards-panel">
             <div class="panel-head">
               <div>
@@ -2836,6 +2857,45 @@ button.copy-success{
               <div id="periodBreakout" class="board-breakout summary-breakout"></div>
               <div id="periodBoardSections" class="period-board-sections"></div>
             </details>
+          </section>
+
+          <section class="panel ops-override-panel">
+            <div class="panel-head">
+              <div>
+                <h2>Operations Override</h2>
+                <p class="panel-sub">Pulls all sources from the override start time - original plan and pace stay untouched</p>
+              </div>
+            </div>
+            <div class="ops-override-form">
+              <div>
+                <label>Period Affected</label>
+                <select id="opsOvrPeriods">
+                  <option value="p1">P1</option>
+                  <option value="p1-p2">P1 - P2</option>
+                  <option value="p2">P2</option>
+                  <option value="p2-p3">P2 - P3</option>
+                  <option value="p3">P3</option>
+                  <option value="p3-met" data-met-only>P3 - MET</option>
+                </select>
+              </div>
+              <div>
+                <label>Reason</label>
+                <select id="opsOvrReason">
+                  <option>Weather</option>
+                  <option>AWS issue</option>
+                  <option>RHE issue</option>
+                  <option>Sev 1</option>
+                  <option>Sev 2</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div>
+                <label>Start (military)</label>
+                <input id="opsOvrStart" type="time" step="60" />
+              </div>
+              <div><button id="opsOvrSubmitBtn" class="primary downtime-submit">Override</button></div>
+            </div>
+            <div id="opsOverrideList" class="ops-override-list"></div>
           </section>
         </div>
       </section>
@@ -2960,7 +3020,6 @@ const NOTES_WASH_KEY = 'ob_prc_vscode_notes_wash_min';
 const VIEW_KEY = 'ob_prc_vscode_active_view';
 const PACE_STREAM_KEY = 'ob_prc_vscode_pace_stream';
 const FCLM_SOURCE_COLLAPSE_KEY = 'ob_prc_vscode_fclm_source_collapsed';
-const PERIOD_CHECKLIST_COLLAPSE_KEY = 'ob_prc_vscode_period_checklist_collapsed';
 const PACE_STATUS_COLLAPSE_KEY = 'ob_prc_vscode_pace_status_collapsed';
 const COPY_BLOCK_EDITED_KEY = 'ob_prc_vscode_copy_block_edited';
 const PERIOD_SUMMARY_EDITED_KEY = 'ob_prc_vscode_period_summary_edited';
@@ -3290,6 +3349,7 @@ function downtimeReason(key) {
 const DOWNTIME_REASON_LABELS = {
   xbelt: 'XBelt down',
   maintenance: 'Maintenance',
+  rhe: 'RHE issue',
   system: 'System down',
   'no-run': 'No-run bypass',
   other: 'Bypass',
@@ -3330,13 +3390,49 @@ function stampDowntimeAnchor(key) {
   }
 }
 
-// Operations Start: when a shutdown delays the start of operations, the actual
-// start time shifts every data window with it - FCLM links/pulls, the FL
-// Utilization and Battle of the Belt windows, and the per-period rate math.
-// The pace table stays driven by the bypass entries, so nothing double-counts.
-function opsStartInfo() {
-  const raw = $('opsStartTime')?.value || '';
-  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+function mpClock(date) {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Los_Angeles'
+  }).format(date);
+}
+
+// Operations Override: a shutdown gets logged per period(s) with a reason and
+// the military time operations actually started. All sources (FCLM links and
+// pulls, FL Utilization, Battle of the Belt) re-base their windows on the
+// override start - the original plan and the pace table stay untouched. The
+// entry sits greyed out (pending) until the clock hits the override start.
+const OPS_OVERRIDES_KEY = 'ob_prc_ops_overrides_v1';
+const OPS_OVERRIDE_PERIOD_SETS = {
+  p1: ['p1'],
+  'p1-p2': ['p1', 'p2'],
+  p2: ['p2'],
+  'p2-p3': ['p2', 'p3'],
+  p3: ['p3'],
+  'p3-met': ['p3', 'met']
+};
+const OPS_OVERRIDE_SET_LABELS = {
+  p1: 'P1', 'p1-p2': 'P1 - P2', p2: 'P2', 'p2-p3': 'P2 - P3', p3: 'P3', 'p3-met': 'P3 - MET'
+};
+const PERIOD_WALL_WINDOWS = {
+  p1: ['19:00', '23:00'], p2: ['23:30', '02:30'], p3: ['03:00', '05:30'], met: ['05:30', '06:30']
+};
+
+function readOpsOverrides() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(OPS_OVERRIDES_KEY) || '[]');
+    if (Array.isArray(parsed)) {
+      return parsed.filter((ovr) => ovr && OPS_OVERRIDE_PERIOD_SETS[ovr.periodsKey] && /^\d{1,2}:\d{2}$/.test(ovr.start || ''));
+    }
+  } catch {}
+  return [];
+}
+
+function writeOpsOverrides(list) {
+  try { localStorage.setItem(OPS_OVERRIDES_KEY, JSON.stringify(list)); } catch {}
+}
+
+function ctTimeInfo(raw) {
+  const match = String(raw || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   const h = Number(match[1]);
   const minute = Number(match[2]);
@@ -3345,38 +3441,50 @@ function opsStartInfo() {
   // Shift runs 19:00 -> 05:30 CT: afternoon/evening times belong to the shift
   // date, early-morning times to the next calendar day.
   const day = h >= 12 ? { y, m, d } : addDays(y, m, d, 1);
-  return { date: zonedTimeToUtc(day.y, day.m, day.d, h, minute), h, m: minute, day };
+  return { date: zonedTimeToUtc(day.y, day.m, day.d, h, minute), h, m: minute, day, start: raw };
 }
 
-function scheduledShiftStart() {
-  const shiftDate = $('shiftDate')?.value || new Date().toISOString().slice(0, 10);
-  const [y, m, d] = shiftDate.split('-').map(Number);
-  return zonedTimeToUtc(y, m, d, 19, 0);
-}
-
-function totalBypassMinutes() {
-  return activePeriods().reduce((sum, row) => sum + downtimeMinutes(row.key), 0);
-}
-
-function mpClock(date) {
-  return new Intl.DateTimeFormat('en-US', {
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Los_Angeles'
-  }).format(date);
-}
-
-function renderOpsStartStatus() {
-  const el = $('opsStartStatus');
-  if (!el) return;
-  const ops = opsStartInfo();
-  let text = '';
-  if (ops) {
-    const deltaH = (ops.date.getTime() - scheduledShiftStart().getTime()) / 3600000;
-    text = deltaH > 0
-      ? `Ops start ${ctClock(ops.date.getTime())} CT (+${fmt(deltaH, deltaH % 1 ? 1 : 0)}h) - windows shifted.`
-      : `Ops start at/before 19:00 - windows unchanged.`;
+function opsOverrideInfoFor(windowKey) {
+  const overrides = readOpsOverrides();
+  if (!overrides.length) return null;
+  const targetKey = windowKey === 'full' ? (activePeriods()[0]?.key || 'p1') : windowKey;
+  // Latest submitted override covering the period wins.
+  for (let i = overrides.length - 1; i >= 0; i -= 1) {
+    if (OPS_OVERRIDE_PERIOD_SETS[overrides[i].periodsKey].includes(targetKey)) {
+      return ctTimeInfo(overrides[i].start);
+    }
   }
-  el.textContent = text;
-  el.style.display = text ? '' : 'none';
+  return null;
+}
+
+function opsOverrideWindowLabel(periodsKey) {
+  const keys = OPS_OVERRIDE_PERIOD_SETS[periodsKey];
+  return `${PERIOD_WALL_WINDOWS[keys[0]][0]} - ${PERIOD_WALL_WINDOWS[keys[keys.length - 1]][1]}`;
+}
+
+function renderOpsOverrides() {
+  const el = $('opsOverrideList');
+  if (!el) return;
+  const overrides = readOpsOverrides();
+  if (!overrides.length) {
+    el.innerHTML = '<div class="ops-override-empty">No overrides - all sources pull their normal windows.</div>';
+    return;
+  }
+  const now = Date.now();
+  el.innerHTML = overrides.map((ovr, index) => {
+    const info = ctTimeInfo(ovr.start);
+    const live = info && now >= info.date.getTime();
+    return `
+      <div class="ops-override-row ${live ? 'live' : 'pending'}">
+        <span class="ops-ovr-chip">${escapeHtml(OPS_OVERRIDE_SET_LABELS[ovr.periodsKey] || ovr.periodsKey)}</span>
+        <span class="ops-ovr-reason">${escapeHtml(ovr.reason || 'Other')}</span>
+        <span class="ops-ovr-window">${opsOverrideWindowLabel(ovr.periodsKey)}</span>
+        <span class="ops-ovr-start">Override ${escapeHtml(ovr.start)} start</span>
+        <span class="ops-ovr-state">${live ? 'live' : 'pending'}</span>
+        <button class="ops-ovr-remove" data-ops-ovr-remove="${index}" title="Remove override">&times;</button>
+      </div>
+    `;
+  }).join('');
 }
 
 function downtimeNotes(rows = activePeriods()) {
@@ -3666,22 +3774,7 @@ function buildPeriodRows() {
 function buildDowntimeRows() {
   const target = $('downtimeBypass');
   if (!target) return;
-  const opsCard = `
-    <section class="downtime-card ops-start-card">
-      <h3>Operations Start</h3>
-      <div class="ops-start-row">
-        <div>
-          <label>Actual start (CT)</label>
-          <input id="opsStartTime" type="time" step="60" />
-        </div>
-        <div><button class="primary downtime-submit" id="opsStartNowBtn">Start Now</button></div>
-        <div><button class="downtime-submit" id="opsStartBypassBtn">After Bypass</button></div>
-        <div><button class="downtime-submit" id="opsStartResetBtn">Reset</button></div>
-      </div>
-      <div id="opsStartStatus" class="downtime-note"></div>
-    </section>
-  `;
-  target.innerHTML = opsCard + PERIODS.map((p) => `
+  target.innerHTML = PERIODS.map((p) => `
     <section class="downtime-card" data-period-row="${p.key}">
       <h3>${p.label} Bypass</h3>
       <div class="downtime-row">
@@ -3691,6 +3784,7 @@ function buildDowntimeRows() {
             <option value="none">No bypass</option>
             <option value="xbelt">XBelt down</option>
             <option value="maintenance">Maintenance</option>
+            <option value="rhe">RHE issue</option>
             <option value="system">System down</option>
             <option value="no-run">No-run window</option>
             <option value="other">Other</option>
@@ -3895,6 +3989,9 @@ function renderFullShiftJplh(rows) {
   setText('fullJplhGap', (gap >= 0 ? '+' : '') + fmt(gap, 2), colorClass(gap));
   setText('fullCaptureTarget', fmt(captureTarget));
   setText('fullSource', source);
+  setText('ssdTotalJobs', fmt(fullJobs));
+  setText('ssdWbRate', fmt(fullWB, fullWB % 1 ? 2 : 0));
+  setText('ssdJplh', fmt(actualJplh, 2));
 
   return { fullTotes, fullCases, fullJobs, fullWB, actualJplh, requiredJplh, gap, captureTarget, fluidGoal, source };
 }
@@ -4216,24 +4313,16 @@ function renderPeriodPulse(rows, board) {
 
   const data = periodMetrics(rows);
   const spread = periodSpreadAnalysis(rows);
+  // 2x2 workboard layout: FL + RWC on top, MP + OB on the bottom.
   const streamRows = [
     {
       key: 'fluid',
-      label: 'Fluid',
+      label: 'FL',
       cls: 'stream-fluid',
       goal: board.eos.flGoal,
       actual: board.eos.fl,
       left: board.eos.flRemain,
       periods: data.map((p) => ({ label: p.label, goal: p.fl, actual: p.actualFl }))
-    },
-    {
-      key: 'mp',
-      label: 'MP',
-      cls: 'stream-mp',
-      goal: board.eos.mpGoal,
-      actual: board.eos.mp,
-      left: board.eos.mpRemain,
-      periods: data.map((p) => ({ label: p.label, goal: p.mp, actual: p.actualMp }))
     },
     {
       key: 'rwc',
@@ -4243,6 +4332,15 @@ function renderPeriodPulse(rows, board) {
       actual: board.eos.rwc,
       left: board.eos.rwcRemain,
       periods: data.map((p) => ({ label: p.label, goal: p.rwc, actual: p.actualRwc }))
+    },
+    {
+      key: 'mp',
+      label: 'MP',
+      cls: 'stream-mp',
+      goal: board.eos.mpGoal,
+      actual: board.eos.mp,
+      left: board.eos.mpRemain,
+      periods: data.map((p) => ({ label: p.label, goal: p.mp, actual: p.actualMp }))
     }
   ];
   wrap.innerHTML = `
@@ -4275,7 +4373,7 @@ function renderPeriodPulse(rows, board) {
       }).join('')}
       <article class="period-pulse-card total">
         <div class="period-pulse-head">
-          <b>OB Total</b>
+          <b>OB</b>
           <span class="${colorClass(board.eos.captureGap)}">${board.eos.captureGap >= 0 ? '+' : ''}${fmt(board.eos.captureGap)} OB</span>
         </div>
         <div class="period-pulse-metrics">
@@ -4304,52 +4402,6 @@ function renderPeriodPulse(rows, board) {
       </article>
     </div>
   `;
-}
-
-function isChecked(id) {
-  return !!$(id)?.checked;
-}
-
-function checklistItem(id, label, autoDone, detail = '') {
-  const checked = autoDone || isChecked(id);
-  return `
-    <label class="check-item ${checked ? 'done' : ''}">
-      <input id="${id}" type="checkbox" ${checked ? 'checked' : ''} ${autoDone ? 'data-auto-check="true"' : ''} />
-      <span>
-        <b>${label}</b>
-        ${detail ? `<small>${detail}</small>` : ''}
-      </span>
-    </label>
-  `;
-}
-
-function renderPeriodChecklist(rows) {
-  const wrap = $('periodChecklist');
-  if (!wrap) return;
-
-  wrap.innerHTML = rows.map((p) => {
-    const jobs = val(`${p.key}_jobs`) || val(`${p.key}_totes`) + val(`${p.key}_cases`);
-    const hasFclm = jobs > 0 || val(`${p.key}_wb`) > 0;
-    const capture = periodActualCapture(p.key);
-    const flUtilCapture = periodFlUtilCapture(p.key);
-    const belt = val(`${p.key}_belt_east`) + val(`${p.key}_belt_west`);
-    const hasNotes = ($(`${p.key}_notes`)?.value || '').trim().length > 0;
-    return `
-      <article class="check-card">
-        <div class="check-card-head">
-          <b>${p.label}</b>
-          <span>${fmt(capture)} Actual | ${fmt(belt)} belt</span>
-        </div>
-        <div class="check-list">
-          ${checklistItem(`${p.key}_check_fclm`, 'FCLM pulled', hasFclm, hasFclm ? `${fmt(jobs)} jobs` : 'waiting on period tab')}
-          ${checklistItem(`${p.key}_check_capture`, 'FL Utilization Actual entered', flUtilCapture > 0, flUtilCapture > 0 ? `${fmt(flUtilCapture)} FL Util` : 'waiting on bridge or manual')}
-          ${checklistItem(`${p.key}_check_belt`, 'Belt entered', belt > 0, belt > 0 ? `${fmt(belt)} total` : 'east/west pending')}
-          ${checklistItem(`${p.key}_check_notes`, 'Notes entered', hasNotes, hasNotes ? 'ready for summary' : 'optional but useful')}
-          ${checklistItem(`${p.key}_check_copied`, 'Summary copied', false, 'manual check')}
-        </div>
-      </article>
-    `;
-  }).join('');
 }
 
 function renderCharts(board) {
@@ -6203,9 +6255,9 @@ function buildFclmUrl(period = 'full') {
 
   if (!win) return '';
 
-  // Late ops start: move the FCLM window start to when operations actually
-  // began, if that time falls inside this window.
-  const ops = opsStartInfo();
+  // Operations override: move the FCLM window start to when operations
+  // actually began, if that time falls inside this window.
+  const ops = opsOverrideInfoFor(period);
   if (ops) {
     const winStart = zonedTimeToUtc(win.sd.y, win.sd.m, win.sd.d, win.sh, win.sm);
     const winEnd = zonedTimeToUtc(win.ed.y, win.ed.m, win.ed.d, win.eh, win.em);
@@ -6296,19 +6348,17 @@ function monitorWindows() {
     met: make('met', 'MET', next, 5, 30, next, 6, 30)
   };
 
-  // A late operations start pushes the start of every window it lands inside
-  // (full + the period it falls in). Windows that ended before ops started are
-  // left alone - they pull zeros, which is what actually happened.
-  const ops = opsStartInfo();
-  if (ops) {
-    Object.values(windows).forEach((win) => {
-      if (ops.date > win.start && ops.date < win.end) {
-        win.start = ops.date;
-        win.opsAdjusted = true;
-        win.display = `${win.label} MP ${mpClock(win.start)} to ${mpClock(win.end)} - ops start`;
-      }
-    });
-  }
+  // An operations override pushes the start of every window it lands inside.
+  // Windows that ended before the override start are left alone - they pull
+  // zeros, which is what actually happened.
+  Object.values(windows).forEach((win) => {
+    const ops = opsOverrideInfoFor(win.key);
+    if (ops && ops.date > win.start && ops.date < win.end) {
+      win.start = ops.date;
+      win.opsAdjusted = true;
+      win.display = `${win.label} MP ${mpClock(win.start)} to ${mpClock(win.end)} - override`;
+    }
+  });
 
   return windows;
 }
@@ -6995,9 +7045,11 @@ function bridgePullRequestPayload(source) {
     periods: pullPeriodsForShift(),
     shiftDate: $('shiftDate')?.value || defaultShiftDateString(),
     includeMET,
-    // Late operations start (HH:MM CT, or null) so bridge-side window builders
-    // can line up with the dashboard's adjusted windows.
-    opsStart: $('opsStartTime')?.value || null
+    // Operations overrides so bridge-side window builders can line up with the
+    // dashboard's adjusted windows. opsStart keeps the old shape (HH:MM CT for
+    // the start of shift, or null).
+    opsStart: opsOverrideInfoFor('full')?.start || null,
+    opsOverrides: readOpsOverrides()
   };
 }
 
@@ -7063,10 +7115,6 @@ function syncFclmSourceCollapseLabel() {
 
 function configureFclmSourceCollapse() {
   configurePanelCollapse('fclmSourcePanel', FCLM_SOURCE_COLLAPSE_KEY);
-}
-
-function configurePeriodChecklistCollapse() {
-  configurePanelCollapse('periodChecklistPanel', PERIOD_CHECKLIST_COLLAPSE_KEY);
 }
 
 function configurePaceStatusCollapse() {
@@ -7309,35 +7357,38 @@ function bind() {
   });
 
   document.addEventListener('click', (event) => {
-    const input = $('opsStartTime');
-    if (!input) return;
-    if (event.target.closest('#opsStartNowBtn')) {
-      input.value = ctClock(Date.now());
-      saveState(false);
-      renderAll();
-      updateMiniStatus(`Operations start set to now (${input.value} CT). Data windows updated.`);
-      return;
-    }
-    if (event.target.closest('#opsStartBypassBtn')) {
-      const minutes = totalBypassMinutes();
-      if (!minutes) {
-        updateMiniStatus('No bypass time entered yet - submit a bypass first or use Start Now.');
+    if (event.target.closest('#opsOvrSubmitBtn')) {
+      const periodsKey = $('opsOvrPeriods')?.value || 'p1';
+      const reason = $('opsOvrReason')?.value || 'Other';
+      const start = $('opsOvrStart')?.value || '';
+      if (!/^\d{1,2}:\d{2}$/.test(start)) {
+        updateMiniStatus('Pick an override start time first (military).');
         return;
       }
-      const startMs = scheduledShiftStart().getTime() + minutes * 60000;
-      input.value = ctClock(startMs);
-      saveState(false);
+      const overrides = readOpsOverrides().filter((ovr) => ovr.periodsKey !== periodsKey);
+      overrides.push({ periodsKey, reason, start, createdAt: Date.now() });
+      writeOpsOverrides(overrides);
       renderAll();
-      updateMiniStatus(`Operations start set to ${input.value} CT (19:00 + ${formatDowntime(minutes)} bypass).`);
+      updateMiniStatus(`Operations override: ${OPS_OVERRIDE_SET_LABELS[periodsKey]} pulls from ${start} (${reason}).`);
       return;
     }
-    if (event.target.closest('#opsStartResetBtn')) {
-      if (!input.value) return;
-      input.value = '';
-      saveState(false);
+    const removeBtn = event.target.closest('[data-ops-ovr-remove]');
+    if (removeBtn) {
+      const overrides = readOpsOverrides();
+      overrides.splice(Number(removeBtn.dataset.opsOvrRemove), 1);
+      writeOpsOverrides(overrides);
       renderAll();
-      updateMiniStatus('Operations start reset - windows back to the scheduled 19:00.');
+      updateMiniStatus('Operations override removed.');
     }
+  });
+
+  document.addEventListener('click', (event) => {
+    const btn = event.target.closest('#toggleShiftSourceEditBtn');
+    if (!btn) return;
+    const wrap = $('shiftSourceEditWrap');
+    if (!wrap) return;
+    wrap.classList.toggle('hidden');
+    btn.textContent = wrap.classList.contains('hidden') ? 'Edit' : 'Close';
   });
 
   document.addEventListener('click', (event) => {
@@ -7395,14 +7446,13 @@ function renderAll() {
   renderGoals();
   const rows = plan();
   updateDowntimeVisibility(rows);
-  renderOpsStartStatus();
+  renderOpsOverrides();
   const full = renderFullShiftJplh(rows);
   const board = renderBoard(rows);
   renderSnapshot(full, board);
   renderHourlyProjection(rows);
   renderPeriodPulse(rows, board);
   renderBoardBreakout(rows, board);
-  renderPeriodChecklist(rows);
   renderCharts(board);
   renderMonitorLinks();
   renderFclmSourceLinks();
@@ -7450,11 +7500,6 @@ function init() {
     $('fclmSourcePanel').open = false;
   }
 
-  const periodChecklistCollapsed = localStorage.getItem(PERIOD_CHECKLIST_COLLAPSE_KEY) === 'true';
-  if (periodChecklistCollapsed && $('periodChecklistPanel')) {
-    $('periodChecklistPanel').open = false;
-  }
-
   const paceStatusCollapsed = localStorage.getItem(PACE_STATUS_COLLAPSE_KEY) === 'true';
   if (paceStatusCollapsed && $('paceStatusPanel')) {
     $('paceStatusPanel').open = false;
@@ -7462,7 +7507,6 @@ function init() {
 
   bind();
   configureFclmSourceCollapse();
-  configurePeriodChecklistCollapse();
   configurePaceStatusCollapse();
   renderAll();
   configureFclmAutoRefresh(true);
