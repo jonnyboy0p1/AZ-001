@@ -448,10 +448,10 @@ body[data-view="goals"] .chart-panel{order:3}
   letter-spacing:.06em;
 }
 .source-panel-collapse[open] .source-panel-toggle::before{
-  content:'â–¾ ';
+  content:'▾ ';
 }
 .source-panel-collapse:not([open]) .source-panel-toggle::before{
-  content:'â–¸ ';
+  content:'▸ ';
 }
 .source-panel-body{
   display:grid;
@@ -510,11 +510,11 @@ body[data-view="goals"] .chart-panel{order:3}
 }
 .panel-collapse[open] .panel-collapse-toggle::before,
 .source-panel-collapse[open] .source-panel-toggle::before{
-  content:'â–¾ ';
+  content:'▾ ';
 }
 .panel-collapse:not([open]) .panel-collapse-toggle::before,
 .source-panel-collapse:not([open]) .source-panel-toggle::before{
-  content:'â–¸ ';
+  content:'▸ ';
 }
 .source-panel-head{
   display:flex;
@@ -605,6 +605,10 @@ body[data-view="goals"] .chart-panel{order:3}
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap:12px;
   padding:16px;
+}
+.goal-details-card{
+  grid-column:2 / -1;
+  align-self:start;
 }
 .goal-input-card{
   padding:14px;
@@ -805,13 +809,18 @@ body.met-enabled .view-tabs{
   grid-template-columns:repeat(3,1fr);
   gap:14px;
   padding:16px;
+  align-items:start;
 }
 .embed-controls{
-  display:grid;
-  grid-template-columns:minmax(180px,1fr) repeat(4,auto);
+  display:flex;
+  align-items:flex-end;
   gap:10px;
-  align-items:end;
-  padding:16px 16px 0;
+  flex-wrap:wrap;
+  padding:14px 16px 0;
+}
+.embed-controls > div{
+  flex:0 1 170px;
+  min-width:130px;
 }
 .collapse-card{
   border:1px solid var(--line);
@@ -2254,6 +2263,7 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   .goal-card-grid,
   .jplh-source-body,
   .grid-2,.grid-4,.kpi-grid,.metric-row,.chart-grid,.link-grid,.embed-controls,.jplh-hero,.periods-shell,.handoff-shell{grid-template-columns:1fr}
+  .goal-details-card{grid-column:auto}
   .panel-collapse-summary{align-items:stretch;flex-direction:column}
   .projection-panel .projection-status,
   .projection-panel .projection-summary,
@@ -2401,10 +2411,10 @@ button.copy-success{
     <header class="topbar">
       <div>
         <h1>OB Period Report Card</h1>
-        <p class="sub">OB02 release â€” shift planner, merged pace tracker, bridge-powered FCLM / MonitorPortal</p>
+        <p class="sub">OB02 release — shift planner, merged pace tracker, bridge-powered FCLM / MonitorPortal</p>
         <p id="miniStatus" class="mini">Ready.</p>
         <p id="saveCounter" class="mini save-counter">Current not saved | Week 0/4</p>
-        <p id="liveClock" class="mini live-clock">--:-- CT Â· --</p>
+        <p id="liveClock" class="mini live-clock">--:-- CT · --</p>
       </div>
       <div class="btnrow">
         <button id="toggleTopBtn" class="soft">Minimize</button>
@@ -2691,7 +2701,7 @@ button.copy-success{
           <div class="live-metrics-head">
             <div>
               <h3>Live Metrics - Search API</h3>
-              <p>Background data pull straight from the MonitorPortal Search data endpoint. No tabs, no page scraping. Auto pulls on the quarter hour (:00 / :15 / :30 / :45).</p>
+              <p>Auto pulls on the quarter hour (:00 / :15 / :30 / :45) straight from the Search data endpoint.</p>
             </div>
             <span id="liveMetricsBridgeState">Userscript bridge not detected yet</span>
             <button id="pullLiveMetricsBtn" class="primary">Pull Live Metrics Now</button>
@@ -2712,7 +2722,7 @@ button.copy-success{
           </details>
         </div>
         <div class="collapse-grid">
-          <details class="collapse-card" open>
+          <details class="collapse-card">
             <summary>Period Windows</summary>
             <div id="monitorPeriodLinks" class="link-grid"></div>
           </details>
@@ -2760,15 +2770,15 @@ button.copy-success{
             <div id="fluidHcDifference" class="goal-card-status warn">HC difference vs NEO pending.</div>
             <button id="openFluidRosterGoalBtn" class="soft" type="button">Open Fluid Roster</button>
           </div>
+          <details class="inline-collapse goal-details-card" open>
+            <summary>Supporting goal details</summary>
+            <div class="grid-2">
+              <div><label>Ship Sort Diverts</label><input id="shipSortGoal" value="0" /></div>
+              <div><label>Fluid Rate</label><input id="fluidRate" value="0" /></div>
+              <div><label>Fluid HC</label><input id="fluidHC" value="0" /></div>
+            </div>
+          </details>
         </div>
-        <details class="inline-collapse">
-          <summary>Supporting goal details</summary>
-          <div class="grid-2">
-            <div><label>Ship Sort Diverts</label><input id="shipSortGoal" value="0" /></div>
-            <div><label>Fluid Rate</label><input id="fluidRate" value="0" /></div>
-            <div><label>Fluid HC</label><input id="fluidHC" value="0" /></div>
-          </div>
-        </details>
         <div class="note compact">
           <div><b>OB Diverts Calc:</b> <span id="obCalc">0</span></div>
           <div><b>Divert Gap vs Ship Sort:</b> <span id="divertGap">0</span></div>
@@ -2937,7 +2947,7 @@ button.copy-success{
               <textarea id="periodSummary"></textarea>
             </div>
             <div>
-              <label>EOS Notes <span class="label-hint">(optional â€” appears at bottom of EOS Wash)</span></label>
+              <label>EOS Notes <span class="label-hint">(optional — appears at bottom of EOS Wash)</span></label>
               <textarea id="eos_notes" class="eos-notes-input" placeholder="End-of-shift observations, anything worth calling out in the handoff..."></textarea>
             </div>
             <div>
@@ -3118,7 +3128,7 @@ function setHtml(id, html, cls = '') {
 function flashCopy(btn) {
   if (!btn || btn.dataset.copying) return;
   const orig = btn.textContent;
-  btn.textContent = 'âœ“ Copied';
+  btn.textContent = '✓ Copied';
   btn.dataset.copying = '1';
   btn.classList.add('copy-success');
   setTimeout(() => {
@@ -3149,7 +3159,7 @@ function updateLiveClock() {
   else if (t >= 2 * 60 + 30 && t < 3 * 60) { label = 'Break'; cls = 'warn'; }
   else if (t >= 3 * 60 && t < 5 * 60 + 30) { label = 'P3'; cls = 'good'; }
   else if (isMetShift && t >= 5 * 60 + 30 && t < 6 * 60 + 30) { label = 'MET'; cls = 'warn'; }
-  el.textContent = `${ct} CT Â· ${label}`;
+  el.textContent = `${ct} CT · ${label}`;
   el.className = `mini live-clock${cls ? ` ${cls}` : ''}`;
 }
 
@@ -3168,7 +3178,7 @@ function updateShiftProgressBar(rows) {
   const pct = Math.min(100, elapsed / totalHours * 100);
   fill.style.width = `${pct.toFixed(1)}%`;
   const bar = $('shiftProgressBar');
-  if (bar) bar.title = `${Math.round(pct)}% through shift Â· ${fmt(elapsed, 1)} of ${fmt(totalHours, 1)} hrs elapsed`;
+  if (bar) bar.title = `${Math.round(pct)}% through shift · ${fmt(elapsed, 1)} of ${fmt(totalHours, 1)} hrs elapsed`;
 }
 
 function renderBridgeSourceAges() {
@@ -3203,7 +3213,7 @@ function renderBridgeSourceAges() {
     { label: 'Roster', ts: rosterTs }
   ];
   el.innerHTML = chips.map((c) =>
-    `<span class="source-age-chip ${ageClass(c.ts)}">${c.label}: ${c.ts ? formatBridgeAge(c.ts) : 'â€”'}</span>`
+    `<span class="source-age-chip ${ageClass(c.ts)}">${c.label}: ${c.ts ? formatBridgeAge(c.ts) : '—'}</span>`
   ).join('');
 }
 
@@ -3881,7 +3891,7 @@ function fluidRosterBalanceReco(groups) {
   }
   if (wNeeds > eNeeds) return { text: `Both short. Prioritize West (needs ${wNeeds} more vs East ${eNeeds}).`, tone: 'bad' };
   if (eNeeds > wNeeds) return { text: `Both short. Prioritize East (needs ${eNeeds} more vs West ${wNeeds}).`, tone: 'bad' };
-  return { text: `Both short â€” West and East each need ${wNeeds} more.`, tone: 'bad' };
+  return { text: `Both short — West and East each need ${wNeeds} more.`, tone: 'bad' };
 }
 
 function renderGoals() {
@@ -4628,7 +4638,7 @@ function projectionPeriodActual(row, stream) {
 
 function projectionActualSplit(row, segments, stream = null) {
   const periodActual = projectionPeriodActual(row, stream);
-  // Only distribute actual across elapsed segments â€” future hours stay empty until they happen
+  // Only distribute actual across elapsed segments — future hours stay empty until they happen
   const elapsedEffective = segments.reduce((sum, s) => {
     if (s.state === 'complete') return sum + (s.effectiveHours ?? s.hours);
     if (s.state === 'current') return sum + s.elapsedHours;
@@ -4929,7 +4939,7 @@ function renderHourlyProjection(rows) {
   let elapsedStartedHours = 0;
   let accActual = 0;   // realized actual from completed/in-progress periods
   let accElapsed = 0;  // realized elapsed hours from completed/in-progress periods
-  // Shift Goal spans the entire table body â€” compute total row count up front
+  // Shift Goal spans the entire table body — compute total row count up front
   const totalShiftRowSpan = rows.reduce((sum, row) => sum + periodHourSegments(row.key).length + 1, 0);
   const tableBody = rows.map((row) => {
     const isFirstPeriod = row === rows[0];
@@ -4963,7 +4973,7 @@ function renderHourlyProjection(rows) {
         periodStartedExpected += should;
         periodHasActual = true;
         cumulativeDiff = cumulativeActual - cumulativeStartedExpected;
-        // Show projected only on the active segment â€” extrapolates current period to its end
+        // Show projected only on the active segment — extrapolates current period to its end
         if (segment.state === 'current' && periodElapsedEffective > 0 && periodActual > 0) {
           projected = Math.round(periodActual / periodElapsedEffective * effectiveHours);
         }
@@ -4976,10 +4986,10 @@ function renderHourlyProjection(rows) {
       } else if (segment.state === 'future') {
         const segHours = segment.effectiveHours ?? segment.hours;
         if (periodElapsedEffective > 0 && periodActual > 0) {
-          // Remaining hours of the active period â€” project at current period rate
+          // Remaining hours of the active period — project at current period rate
           projected = Math.round(periodActual / periodElapsedEffective * segHours);
         } else if (accElapsed > 0) {
-          // Fully future period â€” recalibrate from shift's realized rate
+          // Fully future period — recalibrate from shift's realized rate
           projected = Math.round(accActual / accElapsed * segHours);
         }
       }
@@ -5021,7 +5031,7 @@ function renderHourlyProjection(rows) {
           ${index === 0 ? `<td class="num" rowspan="${rowSpanCount}">${fmt(rate, 0)}/hr</td>` : ''}
           <td class="num"><b>${should > 0 ? fmt(should) : ''}</b></td>
           <td class="num">${projected != null ? fmt(projected) : ''}</td>
-          <td><input id="${actualItem.id}" class="projection-actual ${actualItem.manual ? '' : 'is-auto'}" value="${hasActual ? fmt(actual) : ''}" placeholder="${stream.label} actual" title="Actual from FL Utilization â€” fills completed hours as the shift progresses; future hours stay blank until elapsed" ${actualItem.manual ? '' : 'data-projection-auto="true"'} /></td>
+          <td><input id="${actualItem.id}" class="projection-actual ${actualItem.manual ? '' : 'is-auto'}" value="${hasActual ? fmt(actual) : ''}" placeholder="${stream.label} actual" title="Actual from FL Utilization — fills completed hours as the shift progresses; future hours stay blank until elapsed" ${actualItem.manual ? '' : 'data-projection-auto="true"'} /></td>
           <td class="num ${diff == null ? '' : colorClass(diff)}">${diff == null ? '' : signed(diff)}</td>
         </tr>
       `;
@@ -5251,7 +5261,7 @@ function renderHourlyProjection(rows) {
       <div class="projection-stream-grid">
         ${streamCards.map((item) => `
           <article class="projection-stream-chip ${item.active ? 'active' : ''} ${item.tone}">
-            <span class="projection-stream-label">${item.label}${item.active ? ' Â· active tab' : ''}</span>
+            <span class="projection-stream-label">${item.label}${item.active ? ' · active tab' : ''}</span>
             <b class="projection-stream-value">${item.goal > 0 ? `${fmt(item.pct, 1)}%` : '-'}</b>
             <small class="projection-stream-sub">${fmt(item.actual)} / ${fmt(item.goal)}</small>
           </article>
@@ -7178,7 +7188,7 @@ function configureFclmAutoRefresh(runNow = false) {
     return;
   }
 
-  setAutoFclmStatus(`Auto refresh active: every ${minutes} min â€” FCLM, FL Utilization, and Belt pull in background.`, 'good');
+  setAutoFclmStatus(`Auto refresh active: every ${minutes} min — FCLM, FL Utilization, and Belt pull in background.`, 'good');
   fclmAutoRefreshTimer = setInterval(() => {
     renderFclmSourceLinks();
     requestFclmPull('auto');
@@ -7234,7 +7244,6 @@ function renderMonitorLinks() {
 
   if (periodEl) {
     periodEl.innerHTML = `
-      <div class="monitor-note">Times display two hours behind in MonitorPortal. Example: MP 17:00 to 21:00 maps to 19:00 to 23:00 CT.</div>
       ${periods.map((win) => `
         <button data-monitor-type="fl" data-monitor-window="${win.key}">${win.label} FL / MP / RWC<br>${win.display}</button>
         <button class="copy-link" data-monitor-copy="fl" data-monitor-window="${win.key}">Copy ${win.label} FL URL</button>
@@ -7246,7 +7255,6 @@ function renderMonitorLinks() {
 
   if (flEl) {
     flEl.innerHTML = `
-      <div class="monitor-note">Full-window FL Utilization pie for MP, FL, RWC, and total capture mix.</div>
       <button class="wide primary" data-monitor-type="fl" data-monitor-window="full">Open Full FL / MP / RWC Window<br>${wins.full.display}</button>
       <button class="wide copy-link" data-monitor-copy="fl" data-monitor-window="full">Copy Full FL / MP / RWC URL</button>
       ${periods.map((win) => `<button data-monitor-type="fl" data-monitor-window="${win.key}">${win.label} only</button>`).join('')}
@@ -7255,7 +7263,6 @@ function renderMonitorLinks() {
 
   if (beltEl) {
     beltEl.innerHTML = `
-      <div class="monitor-note">Full-window Battle of the Belt pie split between East side and West side.</div>
       <button class="wide primary" data-monitor-type="belt" data-monitor-window="full">Open Full East vs West Window<br>${wins.full.display}</button>
       <button class="wide copy-link" data-monitor-copy="belt" data-monitor-window="full">Copy Full East vs West URL</button>
       ${periods.map((win) => `<button data-monitor-type="belt" data-monitor-window="${win.key}">${win.label} only</button>`).join('')}
