@@ -325,10 +325,16 @@ button.soft{background:#1e293b}
 .simple-copy-panel{order:1}
 .logs-panel{order:0}
 body[data-view="goals"] .shift-goals-panel{
-  grid-column:span 12;
+  grid-column:span 6;
 }
 body[data-view="goals"] .quick-tools-panel{
-  grid-column:span 12;
+  grid-column:span 6;
+}
+@media (max-width:1100px){
+  body[data-view="goals"] .shift-goals-panel,
+  body[data-view="goals"] .quick-tools-panel{
+    grid-column:span 12;
+  }
 }
 body[data-view="goals"] .quick-tools-panel .btnstack{
   padding:16px;
@@ -1042,31 +1048,9 @@ body.met-enabled .view-tabs{
   min-height:38px;
   white-space:nowrap;
 }
-.shift-source-bar{
-  display:flex;
-  align-items:center;
-  gap:14px;
-  flex-wrap:wrap;
-  padding:13px 16px;
+.shift-source-kpis{
+  padding:0 16px 16px;
 }
-.shift-source-bar h2{
-  margin:0;
-  font-size:16px;
-}
-.shift-source-stats{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  flex-wrap:wrap;
-  margin-left:auto;
-  font-size:14px;
-  font-weight:850;
-}
-.shift-source-stats b{
-  font-variant-numeric:tabular-nums;
-  font-weight:950;
-}
-.shift-source-sep{color:var(--muted)}
 .jplh-source-body.hidden{display:none}
 .ops-override-form{
   display:grid;
@@ -2581,16 +2565,30 @@ button.copy-success{
       </section>
 
       <section class="panel span-12 jplh-panel shift-source-panel" data-view="overview periods">
-        <div class="shift-source-bar">
-          <h2>Shift Source Data</h2>
-          <div class="shift-source-stats">
-            <div>Total Jobs : <b id="ssdTotalJobs">0</b></div>
-            <span class="shift-source-sep">|</span>
-            <div>WB Rate : <b id="ssdWbRate">0</b></div>
-            <span class="shift-source-sep">|</span>
-            <div>JPLH : <b id="ssdJplh">0.00</b></div>
+        <div class="panel-head">
+          <div>
+            <h2>Shift Source Data</h2>
           </div>
-          <button id="toggleShiftSourceEditBtn" class="soft">Edit</button>
+          <div class="btnrow">
+            <button id="toggleShiftSourceEditBtn" class="soft">Edit</button>
+          </div>
+        </div>
+        <div class="kpi-grid shift-source-kpis">
+          <div class="kpi">
+            <div class="kpi-label">Total Jobs</div>
+            <div id="ssdTotalJobs" class="kpi-value">0</div>
+            <div id="ssdJobsSub" class="kpi-sub">from FCLM</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">WB Rate</div>
+            <div id="ssdWbRate" class="kpi-value">0</div>
+            <div class="kpi-sub">full shift WB</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">JPLH</div>
+            <div id="ssdJplh" class="kpi-value">0.00</div>
+            <div id="ssdJplhSub" class="kpi-sub">vs required 0.00</div>
+          </div>
         </div>
         <div id="shiftSourceEditWrap" class="jplh-source-body hidden">
           <div class="jplh-source-inputs">
@@ -2688,9 +2686,6 @@ button.copy-success{
           <button id="loadEmbeddedBeltBtn" class="primary">Open Battle of the Belt</button>
           <button id="loadEmbeddedBothBtn">Open Both</button>
           <button id="collectMonitorBridgeBtn" class="primary">Collect Data From Bridge</button>
-        </div>
-        <div class="monitor-note embed-note">
-          Use "Pull All Sources" to fetch FL Utilization and Battle of the Belt data in the background without opening new tabs â€” the Tampermonkey bridge makes requests directly. "Open" buttons are for manual graph viewing only.
         </div>
         <div class="live-metrics-bar">
           <div class="live-metrics-head">
@@ -2810,11 +2805,6 @@ button.copy-success{
           <button id="copyEOSBtn" class="primary">Copy EOS Wash</button>
         </div>
         <div id="bridgeSourceAges" class="bridge-source-ages"></div>
-        <div class="note compact">
-          <div><b>Tips</b></div>
-          <div>Use Collect Data From Bridge after the helper gathers graph totals.</div>
-          <div>Use the source-specific pull buttons when you only need FCLM, FL Utilization, or Battle of the Belt. Pull All Sources collects all three.</div>
-        </div>
         <details class="source-panel source-panel-collapse" id="fclmSourcePanel" open>
           <summary class="source-panel-summary">
             <div class="source-panel-title">
@@ -2863,7 +2853,7 @@ button.copy-success{
             <div class="panel-head">
               <div>
                 <h2>Operations Override</h2>
-                <p class="panel-sub">Pulls all sources from the override start time - original plan and pace stay untouched</p>
+                <p class="panel-sub">Pulls all sources from the override start and takes the dead time out of pace and period math</p>
               </div>
             </div>
             <div class="ops-override-form">
@@ -2881,9 +2871,10 @@ button.copy-success{
               <div>
                 <label>Reason</label>
                 <select id="opsOvrReason">
+                  <option>RME issue</option>
+                  <option>Maintenance</option>
                   <option>Weather</option>
                   <option>AWS issue</option>
-                  <option>RHE issue</option>
                   <option>Sev 1</option>
                   <option>Sev 2</option>
                   <option>Other</option>
@@ -3339,7 +3330,7 @@ function formatDowntime(minutes) {
 }
 
 function effectivePeriodHours(row) {
-  return Math.max(0, row.hours - downtimeHours(row.key));
+  return Math.max(0, row.hours - downtimeHours(row.key) - opsOverrideDowntimeHours(row.key));
 }
 
 function downtimeReason(key) {
@@ -3349,7 +3340,8 @@ function downtimeReason(key) {
 const DOWNTIME_REASON_LABELS = {
   xbelt: 'XBelt down',
   maintenance: 'Maintenance',
-  rhe: 'RHE issue',
+  rme: 'RME issue',
+  rhe: 'RME issue',
   system: 'System down',
   'no-run': 'No-run bypass',
   other: 'Bypass',
@@ -3444,17 +3436,35 @@ function ctTimeInfo(raw) {
   return { date: zonedTimeToUtc(day.y, day.m, day.d, h, minute), h, m: minute, day, start: raw };
 }
 
-function opsOverrideInfoFor(windowKey) {
+function opsOverrideEntryFor(windowKey) {
   const overrides = readOpsOverrides();
   if (!overrides.length) return null;
   const targetKey = windowKey === 'full' ? (activePeriods()[0]?.key || 'p1') : windowKey;
   // Latest submitted override covering the period wins.
   for (let i = overrides.length - 1; i >= 0; i -= 1) {
     if (OPS_OVERRIDE_PERIOD_SETS[overrides[i].periodsKey].includes(targetKey)) {
-      return ctTimeInfo(overrides[i].start);
+      return overrides[i];
     }
   }
   return null;
+}
+
+function opsOverrideInfoFor(windowKey) {
+  const entry = opsOverrideEntryFor(windowKey);
+  return entry ? ctTimeInfo(entry.start) : null;
+}
+
+function opsOverrideDowntimeHours(key) {
+  // Dead time inside a period window: from the window start until the
+  // override start (capped at the window end).
+  const ops = opsOverrideInfoFor(key);
+  const wall = PERIOD_WALL_WINDOWS[key];
+  if (!ops || !wall) return 0;
+  const winStart = ctTimeInfo(wall[0]);
+  const winEnd = ctTimeInfo(wall[1]);
+  if (!winStart || !winEnd) return 0;
+  const windowHours = (winEnd.date.getTime() - winStart.date.getTime()) / 3600000;
+  return clamp((ops.date.getTime() - winStart.date.getTime()) / 3600000, 0, windowHours);
 }
 
 function opsOverrideWindowLabel(periodsKey) {
@@ -3488,13 +3498,21 @@ function renderOpsOverrides() {
 }
 
 function downtimeNotes(rows = activePeriods()) {
-  return rows
+  const notes = rows
     .map((row) => {
       const minutes = downtimeMinutes(row.key);
       if (!minutes) return null;
       return `${row.label}: ${formatDowntime(minutes)} ${downtimeReasonLabel(row.key)}`;
     })
     .filter(Boolean);
+  rows.forEach((row) => {
+    const entry = opsOverrideEntryFor(row.key);
+    const hours = opsOverrideDowntimeHours(row.key);
+    if (entry && hours > 0) {
+      notes.push(`${row.label}: ${entry.reason} override - ops start ${entry.start} (${formatDowntime(Math.round(hours * 60))} no-run)`);
+    }
+  });
+  return notes;
 }
 
 function addDays(y, m, d, days) {
@@ -3784,7 +3802,7 @@ function buildDowntimeRows() {
             <option value="none">No bypass</option>
             <option value="xbelt">XBelt down</option>
             <option value="maintenance">Maintenance</option>
-            <option value="rhe">RHE issue</option>
+            <option value="rme">RME issue</option>
             <option value="system">System down</option>
             <option value="no-run">No-run window</option>
             <option value="other">Other</option>
@@ -3990,8 +4008,10 @@ function renderFullShiftJplh(rows) {
   setText('fullCaptureTarget', fmt(captureTarget));
   setText('fullSource', source);
   setText('ssdTotalJobs', fmt(fullJobs));
+  setText('ssdJobsSub', source === 'full shift inputs' ? 'from full shift inputs' : 'from period totals');
   setText('ssdWbRate', fmt(fullWB, fullWB % 1 ? 2 : 0));
-  setText('ssdJplh', fmt(actualJplh, 2));
+  setText('ssdJplh', fmt(actualJplh, 2), colorClass(gap));
+  setText('ssdJplhSub', `vs required ${fmt(requiredJplh, 2)} | ${(gap >= 0 ? '+' : '') + fmt(gap, 2)}`, colorClass(gap));
 
   return { fullTotes, fullCases, fullJobs, fullWB, actualJplh, requiredJplh, gap, captureTarget, fluidGoal, source };
 }
@@ -4477,6 +4497,8 @@ function periodTimedSegments(key) {
   const totalBypassHours = downtimeHours(key);
   const anchorMs = totalBypassHours > 0 ? downtimeAnchorMs(key) : null;
   const anchorEndMs = anchorMs != null ? anchorMs + totalBypassHours * 3600000 : null;
+  const opsEntry = opsOverrideEntryFor(key);
+  const opsInfo = opsEntry ? ctTimeInfo(opsEntry.start) : null;
 
   const segments = periodHourSegments(key).map((segment) => {
     const start = segmentDate(base, segment.start, segment.startOffset || 0);
@@ -4487,7 +4509,21 @@ function periodTimedSegments(key) {
     // each block takes the slice of that window that overlaps it.
     const anchored = anchorMs == null ? 0
       : Math.max(0, Math.min(end.getTime(), anchorEndMs) - Math.max(start.getTime(), anchorMs)) / 3600000;
-    return { ...segment, startDate: start, endDate: end, wallElapsedHours, state, bypassApplied: anchored };
+    // An operations override means dead time from the period start until the
+    // override start - each block takes its share of that no-run window.
+    const overrideDown = opsInfo
+      ? clamp((opsInfo.date.getTime() - start.getTime()) / 3600000, 0, segment.hours)
+      : 0;
+    return {
+      ...segment,
+      startDate: start,
+      endDate: end,
+      wallElapsedHours,
+      state,
+      bypassApplied: anchored,
+      overrideDown,
+      overrideReason: overrideDown > 0 ? (opsEntry?.reason || 'Override') : ''
+    };
   });
 
   // Whatever the stamped window did not cover (no submit yet, or the window
@@ -4497,16 +4533,17 @@ function periodTimedSegments(key) {
     const extra = clamp(bypassLeft, 0, segment.hours - segment.bypassApplied);
     segment.bypassApplied += extra;
     bypassLeft -= extra;
-    const bypassMinutes = Math.round(segment.bypassApplied * 60);
-    // Over 30 min of bypass takes over the whole block: nothing is expected
+    const totalDown = clamp(segment.bypassApplied + segment.overrideDown, 0, segment.hours);
+    const bypassMinutes = Math.round(totalDown * 60);
+    // Over 30 min of downtime takes over the whole block: nothing is expected
     // from it. 30 min or less just trims the time and flags the block.
     const overridden = bypassMinutes > 30;
-    const effectiveHours = overridden ? 0 : Math.max(0, segment.hours - segment.bypassApplied);
+    const effectiveHours = overridden ? 0 : Math.max(0, segment.hours - totalDown);
     Object.assign(segment, {
       bypassMinutes,
       overridden,
       effectiveHours,
-      elapsedHours: clamp(segment.wallElapsedHours - segment.bypassApplied, 0, effectiveHours)
+      elapsedHours: clamp(segment.wallElapsedHours - totalDown, 0, effectiveHours)
     });
   });
   return segments;
@@ -4952,12 +4989,20 @@ function renderHourlyProjection(rows) {
         : diff < -segExpected * 0.5 ? 'perf-bad'
         : 'perf-warn';
       const stateLabel = segment.state === 'current' ? ` <span class="projection-now">now ${fmt(segment.elapsedHours, 1)}h active</span>` : '';
+      const tagReason = segment.overrideDown > 0 && segment.overrideDown >= segment.bypassApplied
+        ? segment.overrideReason
+        : downtimeReasonLabel(row.key);
       const bypassLabel = segment.overridden
-        ? ` <span class="pace-override-tag">${downtimeReasonLabel(row.key)} - ${formatDowntime(segment.bypassMinutes)} - block override</span>`
+        ? ` <span class="pace-override-tag">${escapeHtml(tagReason)} - ${formatDowntime(segment.bypassMinutes)} - block override</span>`
         : segment.bypassMinutes
-          ? ` <span class="pace-bypass-note">${downtimeReasonLabel(row.key)} - ${formatDowntime(segment.bypassMinutes)}</span>`
+          ? ` <span class="pace-bypass-note">${escapeHtml(tagReason)} - ${formatDowntime(segment.bypassMinutes)}</span>`
           : '';
-      const bypassTag = downtimeMinutes(row.key) ? `<span class="pace-bypass">${formatDowntime(downtimeMinutes(row.key))} ${downtimeReasonLabel(row.key)}</span>` : '';
+      const ovrEntry = opsOverrideEntryFor(row.key);
+      const ovrHours = opsOverrideDowntimeHours(row.key);
+      const bypassTag = [
+        downtimeMinutes(row.key) ? `<span class="pace-bypass">${formatDowntime(downtimeMinutes(row.key))} ${downtimeReasonLabel(row.key)}</span>` : '',
+        ovrEntry && ovrHours > 0 ? `<span class="pace-bypass">${escapeHtml(ovrEntry.reason)} override - ${escapeHtml(ovrEntry.start)} start</span>` : ''
+      ].filter(Boolean).join('');
       const rowClasses = [
         'projection-segment-row',
         `projection-period-${row.key}`,
