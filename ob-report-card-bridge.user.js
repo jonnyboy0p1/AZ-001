@@ -9,6 +9,11 @@
 // @match        https://monitorportal.amazon.com/igraph*
 // @match        https://zone-ra.amazon.dev/roster/rfd2/ob/fluid/*
 // @match        file:///C:/Users/jonavroa/Desktop/RBv01/ROBv01/index.html*
+// @match        file:///C:/Users/jonavroa/Desktop/OB02/index.html*
+// @match        file:///C:/Users/jonavroa/Desktop/OB02/pace.html*
+// @match        file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html*
+// @match        file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/index.html*
+// @match        file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/dashboard.html*
 // @match        http://localhost:5173/*
 // @match        http://127.0.0.1:5173/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=amazon.com
@@ -51,13 +56,26 @@
   const isFclm = HOST.includes('fclm-portal.amazon.com');
   const isMonitor = HOST.includes('monitorportal.amazon.com');
   const isFluidRoster = HOST.includes('zone-ra.amazon.dev') && location.pathname.includes('/roster/rfd2/ob/fluid');
+  // Every local dashboard file this one script supports (OB02 / OBR03 / OB-REPORT
+  // CARD / RBv01). Add a new dashboard path here AND to the @match block above and
+  // the single script covers that folder too. Merged from the older OB02 / OBR03
+  // bridge variants so they can all be retired in favor of this one file.
+  const DASHBOARD_FILES = [
+    'file:///C:/Users/jonavroa/Desktop/RBv01/ROBv01/index.html',
+    'file:///C:/Users/jonavroa/Desktop/OB02/index.html',
+    'file:///C:/Users/jonavroa/Desktop/OB02/pace.html',
+    'file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html',
+    'file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/index.html',
+    'file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/dashboard.html'
+  ];
+  const isFileDashboard = DASHBOARD_FILES.some(p => HREF.startsWith(p));
   const isDashboard =
-    HREF.startsWith('file:///C:/Users/jonavroa/Desktop/RBv01/ROBv01/index.html') ||
+    isFileDashboard ||
     HREF.startsWith('http://localhost:5173/') ||
     HREF.startsWith('http://127.0.0.1:5173/');
-  // FIX 1: terminate this expression (the original had a dangling `||` -> SyntaxError).
-  const isOb02FileDashboard =
-    HREF.startsWith('file:///C:/Users/jonavroa/Desktop/RBv01/ROBv01/index.html');
+  // Any local file:// dashboard runs "quiet" (no scraping UI, just renders bridge
+  // data). FIX 1 also lives here: the original had a dangling `||` -> SyntaxError.
+  const isOb02FileDashboard = isFileDashboard;
 
   const quietDashboard = isDashboard && (
     isOb02FileDashboard ||
