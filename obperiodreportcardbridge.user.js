@@ -1,16 +1,14 @@
 // ==UserScript==
-// @name         OBR002 OB Period Report Card (Live FL Util + Belt)
+// @name         OB Period Report Card V2.1 Hybrid Bridge
 // @namespace    http://tampermonkey.net/
 // @version      2026-06-15.1
-// @description  V2 Hybrid bridge: automates NEO shift goals and FCLM JPLH per period. FL Utilization (and Battle of the Belt) feed live from REAL background graph tabs that read monitorportal's JS-rendered totals and self-reload every 15 minutes into the dashboard Pace section. (Hidden-iframe pull is kept only as a manual fallback; monitorportal blocks framing and renders numbers with JS, so a raw fetch returns an empty shell.) Monitor pulls write only the monitor branch of the bridge, so other live data is unaffected.
+// @description  V2 Hybrid bridge: automates NEO shift goals and FCLM JPLH per period. FL Utilization (OB = FL+MP+RWC, broken out individually) feeds live from a REAL background graph tab that reads monitorportal's JS-rendered totals and refreshes every 15 minutes into the dashboard Pace section. (Raw fetch returns an empty shell, so the dashboard drives a real tab instead.)
 // @author       JR
 // @match        https://neo.meta.amazon.dev/planning*
 // @match        https://fclm-portal.amazon.com/reports/functionRollup*
 // @match        https://monitorportal.amazon.com/igraph*
 // @match        https://zone-ra.amazon.dev/roster/rfd2/ob/fluid/*
-// @match        file:///C:/Users/jonavroa/Desktop/OB02/index.html*
-// @match        file:///C:/Users/jonavroa/Desktop/OB02/pace.html*
-// @match        file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/index.html*
+// @match        file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html*
 // @match        http://localhost:5173/*
 // @match        http://127.0.0.1:5173/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=undefined.
@@ -22,8 +20,8 @@
 // @connect      localhost
 // @connect      neo.meta.amazon.dev
 // @connect      fclm-portal.amazon.com
-// @connect      zone-ra.amazon.dev
 // @connect      monitorportal.amazon.com
+// @connect      zone-ra.amazon.dev
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -32,7 +30,7 @@
 
   const CONFIG = {
     bridgeKey: 'OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE',
-    dashboardUrl: 'file:///C:/Users/jonavroa/Desktop/OB02/index.html',
+    dashboardUrl: 'file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html',
     dashboardServerUrl: 'http://localhost:5173/',
     neoUrl: 'https://neo.meta.amazon.dev/planning',
     fluidRosterUrl: 'https://zone-ra.amazon.dev/roster/rfd2/ob/fluid/',
@@ -50,9 +48,7 @@
   const isMonitor = HOST.includes('monitorportal.amazon.com');
   const isFluidRoster = HOST.includes('zone-ra.amazon.dev') && location.pathname.includes('/roster/rfd2/ob/fluid');
   const isDashboard =
-    HREF.startsWith('file:///C:/Users/jonavroa/Desktop/OB02/index.html') ||
     HREF.startsWith('file:///C:/Users/jonavroa/Desktop/OBR03/dashboard.html') ||
-    HREF.startsWith('file:///C:/Users/jonavroa/Desktop/OB-REPORT%20CARD/index.html') ||
     HREF.startsWith('http://localhost:5173/') ||
     HREF.startsWith('http://127.0.0.1:5173/');
   let fclmPullContext = null;
@@ -68,7 +64,7 @@
     roster: 'Fluid Roster'
   };
 
-  function cleanText(str){return String(str||'').replace(/ /g,' ').replace(/\s+/g,' ').trim();}
+  function cleanText(str){return String(str||'').replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();}
   function normalizeText(str){return cleanText(str).replace(/[â€“â€”]/g,'-').toLowerCase();}
   function parseNumber(v){if(v==null||v==='')return NaN; const n=Number(String(v).replace(/,/g,'').replace(/[^0-9.\-]/g,'').trim()); return Number.isFinite(n)?n:NaN;}
   function extractNumbers(text){const m=String(text||'').match(/-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?/g); return (m||[]).map(parseNumber).filter(Number.isFinite);}
@@ -206,9 +202,9 @@
     const allBelts=[null,...westBelts,...eastBelts];
     allBelts.forEach((belt,index)=>{
       const n=index+1;
-      const metric=belt?`actDestStatus-FL_${belt} AND :SUCCESS`:'actDestStatus-FL AND :SUCCESS';
+      const metric=belt?`actDestStatus-FL_${belt} SUCCESS`:'actDestStatus-FL SUCCESS';
       u.searchParams.set(`SchemaName${n}`,'Search');
-      u.searchParams.set(`Pattern${n}`,`dataset=$Prod$ schemaname=Service marketplace=$RFD2-MainSorter1Controller$ hostgroup=$ALL$ host=$ALL$ servicename=$WarehouseControlService$ methodname=$SortationOrchestrator.divert$ client=$ALL$ metricclass=$NONE$ instance=$NONE$ schemaname=Service metric=$${metric}$`);
+      u.searchParams.set(`Pattern${n}`,`RFD2 FL SUCCESS metric=$${metric}$ schemaname=Service methodname=$SortationOrchestrator.divert$`);
     });
     u.searchParams.set('Period1','FiveMinute');
     u.searchParams.set('Stat1','sum');
@@ -1017,7 +1013,7 @@
     return attempt(0);
   }
 
-    function fetchFclmPayload(key){
+  function fetchFclmPayload(key){
     const url=buildFclmUrl(key);
     const attempt=()=>new Promise((resolve,reject)=>{
       if(typeof GM_xmlhttpRequest!=='function'){
@@ -1106,15 +1102,10 @@
   function numberAfterLabels(text, labels){
     for(const label of labels){
       const escaped=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-      // igraph renders legends in several shapes depending on DecoratePoints:
-      //   West Side: 102,394        {West Side}: 102,394
-      //   West Side[total: 102,394.00]    {West Side}[total: 102,394.00]: 102,394 (52.1%)
-      // The [total: X] value is authoritative, so try those shapes first.
       const patterns=[
-        new RegExp(`\\{?${escaped}\\}?\\s*\\[?\\s*total\\s*:?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
+        new RegExp(`${escaped}\\s*\\[?\\s*total\\s*:?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
         new RegExp(`${escaped}\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
-        new RegExp(`\\{?${escaped}\\}?\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`,'i'),
-        new RegExp(`\\{?${escaped}\\}?[^0-9\\n]{0,16}([\\d,]+(?:\\.\\d+)?)`,'i')
+        new RegExp(`\\{?${escaped}\\}?\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`,'i')
       ];
 
       for(const pattern of patterns){
@@ -1196,11 +1187,6 @@
       const west=numberAfterLabels(text,['West Side']);
       const east=numberAfterLabels(text,['East Side']);
 
-      if(![west,east].some(Number.isFinite)){
-        updatePanel(readBridge(),`Monitor ${period.toUpperCase()} Belt waiting for chart render...`);
-        return;
-      }
-
       target.belt={
         east:Number.isFinite(east)?east:target.belt?.east,
         west:Number.isFinite(west)?west:target.belt?.west,
@@ -1257,7 +1243,7 @@
 
   function fetchMonitorPayload(type,key){
     const url=type==='belt'?buildMonitorBeltUrl(key):buildMonitorFlUtilUrl(key);
-    return new Promise((resolve,reject)=>{
+    const attempt=()=>new Promise((resolve,reject)=>{
       if(typeof GM_xmlhttpRequest!=='function'){
         reject(new Error('GM_xmlhttpRequest unavailable'));
         return;
@@ -1278,6 +1264,7 @@
         ontimeout:()=>reject(new Error(`Monitor ${key.toUpperCase()} ${type} request timed out`))
       });
     });
+    return withRetry(attempt);
   }
 
   async function pullMonitorInBackground(periods=['full','p1','p2','p3'],types=['flUtil','belt'],source=null){
@@ -1317,139 +1304,20 @@
   }
 
   /******************************************************************
-   * HIDDEN-FRAME MONITOR PULL
-   *
-   * monitorportal draws its totals with JavaScript, so a raw HTML fetch only
-   * returns an empty app shell. Instead we load each graph in an OFF-SCREEN
-   * hidden iframe. The browser runs monitorportal's JS there, this same
-   * userscript injects into that frame, reads the rendered totals, and writes
-   * them to the shared bridge -> dashboard. No visible tab opens.
-   *
-   * NOTE: works only if monitorportal permits being framed (no blocking
-   * X-Frame-Options / CSP frame-ancestors). If the frames stay blank, the
-   * numbers will not update and we must use monitorportal's data endpoint.
-   ******************************************************************/
-
-  const monitorSlotKey=(type,period)=>`PRC_MONITOR_SLOT_${type}_${period}`;
-  const monitorAllPeriods=()=>includeMETSelected()?['full','p1','p2','p3','met']:['full','p1','p2','p3'];
-
-  // Runs INSIDE a hidden pull frame: read this graph's rendered totals and write
-  // them to a per-slot GM key. Only the dashboard merges slots into the bridge,
-  // so independent frames never clobber each other.
-  function storeMonitorSlotFromFrame(){
-    const type=classifyMonitorType()==='belt'?'belt':'flUtil';
-    const period=classifyMonitorPeriod();
-    const payload=parseMonitorPayload(type,period,document);
-    const isNum=(n)=>typeof n==='number'&&Number.isFinite(n);
-    const v=(type==='flUtil'?payload.flUtil:payload.belt)||{};
-    const hasData=type==='flUtil'
-      ? [v.mp,v.fl,v.rwc].some(isNum)
-      : [v.west,v.east].some(isNum);
-    if(!hasData) return false; // chart not rendered yet
-    GM_setValue(monitorSlotKey(type,period),{type,period,payload,updatedAt:now()});
-    return true;
-  }
-
-  // Runs on the DASHBOARD: pull fresh per-slot values into the bridge.
-  function harvestMonitorSlots(label){
-    const bridge=baseBridge();
-    bridge.monitorPeriods=bridge.monitorPeriods||{};
-    bridge.monitorFull=bridge.monitorFull||{};
-    let any=false;
-    ['flUtil','belt'].forEach(type=>monitorAllPeriods().forEach(period=>{
-      const slot=GM_getValue(monitorSlotKey(type,period),null);
-      if(!slot||!slot.payload) return;
-      const target=(period==='full'||period==='unknown')
-        ? bridge.monitorFull
-        : (bridge.monitorPeriods[period]=bridge.monitorPeriods[period]||{});
-      if(type==='flUtil'&&slot.payload.flUtil){ target.flUtil=enrichFlUtil({...(target.flUtil||{}),...slot.payload.flUtil}); any=true; }
-      if(type==='belt'&&slot.payload.belt){ target.belt={...(target.belt||{}),...slot.payload.belt}; any=true; }
-    }));
-    if(any){
-      markLastPull(bridge,'all',label||'hidden-frame pull');
-      const saved=writeBridge(bridge);
-      fillDashboard(saved);
-    }
-    return any;
-  }
-
-  function ensureMonitorFrameHost(){
-    let host=document.getElementById('prcMonitorFrameHost');
-    if(!host){
-      host=document.createElement('div');
-      host.id='prcMonitorFrameHost';
-      // Kept on-screen-sized (so the chart actually renders) but pushed far
-      // off-screen and transparent, so nothing is visible to the user.
-      host.style.cssText='position:fixed;left:-12000px;top:0;width:1500px;height:680px;overflow:hidden;opacity:0;pointer-events:none;z-index:-1;';
-      document.body.appendChild(host);
-    }
-    return host;
-  }
-
-  function pullMonitorViaFrames(types=['flUtil','belt']){
-    if(!isDashboard){
-      updatePanel(readBridge(),'Open the dashboard to pull monitor data');
-      return;
-    }
-    const monitorTypes=(types||['flUtil','belt']).filter(t=>['flUtil','belt'].includes(t));
-    const periods=monitorAllPeriods();
-    const jobs=[];
-    monitorTypes.forEach(type=>periods.forEach(period=>jobs.push({type,period})));
-
-    const label=monitorTypes.map(sourceLabel).join(' + ');
-    updatePanel(readBridge(),`Pulling ${label} in hidden frames...`);
-
-    // Clear this pull's slots so we never merge stale numbers from a prior run.
-    monitorTypes.forEach(type=>periods.forEach(period=>GM_setValue(monitorSlotKey(type,period),null)));
-
-    const host=ensureMonitorFrameHost();
-    const FRAME_LIFETIME_MS=34000; // time for the chart to load + self-report
-
-    jobs.forEach((job,i)=>{
-      setTimeout(()=>{
-        const url=job.type==='belt'?buildMonitorBeltUrl(job.period):buildMonitorFlUtilUrl(job.period);
-        const frame=document.createElement('iframe');
-        frame.src=url;
-        frame.width='1460';
-        frame.height='600';
-        frame.setAttribute('aria-hidden','true');
-        frame.style.cssText='border:0;width:1460px;height:600px;';
-        host.appendChild(frame);
-        setTimeout(()=>{ try{ frame.remove(); }catch(e){} },FRAME_LIFETIME_MS);
-      }, i*1500);
-    });
-
-    // Merge slots as the frames fill them, then a final sweep + status.
-    const totalMs=jobs.length*1500 + FRAME_LIFETIME_MS;
-    const poll=setInterval(()=>harvestMonitorSlots(`${label} hidden-frame pull`),3000);
-    setTimeout(()=>{
-      clearInterval(poll);
-      const got=harvestMonitorSlots(`${label} hidden-frame pull`);
-      updatePanel(readBridge(),got
-        ? `${label} hidden-frame pull complete`
-        : `${label} hidden-frame pull returned no data (monitorportal may block framing)`);
-    }, totalMs);
-  }
-
-  /******************************************************************
    * LIVE MONITOR TABS  (the reliable FL Utilization feed)
    *
    * monitorportal draws the MP / FL / RWC totals with JavaScript AFTER load and
-   * blocks being framed, so a raw background fetch / hidden iframe only ever sees
-   * an empty app shell (this is exactly what the Monitor Pull Diagnostic reports).
-   * The only source that actually contains the numbers is a REAL rendered tab.
+   * blocks being framed, so a raw background fetch only ever sees an empty app
+   * shell. The only source that actually contains the numbers is a REAL rendered
+   * tab: it runs this userscript, reads its own totals (collectMonitor), and the
+   * dashboard re-navigates it every 15 min, so fresh FL Utilization numbers reach
+   * the Pace section every 15 minutes with no manual steps.
    *
-   * So the dashboard opens the graph in a real (background) browser tab. That tab
-   * runs this same userscript, reads its own rendered totals (collectMonitor),
-   * writes them to the shared bridge, and self-reloads every 15 minutes
-   * (maybeMonitorRefresh) — so fresh FL Utilization numbers reach the dashboard
-   * Pace section every 15 minutes with no manual steps.
-   *
-   * Each (type, period) tab uses a FIXED window name, so re-running this just
-   * refreshes the existing tabs (or reopens any the user closed) instead of
-   * piling up duplicates.
+   * Each (type, period) tab uses a FIXED window name, so re-running just refreshes
+   * the existing tab (or reopens one that was closed) instead of stacking dupes.
    ******************************************************************/
 
+  const monitorAllPeriods=()=>includeMETSelected()?['full','p1','p2','p3','met']:['full','p1','p2','p3'];
   const monitorTabName=(type,period)=>`PRC_LIVE_${type}_${period}`;
 
   function liveMonitorJobs(types,periods){
@@ -1489,129 +1357,9 @@
 
     const name=options.label || types.map(sourceLabel).join(' + ');
     updatePanel(readBridge(), opened
-      ? `Live ${name}: ${opened}/${jobs.length} tab(s) open &mdash; self-refresh every 15 min &rarr; Pace`
+      ? `Live ${name}: ${opened}/${jobs.length} tab(s) open &mdash; refresh every 15 min &rarr; Pace`
       : `Live ${name} blocked by the pop-up blocker. Allow pop-ups for this page, then click "Live FL Tabs".`);
     return opened>0;
-  }
-
-  /******************************************************************
-   * MONITOR PULL DIAGNOSTIC  (read-only; writes nothing to the bridge)
-   *
-   * Answers one question: does the raw background GM_xmlhttpRequest
-   * response for this graph contain the totals (the path a live pull
-   * would use), or are they only drawn in the live browser page?
-   * Renders its own box and never touches NEO / FCLM / roster data.
-   ******************************************************************/
-
-  function diagFmt(n){
-    return Number.isFinite(n) ? n.toLocaleString('en-US') : 'NOT FOUND';
-  }
-
-  function monitorDiagnosticSummary(text,type){
-    if(type==='belt'){
-      return {
-        hasLabel:/West\s*Side|East\s*Side/i.test(text),
-        values:[
-          ['West', numberAfterLabels(text,['West Side'])],
-          ['East', numberAfterLabels(text,['East Side'])]
-        ],
-        matches:(text.match(/(West|East)\s*Side[^\n<]{0,40}/gi)||[]).slice(0,6)
-      };
-    }
-    return {
-      hasLabel:/TOTAL\s+(MP|FL|RWC)/i.test(text),
-      values:[
-        ['MP', monitorMetricTotal(text,'MP')],
-        ['FL', monitorMetricTotal(text,'FL')],
-        ['RWC', monitorMetricTotal(text,'RWC')]
-      ],
-      matches:(text.match(/TOTAL\s+(MP|FL|RWC)[^\n<]{0,40}/gi)||[]).slice(0,6)
-    };
-  }
-
-  function renderMonitorDiagnostic(state){
-    const { type, liveInfo, rawInfo, rawError, rawHead, rawLen } = state;
-    const old=document.getElementById('prcMonitorDiag');
-    if(old) old.remove();
-
-    const box=document.createElement('div');
-    box.id='prcMonitorDiag';
-    box.style.cssText='position:fixed;top:14px;right:14px;z-index:2147483647;width:560px;max-height:90vh;overflow:auto;background:#020817;color:#e5edf8;border:2px solid #2563eb;border-radius:12px;padding:14px 16px;font:12px/1.45 Consolas,monospace;box-shadow:0 10px 30px rgba(0,0,0,.5);';
-
-    const r=(k,v)=>`<div style="display:flex;gap:8px;"><b style="min-width:165px;color:#93c5fd;">${k}</b><span>${v}</span></div>`;
-    const valuesLine=(info)=> info.values.map(([k,v])=>`${k} ${diagFmt(v)}`).join('  /  ');
-
-    const rawBlock = rawError ? `
-      <div style="font-weight:900;color:#fca5a5;margin:10px 0 4px;">RAW BACKGROUND FETCH (live-pull path)</div>
-      ${r('result','ERROR: '+rawError)}
-    ` : `
-      <div style="font-weight:900;color:#fde68a;margin:10px 0 4px;">RAW BACKGROUND FETCH (live-pull path)</div>
-      ${r('response length', diagFmt(rawLen)+' chars')}
-      ${r('label found?', rawInfo.hasLabel?'YES &#9989;':'NO &#10060;')}
-      ${r('values', valuesLine(rawInfo))}
-      ${r('label matches', rawInfo.matches.length?rawInfo.matches.join('  |  '):'(none)')}
-      <div style="font-weight:900;color:#93c5fd;margin:8px 0 2px;">first 600 chars of raw response:</div>
-      <textarea readonly style="width:100%;height:120px;background:#0b1220;color:#cbd5e1;border:1px solid #334155;border-radius:6px;font:11px/1.4 monospace;">${(rawHead||'').replace(/</g,'&lt;')}</textarea>
-    `;
-
-    const liveBlock = `
-      <div style="font-weight:900;color:#fde68a;margin:10px 0 4px;">LIVE RENDERED PAGE (on-page reader)</div>
-      ${r('label found?', liveInfo.hasLabel?'YES':'NO')}
-      ${r('values', valuesLine(liveInfo))}
-      ${r('label matches', liveInfo.matches.length?liveInfo.matches.join('  |  '):'(none)')}
-    `;
-
-    const verdict = rawError
-      ? '&#9888; Background fetch failed (see error). If 401/403, the raw fetch is not authenticated &rarr; we would read the live page instead.'
-      : (rawInfo.hasLabel
-          ? '&#9989; Numbers ARE in the raw response &rarr; the live background pull will work for this graph.'
-          : '&#10060; Numbers NOT in raw response (page draws them with JS) &rarr; live pull needs a different source.');
-
-    box.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-weight:900;font-size:14px;">Monitor Pull Diagnostic &mdash; ${type==='belt'?'Battle of the Belt':'FL Utilization'}</div>
-        <div>
-          <button id="prcMonitorDiagRerun" style="background:#2563eb;color:#fff;border:0;border-radius:6px;padding:4px 8px;cursor:pointer;margin-right:4px;">Re-run</button>
-          <button id="prcMonitorDiagClose" style="background:#1e293b;color:#fff;border:0;border-radius:6px;padding:4px 8px;cursor:pointer;">&#10005;</button>
-        </div>
-      </div>
-      <div style="margin:8px 0;padding:8px;border-radius:8px;background:#0b1220;font-weight:900;">${verdict}</div>
-      ${rawBlock}
-      ${liveBlock}
-      <div style="margin-top:10px;color:#94a3b8;">Screenshot this box and send it back. Tested URL = this page.</div>
-    `;
-    document.body.appendChild(box);
-    document.getElementById('prcMonitorDiagClose')?.addEventListener('click',()=>box.remove());
-    document.getElementById('prcMonitorDiagRerun')?.addEventListener('click',runMonitorDiagnostic);
-  }
-
-  function runMonitorDiagnostic(){
-    if(!isMonitor) return;
-    const type=classifyMonitorType()==='belt'?'belt':'flUtil';
-    const liveInfo=monitorDiagnosticSummary(monitorText(),type);
-
-    if(typeof GM_xmlhttpRequest!=='function'){
-      renderMonitorDiagnostic({type,liveInfo,rawError:'GM_xmlhttpRequest unavailable (check @grant)'});
-      return;
-    }
-
-    GM_xmlhttpRequest({
-      method:'GET',
-      url:location.href,
-      timeout:25000,
-      onload:(res)=>{
-        const raw=res.responseText||'';
-        if(res.status<200||res.status>=300){
-          renderMonitorDiagnostic({type,liveInfo,rawError:`HTTP ${res.status}`,rawHead:raw.slice(0,600),rawLen:raw.length});
-          return;
-        }
-        const doc=new DOMParser().parseFromString(raw,'text/html');
-        const rawInfo=monitorDiagnosticSummary(monitorTextFromDocument(doc),type);
-        renderMonitorDiagnostic({type,liveInfo,rawInfo,rawHead:raw.slice(0,600),rawLen:raw.length});
-      },
-      onerror:()=>renderMonitorDiagnostic({type,liveInfo,rawError:'request error (network/connect blocked)'}),
-      ontimeout:()=>renderMonitorDiagnostic({type,liveInfo,rawError:'request timed out'})
-    });
   }
 
   /******************************************************************
@@ -1650,19 +1398,7 @@
     periods.forEach((k,i)=>setTimeout(()=>openUrl(buildFclmUrl(k)),i*250));
   }
 
-  // Open the live FL Util / Belt graph tabs. Each tab self-collects on render and
-  // self-reloads every 10 minutes, feeding fresh numbers to the dashboard.
-  function openMonitorPeriods(types){
-    const periods=includeMETSelected()?['p1','p2','p3','met']:['p1','p2','p3'];
-    const builders=[];
-    if(types.includes('flUtil')) periods.forEach(k=>builders.push(()=>openUrl(buildMonitorFlUtilUrl(k))));
-    if(types.includes('belt')) periods.forEach(k=>builders.push(()=>openUrl(buildMonitorBeltUrl(k))));
-    builders.forEach((fn,i)=>setTimeout(fn,i*250));
-  }
-
   function openFullSetup(){
-    // Opens the dashboard + NEO + FCLM tabs. FL Utilization and Battle of the Belt
-    // are NOT opened as tabs anymore: the dashboard pulls them via hidden frames.
     openUrl(CONFIG.dashboardUrl);
     setTimeout(()=>openUrl(CONFIG.neoUrl),250);
     setTimeout(()=>openUrl(buildFclmUrl('full')),500);
@@ -1912,13 +1648,13 @@
           includeMonitor: false,
           source: 'fclm'
         });
-        // Real graph tabs are the only reliable FL/Belt source (see note above).
+        // Real graph tabs are the only reliable FL/Belt source (raw fetch is empty).
         openLiveMonitorTabs(['flUtil','belt']);
       }
     });
 
-    // Clicking this (a real user gesture) reliably gets past the pop-up blocker
-    // the first time; after that the tabs self-refresh every 15 min into Pace.
+    // A real click reliably clears the pop-up blocker the first time; after that
+    // the tabs self-refresh every 15 min into the Pace section.
     document.getElementById('openLiveTabs')?.addEventListener('click', () => {
       openLiveMonitorTabs(['flUtil','belt']);
     });
@@ -1935,10 +1671,9 @@
     const roster=payload.roster?.fluid||{};
     const includeMET=Boolean(payload.shift?.includeMET) || document.getElementById('useMET')?.value === 'true';
     const lastPull=payload.lastPull;
-
-    const row=(label,value,dim=false)=>
+const row=(label,value)=>
       `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:1px 0;">
-        <span style="color:${dim?'#64748b':'#94a3b8'};font-size:11px;">${label}</span>
+        <span style="color:#94a3b8;font-size:11px;">${label}</span>
         <span style="font-weight:700;text-align:right;">${value}</span>
       </div>`;
 
@@ -2009,26 +1744,6 @@
     setTimeout(()=>location.replace(buildFclmUrl(classifyFclmPeriod())),800);
   }
 
-  // monitorportal draws the totals with JavaScript, so they can only be read
-  // from a rendered tab. Each open FL Util / Belt graph tab self-collects and
-  // reloads every 15 minutes to keep the bridge -> dashboard numbers live.
-  // (Matches the page's own Reload dropdown set to 15 min — if you set that,
-  // both timers stay in sync and the totals refresh on the same cadence.)
-  let lastMonitorRefresh=GM_getValue('PRC_MONITOR_LAST_REFRESH_'+location.href.slice(0,90),0);
-
-  function maybeMonitorRefresh(){
-    if(!isMonitor) return;
-
-    if(now()-Number(lastMonitorRefresh||0)<15*60*1000) return;
-
-    lastMonitorRefresh=now();
-    GM_setValue('PRC_MONITOR_LAST_REFRESH_'+location.href.slice(0,90),lastMonitorRefresh);
-
-    try{ collectMonitor(); }catch(e){ log('monitor collect before reload failed',e); }
-
-    setTimeout(()=>location.reload(),1500);
-  }
-
   function run(){
     try{
       if(isNeo) collectNeo();
@@ -2042,19 +1757,7 @@
     }
   }
 
-  const inHiddenPullFrame = isMonitor && window.top !== window.self;
-
   function boot(){
-    if(inHiddenPullFrame){
-      // This instance is running inside a dashboard-created off-screen iframe.
-      // No UI: as the chart renders, write this graph's totals to a per-slot key
-      // that the dashboard merges (avoids cross-frame write races on the bridge).
-      [2500,5000,8000,12000,16000,20000,26000].forEach(ms=>setTimeout(()=>{
-        try{ storeMonitorSlotFromFrame(); }catch(e){ log('frame slot store failed',e); }
-      },ms));
-      return;
-    }
-
     createPanel();
 
     setTimeout(run,1300);
@@ -2076,11 +1779,9 @@
           pullFclmInBackground(event.data.periods,{
             shiftDate: event.data.shiftDate,
             includeMET: event.data.includeMET,
-            includeMonitor: false,
+            includeMonitor: event.data.includeMonitor,
             source: event.data.includeMonitor ? 'all' : 'fclm'
           });
-          // Live monitor numbers only exist in a rendered tab (see note above).
-          if(event.data.includeMonitor) openLiveMonitorTabs(['flUtil','belt']);
         }
         if(event.data?.type==='PRC_V2_HYBRID_SOURCE_PULL'){
           const source=event.data.source || 'all';
@@ -2095,15 +1796,14 @@
             return;
           }
           if(source==='flUtil'){
-            openLiveMonitorTabs(['flUtil']);
+            pullMonitorInBackground(periods,['flUtil'],'flUtil');
             return;
           }
           if(source==='belt'){
-            openLiveMonitorTabs(['belt']);
+            pullMonitorInBackground(periods,['belt'],'belt');
             return;
           }
-          pullFclmInBackground(periods,{...options,includeMonitor:false});
-          openLiveMonitorTabs(['flUtil','belt']);
+          pullFclmInBackground(periods,{...options,includeMonitor:true,monitorTypes:['flUtil','belt']});
         }
         if(event.data?.type==='PRC_V2_HYBRID_RESET'){
           const saved=writeBridge(event.data.payload||emptyBridge());
@@ -2119,23 +1819,12 @@
     }
 
     if(isDashboard){
-      // LIVE FL Utilization feed. monitorportal renders the MP/FL/RWC totals with
-      // JavaScript and blocks being framed, so the old raw-fetch / hidden-iframe
-      // path only ever saw an empty shell (this is exactly what the Monitor Pull
-      // Diagnostic showed). The reliable source is a REAL graph tab: it runs this
-      // userscript, reads the rendered totals, and self-reloads every 15 min,
-      // writing straight to the bridge -> dashboard Pace section.
-      //
-      // Open once on load, then re-run every 15 min to refresh the tabs (reusing
-      // their fixed window names) and reopen any that were closed. Only the monitor
-      // branch of the bridge is touched, so NEO / FCLM / roster are unaffected.
-      //
-      // Auto pop-ups can be blocked on first load — if so, the panel's "Live FL
-      // Tabs" button (a real click) opens them once and grants pop-up permission.
-      //
-      // Automatic feed = ONE cumulative full-shift FL Utilization tab (the natural
-      // Pace source). The panel button / Collect Now open the full per-period set
-      // (and Belt) when you want the detailed breakdown.
+      // LIVE FL Utilization feed via a REAL graph tab. monitorportal renders the
+      // totals with JS and blocks framing, so a raw fetch returns an empty shell;
+      // a real tab is the only source with the numbers. Open one cumulative
+      // full-shift FL tab and re-navigate it every 15 min so fresh OB / FL / MP /
+      // RWC numbers reach the Pace section. Pop-ups may be blocked on first load —
+      // use the panel's "Live FL Tabs" button once to grant pop-up permission.
       const autoLive=()=>openLiveMonitorTabs(['flUtil'],{periods:['full'],label:'FL Utilization (full shift)'});
       setTimeout(autoLive,6000);
       setInterval(autoLive,15*60*1000);
@@ -2148,25 +1837,8 @@
         includeMonitor:false,
         source:'fclm'
       });
-      setTimeout(autoFclm,8000);
+      setTimeout(autoFclm,7000);
       setInterval(autoFclm,5*60*1000);
-    }
-
-    if(isMonitor){
-      // LIVE TAB MODE: leave this graph tab open with the page's Reload dropdown
-      // set to 15 min. The chart renders async, so try collecting at staggered
-      // delays after load, then keep re-collecting every 60s — whenever the page
-      // redraws (its own Reload timer or ours), fresh totals reach the dashboard
-      // within a minute. collectMonitor() skips writes until numbers actually
-      // appear, so empty renders never overwrite good data.
-      const tryCollect=()=>{ try{ collectMonitor(); }catch(e){ log('monitor collect failed',e); } };
-      [4000,8000,15000,25000].forEach(ms=>setTimeout(tryCollect,ms));
-      setInterval(tryCollect,60*1000);
-      setInterval(maybeMonitorRefresh,10000);
-      // The big diagnostic box is noisy on a live feed tab, so it no longer pops
-      // up automatically. Re-enable it on demand with:
-      //   GM_setValue('PRC_MONITOR_DIAG', true)   (then reload a graph tab)
-      if(GM_getValue('PRC_MONITOR_DIAG',false)) setTimeout(runMonitorDiagnostic,4500);
     }
 
     updatePanel(readBridge());
