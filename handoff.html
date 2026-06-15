@@ -237,7 +237,7 @@
           <div class="grid-2">
             <div class="field">
               <label>Side / Title</label>
-              <input type="text" id="title" placeholder="EAST SIDE" />
+              <input type="text" id="title" placeholder="WEST SIDE" />
             </div>
             <div class="field">
               <label>Title suffix</label>
@@ -521,7 +521,7 @@
 
       /* Header block */
       var header = [];
-      var title = v("title") || "EAST SIDE";
+      var title = v("title") || "WEST SIDE";
       var suffix = v("titleSuffix") || "Hand-off notes";
       header.push(title + " " + suffix);
       if (v("greeting")) header.push(v("greeting"));
