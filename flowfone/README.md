@@ -68,6 +68,15 @@ DockFlow tab open and you'll see updates from your phone while you walk around.
    (it ends in `/exec`).
    - Tip: paste that URL in a browser — you should see
      `{"ok":true,"app":"FlowFone",...}`. That confirms it's live.
+   - Reload the Sheet tab: a new **FlowFone** menu appears. Use
+     **FlowFone → ① Show Web App URL** to copy the exact `/exec` URL and your
+     token, and **② Create / reset tabs** to make the `Live` tab.
+
+> 🚨 **Two traps that cause "nothing happens":**
+> 1. Use the **`/exec`** URL, *not* the `/dev` one. The `/dev` URL requires you
+>    to be logged into Google and will fail from the userscript.
+> 2. Data lands in the **`Live`** tab the script creates — **not** in `Sheet1`.
+>    If `Sheet1` looks empty, look at the `Live` tab at the bottom.
 
 ### 2) Install the userscript
 1. Install **Tampermonkey** in your laptop browser.
@@ -83,10 +92,18 @@ DockFlow tab open and you'll see updates from your phone while you walk around.
    - **Shared token** → the exact same value as `CONFIG.TOKEN`
    - **Every (sec)** → e.g. `60`
    - **Reload (min)** → `0` to start (see freshness note below)
-3. Click **Push now**. Status should read `✓ pushed (N rows) @ hh:mm:ss`.
-4. Check the Sheet — a **`Live`** tab now holds the table, with the last-updated
-   time in row 1.
-5. Click **Start** to push on the interval. (It remembers this and auto-starts
+3. Click **Test** first. This only checks the web app (no scraping):
+   - `✓ web app reachable (FlowFone)` → URL + deployment are good. Continue.
+   - `✗ got an HTML/login page …` → access isn't **Anyone**, or you used the
+     `/dev` URL. Re-deploy and copy the `/exec` URL.
+   - `✗ cannot reach URL` → the URL is wrong/empty.
+4. Click **Push now**. Status should read `✓ pushed (N rows) @ hh:mm:ss`.
+   - `✗ failed — bad token` → panel token ≠ `CONFIG.TOKEN`. Make them identical.
+   - `No Sorter table found` → the page hasn't rendered the table yet, or you're
+     on a login screen. Wait a few seconds and retry.
+5. Check the Sheet's **`Live`** tab (bottom of the spreadsheet) — the table is
+   there, with the last-updated time in row 1.
+6. Click **Start** to push on the interval. (It remembers this and auto-starts
    next time you open the page.)
 
 ### 4) On your phone

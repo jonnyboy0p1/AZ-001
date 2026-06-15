@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         FlowFone — DockFlow Sorter → Google Sheets
 // @namespace    flowfone.dockflow
-// @version      1.0.0
+// @version      1.1.0
 // @description  Scrape the DockFlow Sorter workcell table in your logged-in browser tab and push it to a Google Sheet, so you can watch it from your phone while away from the laptop.
 // @author       you
 // @match        https://prod-na.dockflow.robotics.a2z.com/*
@@ -166,6 +166,45 @@
     });
   }
 
+  // ── Connection test (proves the web app is reachable, before scraping) ───────
+  function testConnection() {
+    const cfg = getCfg();
+    if (!cfg.url) {
+      setStatus("Set the Web App URL first", true);
+      return;
+    }
+    setStatus("Testing web app…");
+    GM_xmlhttpRequest({
+      method: "GET",
+      url: cfg.url,
+      timeout: 20000,
+      onload: function (res) {
+        let ok = false;
+        let info = "HTTP " + res.status;
+        const txt = (res.responseText || "").trim();
+        try {
+          const j = JSON.parse(txt);
+          if (j.ok) { ok = true; info = "reachable (" + (j.app || "ok") + ")"; }
+          else info = j.error || info;
+        } catch (e) {
+          // Not JSON → almost always a Google login/HTML page.
+          if (txt.charAt(0) === "<") {
+            info = 'got an HTML/login page — set access to "Anyone" and use the /exec URL';
+          } else if (txt) {
+            info = txt.slice(0, 80);
+          }
+        }
+        setStatus((ok ? "✓ web app " : "✗ ") + info, !ok);
+      },
+      onerror: function () {
+        setStatus("✗ cannot reach URL (wrong URL, or not deployed)", true);
+      },
+      ontimeout: function () {
+        setStatus("✗ timeout reaching web app", true);
+      },
+    });
+  }
+
   // ── Scheduler ───────────────────────────────────────────────────────────────
   let timer = null;
   let reloadTimer = null;
@@ -231,6 +270,7 @@
     #flowfone #ff-toggle { background: #38a169; }
     #flowfone #ff-toggle.on { background: #e53e3e; }
     #flowfone #ff-now { background: #3a4a63; }
+    #flowfone #ff-test { background: #2d6a9f; }
     #flowfone .ff-status {
       font-size: 11px; padding: 6px 8px; border-radius: 5px; background: #0f1626;
       color: #9fb3c8; min-height: 16px; word-break: break-word;
@@ -262,6 +302,7 @@
         </div>
         <div class="ff-status" id="ff-status">Idle.</div>
         <div class="ff-actions">
+          <button id="ff-test">Test</button>
           <button id="ff-now">Push now</button>
           <button id="ff-toggle">Start</button>
         </div>
@@ -299,6 +340,7 @@
       c.minimized = panel.classList.contains("min");
       saveCfg(c);
     });
+    panel.querySelector("#ff-test").addEventListener("click", () => { persist(); testConnection(); });
     panel.querySelector("#ff-now").addEventListener("click", () => { persist(); push(); });
     elToggle.addEventListener("click", () => {
       persist();

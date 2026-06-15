@@ -29,6 +29,59 @@ var CONFIG = {
   MAX_HISTORY_ROWS: 5000,      // older history rows are trimmed beyond this
 };
 
+// ── In-Sheet helper menu (appears after you reload the Sheet) ─────────────────
+// Removes the guesswork: shows the exact URL to paste, creates the tabs, and
+// reports whether data is arriving.
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('FlowFone')
+    .addItem('① Show Web App URL', 'showWebAppUrl')
+    .addItem('② Create / reset tabs', 'setupSheets')
+    .addItem('③ Connection status', 'showStatus')
+    .addToUi();
+}
+
+function showWebAppUrl() {
+  var ui = SpreadsheetApp.getUi();
+  var url = ScriptApp.getService().getUrl();
+  if (!url) {
+    ui.alert('FlowFone — not deployed yet',
+      'Deploy → New deployment → Web app\n' +
+      '   • Execute as: Me\n' +
+      '   • Who has access: Anyone\n' +
+      'then Deploy, approve access, and run this menu item again.',
+      ui.ButtonSet.OK);
+    return;
+  }
+  ui.alert('FlowFone — paste this into the panel',
+    'Web App URL (must end in /exec):\n\n' + url + '\n\n' +
+    'Shared token to enter in the panel:\n' + (CONFIG.TOKEN || '(none — token check is off)'),
+    ui.ButtonSet.OK);
+}
+
+function setupSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName(CONFIG.LIVE_SHEET)) ss.insertSheet(CONFIG.LIVE_SHEET);
+  if (CONFIG.KEEP_HISTORY && !ss.getSheetByName(CONFIG.HISTORY_SHEET)) {
+    ss.insertSheet(CONFIG.HISTORY_SHEET);
+  }
+  SpreadsheetApp.getUi().alert('FlowFone',
+    'Ready. Pushed data lands in the "' + CONFIG.LIVE_SHEET + '" tab — ' +
+    'not Sheet1. Check that tab at the bottom of the spreadsheet.',
+    SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function showStatus() {
+  var ui = SpreadsheetApp.getUi();
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.LIVE_SHEET);
+  var when = sheet ? sheet.getRange(1, 2).getValue() : null;
+  ui.alert('FlowFone status',
+    'Live tab: ' + (sheet ? 'exists' : 'missing — run ②') + '\n' +
+    'Last update received: ' + (when ? when : 'never (nothing pushed yet)') + '\n' +
+    'Token required: ' + (CONFIG.TOKEN ? 'yes' : 'no'),
+    ui.ButtonSet.OK);
+}
+
 // ── POST: receive a snapshot ──────────────────────────────────────────────────
 function doPost(e) {
   var out = ContentService.createTextOutput();
