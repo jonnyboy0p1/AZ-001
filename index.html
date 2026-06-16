@@ -7334,6 +7334,16 @@ function bridgePullRequestPayload(source) {
 }
 
 function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
+  // Prefer the local Midway proxy (SSO, no Tampermonkey). Falls back to the
+  // userscript bridge below when the proxy isn't running / authenticated.
+  if (window.MidwayBridge?.available) {
+    const sources = source === 'fclm' ? ['fclm']
+      : source === 'flUtil' ? ['flUtil']
+      : source === 'belt' ? ['belt']
+      : ['fclm', 'flUtil', 'belt', 'roster'];
+    window.MidwayBridge.pull({ sources, source, label: bridgeSourceLabel(source) });
+    return;
+  }
   const payload = bridgePullRequestPayload(source);
   window.postMessage({
     type: 'PRC_V2_HYBRID_SOURCE_PULL',
@@ -7348,6 +7358,15 @@ function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
 }
 
 function requestFclmPull(source = 'manual') {
+  // Prefer the local Midway proxy (SSO). Falls back to the userscript below.
+  if (window.MidwayBridge?.available) {
+    window.MidwayBridge.pull({
+      sources: ['fclm', 'flUtil', 'belt'],
+      source: 'all',
+      label: 'FCLM + FL Utilization + Battle of the Belt'
+    });
+    return;
+  }
   const includeMET = $('useMET')?.value === 'true';
   const periods = pullPeriodsForShift();
   window.postMessage({
@@ -7795,6 +7814,459 @@ function init() {
 
 init();
 
+  </script>
+
+  <!-- ============================================================
+       MIDWAY PROXY BRIDGE  (native — no Tampermonkey required)
+       Pulls FCLM / MonitorPortal / Fluid Roster through the local
+       Midway proxy (proxy.py) and fills the dashboard bridge via the
+       same importBridgePayload() path the userscript uses. Falls back
+       to the Tampermonkey userscript automatically when the proxy is
+       not running. NEO stays on the userscript / manual entry.
+       ============================================================ -->
+  <script>
+  (function () {
+    'use strict';
+
+    // Tell the (updated) userscript a native bridge owns this page, so it
+    // stays headless here and never draws its floating black box.
+    try { document.documentElement.dataset.prcNativeBridge = '1'; } catch (e) {}
+
+    const PROXY_BASE = (function () {
+      try { return localStorage.getItem('PRC_PROXY_BASE') || 'http://localhost:8765'; }
+      catch (e) { return 'http://localhost:8765'; }
+    })();
+
+    const WAREHOUSE = 'RFD2';
+    const PROCESS_ID = '1003021';
+    const FLUID_ROSTER_URL = 'https://zone-ra.amazon.dev/roster/rfd2/ob/fluid/';
+
+    const state = { reachable: false, usable: false, cookie: 'unknown', busy: false, announced: false };
+
+    // ---- tiny local helpers (scoped; do not touch page globals) ----
+    const pad2 = (n) => String(n).padStart(2, '0');
+    const nowTs = () => Date.now();
+    function cleanText(s) { return String(s || '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim(); }
+    function normalizeText(s) { return cleanText(s).replace(/[–—]/g, '-').toLowerCase(); }
+    function parseNumber(v) { if (v == null || v === '') return NaN; const n = Number(String(v).replace(/,/g, '').replace(/[^0-9.\-]/g, '').trim()); return Number.isFinite(n) ? n : NaN; }
+    function extractNumbers(t) { const m = String(t || '').match(/-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?/g); return (m || []).map(parseNumber).filter(Number.isFinite); }
+    function firstNumberOutsideParens(t) { const nums = extractNumbers(String(t || '').replace(/\([^)]*\)/g, ' ')); return nums.length ? nums[0] : NaN; }
+    function fmtNum(n) { const x = parseNumber(n); return Number.isFinite(x) ? x.toLocaleString('en-US') : '--'; }
+
+    // ============================================================
+    //  SHIFT WINDOWS + URL BUILDERS  (ported from the userscript)
+    // ============================================================
+    function getOffsetMinutes(date, timeZone) {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'shortOffset', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+      const tzName = parts.find((p) => p.type === 'timeZoneName')?.value || 'GMT-0';
+      const match = tzName.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/i);
+      if (!match) return 0;
+      const h = Number(match[1]), m = Number(match[2] || 0), sign = h >= 0 ? 1 : -1;
+      return h * 60 + sign * m;
+    }
+    function zonedParts(date, timeZone) {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+      const map = {}; for (const p of parts) map[p.type] = p.value;
+      return { year: Number(map.year), month: Number(map.month), day: Number(map.day), hour: Number(map.hour), minute: Number(map.minute) };
+    }
+    function addDays(y, m, d, days) { const x = new Date(Date.UTC(y, m - 1, d + days, 12, 0, 0)); return { year: x.getUTCFullYear(), month: x.getUTCMonth() + 1, day: x.getUTCDate() }; }
+    function ymd(o, slash) { const sep = slash ? '/' : '-'; return `${o.year}${sep}${pad2(o.month)}${sep}${pad2(o.day)}`; }
+    function parseShiftDate(value) { const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) } : null; }
+
+    function shiftStartDate(shiftDate) {
+      const picked = parseShiftDate(shiftDate);
+      if (picked) return picked;
+      const c = zonedParts(new Date(), 'America/Chicago');
+      return c.hour < 12 ? addDays(c.year, c.month, c.day, -1) : { year: c.year, month: c.month, day: c.day };
+    }
+
+    function windows(shiftDate, includeMET) {
+      const start = shiftStartDate(shiftDate), next = addDays(start.year, start.month, start.day, 1);
+      return {
+        shiftDate: ymd(start, false),
+        full: { key: 'full', startDate: start, endDate: next, sh: 19, sm: 0, eh: includeMET ? 6 : 5, em: 30 },
+        p1: { key: 'p1', startDate: start, endDate: start, sh: 19, sm: 0, eh: 23, em: 0 },
+        p2: { key: 'p2', startDate: start, endDate: next, sh: 23, sm: 30, eh: 2, em: 30 },
+        p3: { key: 'p3', startDate: next, endDate: next, sh: 3, sm: 0, eh: 5, em: 30 },
+        met: { key: 'met', startDate: next, endDate: next, sh: 5, sm: 30, eh: 6, em: 30 }
+      };
+    }
+
+    function buildFclmUrl(key, shiftDate, includeMET) {
+      const w = windows(shiftDate, includeMET)[key] || windows(shiftDate, includeMET).full;
+      const u = new URL('https://fclm-portal.amazon.com/reports/functionRollup');
+      u.searchParams.set('reportFormat', 'HTML');
+      u.searchParams.set('warehouseId', WAREHOUSE);
+      u.searchParams.set('processId', PROCESS_ID);
+      u.searchParams.set('maxIntradayDays', '1');
+      u.searchParams.set('spanType', 'Intraday');
+      u.searchParams.set('startDateIntraday', ymd(w.startDate, true));
+      u.searchParams.set('startHourIntraday', String(w.sh));
+      u.searchParams.set('startMinuteIntraday', String(w.sm));
+      u.searchParams.set('endDateIntraday', ymd(w.endDate, true));
+      u.searchParams.set('endHourIntraday', String(w.eh));
+      u.searchParams.set('endMinuteIntraday', String(w.em));
+      return u.toString();
+    }
+
+    function localTimeToUtcIso(day, hour, minute) {
+      const roughUtc = new Date(Date.UTC(day.year, day.month - 1, day.day, hour, minute));
+      const offsetMinutes = getOffsetMinutes(roughUtc, 'America/Chicago');
+      return new Date(roughUtc.getTime() - offsetMinutes * 60 * 1000).toISOString().replace('.000Z', 'Z');
+    }
+    function applyMonitorWindow(url, key, title, shiftDate, includeMET) {
+      const w = windows(shiftDate, includeMET)[key] || windows(shiftDate, includeMET).full;
+      url.searchParams.set('GraphTitle', `${title} - ${(key || 'full').toUpperCase()}`);
+      url.searchParams.set('TZ', 'America/Chicago@TZ: Chicago');
+      url.searchParams.set('StartTime1', localTimeToUtcIso(w.startDate, w.sh, w.sm));
+      url.searchParams.set('EndTime1', localTimeToUtcIso(w.endDate, w.eh, w.em));
+      return url;
+    }
+    function buildMonitorFlUtilUrl(key, shiftDate, includeMET) {
+      const u = new URL('https://monitorportal.amazon.com/igraph');
+      ['MP', 'FL', 'RP'].forEach((dest, index) => {
+        const n = index + 1;
+        u.searchParams.set(`SchemaName${n}`, 'Search');
+        u.searchParams.set(`Pattern${n}`, `dataset=$Prod$ schemaname=Service marketplace=$RFD2-MainSorter1Controller$ hostgroup=$ALL$ host=$ALL$ servicename=$WarehouseControlService$ methodname=$SortationOrchestrator.divert$ client=$ALL$ metricclass=$NONE$ instance=$NONE$ schemaname=Service metric=$finalActualDestination-${dest} AND :SUCCESS$`);
+      });
+      u.searchParams.set('Period1', 'OneMinute');
+      u.searchParams.set('Stat1', 'sum');
+      u.searchParams.set('HeightInPixels', '300');
+      u.searchParams.set('WidthInPixels', '600');
+      u.searchParams.set('DecoratePoints', 'true');
+      u.searchParams.set('GraphType', 'pie');
+      ['MP', 'FL', 'RWC'].forEach((label, index) => {
+        const n = index + 1;
+        u.searchParams.set(`FunctionExpression${n}`, `SUM(S${n})`);
+        u.searchParams.set(`FunctionLabel${n}`, `TOTAL ${label}[total: {sum}]`);
+        u.searchParams.set(`FunctionYAxisPreference${n}`, 'left');
+      });
+      return applyMonitorWindow(u, key, 'FL Utilization', shiftDate, includeMET).toString();
+    }
+    function buildMonitorBeltUrl(key, shiftDate, includeMET) {
+      const u = new URL('https://monitorportal.amazon.com/igraph');
+      const westBelts = [350, 355, 354, 353, 352, 351, 349, 348, 347, 346, 345, 344, 343, 342, 341, 340, 339, 338];
+      const eastBelts = Array.from({ length: 19 }, (_, i) => 104 + i);
+      const allBelts = [null, ...westBelts, ...eastBelts];
+      allBelts.forEach((belt, index) => {
+        const n = index + 1;
+        const metric = belt ? `actDestStatus-FL_${belt} SUCCESS` : 'actDestStatus-FL SUCCESS';
+        u.searchParams.set(`SchemaName${n}`, 'Search');
+        u.searchParams.set(`Pattern${n}`, `RFD2 FL SUCCESS metric=$${metric}$ schemaname=Service methodname=$SortationOrchestrator.divert$`);
+      });
+      u.searchParams.set('Period1', 'FiveMinute');
+      u.searchParams.set('Stat1', 'sum');
+      u.searchParams.set('HeightInPixels', '500');
+      u.searchParams.set('WidthInPixels', '1460');
+      u.searchParams.set('DecoratePoints', 'true');
+      u.searchParams.set('GraphType', 'pie');
+      u.searchParams.set('LabelLeft', 'Total Number of Totes');
+      u.searchParams.set('FunctionExpression1', `SUM(${westBelts.map((_, i) => `S${i + 2}`).join(',')})`);
+      u.searchParams.set('FunctionLabel1', '{West Side}');
+      u.searchParams.set('FunctionYAxisPreference1', 'left');
+      u.searchParams.set('FunctionExpression2', `SUM(${eastBelts.map((_, i) => `S${i + 20}`).join(',')})`);
+      u.searchParams.set('FunctionLabel2', '{East Side}');
+      u.searchParams.set('FunctionYAxisPreference2', 'left');
+      return applyMonitorWindow(u, key, 'Battle of the Belt II (Successful Divert)', shiftDate, includeMET).toString();
+    }
+
+    // ============================================================
+    //  PARSERS  (ported from the userscript, doc-based)
+    // ============================================================
+    function parseFclmDocument(doc, period) {
+      const textEls = () => Array.from(doc.querySelectorAll('td,th,div,span,a')).filter((el) => cleanText(el.textContent));
+      const exact = (text) => { const t = cleanText(text).toLowerCase(); return textEls().find((el) => cleanText(el.textContent).toLowerCase() === t) || null; };
+      const containing = (text) => { const t = cleanText(text).toLowerCase(); return textEls().find((el) => cleanText(el.textContent).toLowerCase().includes(t)) || null; };
+      const rowCells = (row) => row ? Array.from(row.querySelectorAll('td,th')).map((c) => cleanText(c.textContent)) : [];
+      const numsInRow = (row) => rowCells(row).map(parseNumber).filter(Number.isFinite);
+      const sectionTotal = (sectionLabel) => {
+        const sectionEl = exact(sectionLabel) || containing(sectionLabel);
+        const sectionRow = sectionEl ? sectionEl.closest('tr') : null;
+        if (!sectionRow) return NaN;
+        let row = sectionRow, safety = 0;
+        while (row && safety < 30) {
+          const cells = rowCells(row).map((t) => t.toLowerCase());
+          const rowText = cleanText(row.textContent).toLowerCase();
+          if (cells.includes('total') || rowText.includes(' total ')) {
+            const nums = numsInRow(row);
+            const jobs = nums.find((n) => Number.isInteger(n) && n > 0);
+            if (Number.isFinite(jobs)) return jobs;
+          }
+          row = row.nextElementSibling; safety++;
+        }
+        return NaN;
+      };
+      const wallBuilder = () => {
+        const wbEl = exact('Wall Builder') || containing('Wall Builder');
+        const wbRow = wbEl ? wbEl.closest('tr') : null;
+        if (!wbRow) return NaN;
+        let row = wbRow, safety = 0;
+        while (row && safety < 16) {
+          const cells = rowCells(row).map((t) => t.toLowerCase());
+          const rowText = cleanText(row.textContent).toLowerCase();
+          if (cells.includes('total') || rowText.includes(' total ')) {
+            const nums = numsInRow(row);
+            const dec = nums.find((n) => !Number.isInteger(n) && n > 0);
+            if (Number.isFinite(dec)) return dec;
+            const fallback = nums.find((n) => n > 0);
+            if (Number.isFinite(fallback)) return fallback;
+          }
+          row = row.nextElementSibling; safety++;
+        }
+        return NaN;
+      };
+      const totesJobs = sectionTotal('Fluid Load - Tote');
+      const casesJobs = sectionTotal('Fluid Load - Case');
+      const totalJobs = (Number.isFinite(totesJobs) ? totesJobs : 0) + (Number.isFinite(casesJobs) ? casesJobs : 0);
+      const wallBuilderRate = wallBuilder();
+      const jplh = Number.isFinite(wallBuilderRate) && wallBuilderRate > 0 ? totalJobs / wallBuilderRate : NaN;
+      return { totesJobs, casesJobs, totalJobs, wallBuilderRate, jplh, updatedAt: nowTs(), period };
+    }
+
+    function monitorTextFromDocument(doc) {
+      const parts = [cleanText(doc.body?.innerText || doc.body?.textContent || '')];
+      doc.querySelectorAll('svg text,text,td,th,div,span,a').forEach((el) => { const t = cleanText(el.textContent); if (t) parts.push(t); });
+      return parts.join('\n');
+    }
+    function numberAfterLabels(text, labels) {
+      for (const label of labels) {
+        const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const patterns = [
+          new RegExp(`${escaped}\\s*\\[?\\s*total\\s*:?\\s*([\\d,]+(?:\\.\\d+)?)`, 'i'),
+          new RegExp(`${escaped}\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`, 'i'),
+          new RegExp(`\\{?${escaped}\\}?\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`, 'i')
+        ];
+        for (const pattern of patterns) { const match = text.match(pattern); if (match) return parseNumber(match[1]); }
+      }
+      return NaN;
+    }
+    function monitorMetricTotal(text, label) {
+      const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const patterns = [
+        new RegExp(`TOTAL\\s+${escaped}\\s*\\[\\s*total\\s*:\\s*([\\d,]+(?:\\.\\d+)?)\\s*\\]`, 'i'),
+        new RegExp(`TOTAL\\s+${escaped}\\s*\\{?\\s*total\\s*:?\\s*([\\d,]+(?:\\.\\d+)?)`, 'i'),
+        new RegExp(`TOTAL\\s+${escaped}\\s*[:\\-]?\\s*([\\d,]+(?:\\.\\d+)?)`, 'i')
+      ];
+      for (const pattern of patterns) { const match = text.match(pattern); if (match) return parseNumber(match[1]); }
+      return numberAfterLabels(text, [`TOTAL ${label}`, label]);
+    }
+    function parseMonitorPayload(type, period, doc) {
+      const text = monitorTextFromDocument(doc);
+      if (type === 'flUtil') {
+        const mp = monitorMetricTotal(text, 'MP'), fl = monitorMetricTotal(text, 'FL'), rwc = monitorMetricTotal(text, 'RWC');
+        return { flUtil: { mp: Number.isFinite(mp) ? mp : undefined, fl: Number.isFinite(fl) ? fl : undefined, rwc: Number.isFinite(rwc) ? rwc : undefined, updatedAt: nowTs(), period } };
+      }
+      const west = numberAfterLabels(text, ['West Side']), east = numberAfterLabels(text, ['East Side']);
+      return { belt: { east: Number.isFinite(east) ? east : undefined, west: Number.isFinite(west) ? west : undefined, updatedAt: nowTs(), period } };
+    }
+
+    function rosterSectionsFromText(doc) {
+      const text = doc.body?.innerText || doc.body?.textContent || '';
+      const sections = [], seen = new Set();
+      const linePattern = /\b([A-Z][A-Z0-9 -]{1,40}?)\s+(\d+)\s*\/\s*(\d+)\b/g;
+      const lines = text.split(/\n+/).map(cleanText).filter(Boolean);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]; if (!line) continue;
+        linePattern.lastIndex = 0; let match;
+        while ((match = linePattern.exec(line))) {
+          const label = cleanText(match[1]);
+          if (!/[A-Z]/.test(label) || /^DD\d+/i.test(label)) continue;
+          const current = parseNumber(match[2]), target = parseNumber(match[3]);
+          if (!Number.isFinite(current) || !Number.isFinite(target)) continue;
+          const key = `${label}|${current}|${target}`; if (seen.has(key)) continue; seen.add(key);
+          sections.push({ label, current, target, gap: current - target });
+        }
+        const nextLine = lines[i + 1] || '';
+        const adjacentMatch = nextLine.match(/^(\d+)\s*\/\s*(\d+)$/);
+        if (adjacentMatch && /^[A-Z][A-Z0-9 -]{1,40}$/.test(line) && !/^DD\d+/i.test(line)) {
+          const current = parseNumber(adjacentMatch[1]), target = parseNumber(adjacentMatch[2]);
+          const key = `${line}|${current}|${target}`;
+          if (Number.isFinite(current) && Number.isFinite(target) && !seen.has(key)) { seen.add(key); sections.push({ label: line, current, target, gap: current - target }); }
+        }
+      }
+      return sections;
+    }
+    function normalizeFluidRosterBuckets(sections) {
+      const buckets = [
+        { key: 'west', label: 'WEST-DOORS', fallbackTarget: 34 },
+        { key: 'east', label: 'EAST-DOORS', fallbackTarget: 36 },
+        { key: 'floater', label: 'FLOATER', fallbackTarget: 4 }
+      ];
+      return buckets.map((bucket) => {
+        const hit = (sections || []).find((item) => {
+          const label = normalizeText(item.label);
+          if (bucket.key === 'floater') return label.includes('floater');
+          return label.includes(bucket.key) && label.includes('doors');
+        });
+        const current = hit && Number.isFinite(parseNumber(hit.current)) ? parseNumber(hit.current) : 0;
+        const target = hit && Number.isFinite(parseNumber(hit.target)) ? parseNumber(hit.target) : bucket.fallbackTarget;
+        return { label: bucket.label, current, target, gap: current - target };
+      });
+    }
+
+    // ============================================================
+    //  PROXY TRANSPORT
+    // ============================================================
+    async function proxyFetch(url) {
+      let res;
+      try {
+        res = await fetch(`${PROXY_BASE}/fetch?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(30000) });
+      } catch (e) {
+        return { ok: false, error: e?.name === 'TimeoutError' ? 'timeout' : 'proxy unreachable' };
+      }
+      if (res.headers.get('X-Proxy-Auth-Error') === 'true') return { ok: false, authError: true, error: 'auth_required' };
+      const ct = res.headers.get('X-Upstream-Content-Type') || res.headers.get('Content-Type') || '';
+      const text = await res.text();
+      if (ct.includes('application/json')) {
+        try { const j = JSON.parse(text); return { ok: false, error: j.error || 'proxy error', authError: j.error === 'auth_required' }; } catch (e) {}
+      }
+      return { ok: true, text };
+    }
+    function toDoc(html) { return new DOMParser().parseFromString(html || '', 'text/html'); }
+
+    async function probe() {
+      try {
+        const res = await fetch(`${PROXY_BASE}/health`, { signal: AbortSignal.timeout(2500) });
+        const j = await res.json();
+        state.reachable = true;
+        state.cookie = j.status || 'unknown';
+        state.usable = j.status === 'ok' || j.status === 'stale' || !!j.manualCookie;
+      } catch (e) {
+        state.reachable = false; state.usable = false; state.cookie = 'offline';
+      }
+      reflect();
+      return state.usable;
+    }
+
+    function reflect() {
+      const el = document.getElementById('liveMetricsBridgeState');
+      if (el && state.usable && !el.dataset.userscriptOwned) {
+        el.textContent = `Midway proxy connected (SSO ${state.cookie})`;
+      }
+      if (state.usable && !state.announced) {
+        state.announced = true;
+        try { window.updateMiniStatus && window.updateMiniStatus('Midway proxy connected — pulling sources via SSO.'); } catch (e) {}
+      }
+    }
+
+    // ============================================================
+    //  BRIDGE ASSEMBLY + PULL ORCHESTRATION
+    // ============================================================
+    function freshBridge(shiftDate, includeMET) {
+      return { shift: { shiftDate, includeMET, refreshMinutes: 15 }, neo: null, fclmPeriods: {}, fclmFull: {}, monitorPeriods: {}, monitorFull: {}, roster: {} };
+    }
+    function baseBridge(shiftDate, includeMET) {
+      let prev = null;
+      try { prev = JSON.parse(localStorage.getItem('OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE') || 'null'); } catch (e) {}
+      const sameShift = prev && prev.shift && prev.shift.shiftDate === windows(shiftDate, includeMET).shiftDate && Boolean(prev.shift.includeMET) === Boolean(includeMET);
+      const b = sameShift ? prev : freshBridge(shiftDate, includeMET);
+      b.shift = { shiftDate: windows(shiftDate, includeMET).shiftDate, includeMET, refreshMinutes: 15 };
+      b.fclmPeriods = b.fclmPeriods || {}; b.fclmFull = b.fclmFull || {};
+      b.monitorPeriods = b.monitorPeriods || {}; b.monitorFull = b.monitorFull || {}; b.roster = b.roster || {};
+      return b;
+    }
+    function persist(bridge) {
+      try {
+        localStorage.setItem('OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE', JSON.stringify(bridge));
+        localStorage.setItem('OB_PERIOD_REPORT_CARD_BRIDGE', JSON.stringify(bridge));
+      } catch (e) {}
+    }
+
+    async function pullFclm(bridge, periods, shiftDate, includeMET, fails) {
+      for (const key of periods) {
+        const r = await proxyFetch(buildFclmUrl(key, shiftDate, includeMET));
+        if (!r.ok) { fails.push(`FCLM ${key.toUpperCase()} (${r.error})`); if (r.authError) throw new Error('auth_required'); continue; }
+        const payload = parseFclmDocument(toDoc(r.text), key);
+        if (key === 'full' || key === 'unknown') bridge.fclmFull = { ...(bridge.fclmFull || {}), ...payload };
+        else bridge.fclmPeriods[key] = { ...(bridge.fclmPeriods[key] || {}), ...payload };
+      }
+    }
+    async function pullMonitor(bridge, periods, types, shiftDate, includeMET, fails) {
+      for (const key of periods) {
+        for (const type of types) {
+          const url = type === 'belt' ? buildMonitorBeltUrl(key, shiftDate, includeMET) : buildMonitorFlUtilUrl(key, shiftDate, includeMET);
+          const r = await proxyFetch(url);
+          if (!r.ok) { fails.push(`Monitor ${key.toUpperCase()} ${type} (${r.error})`); if (r.authError) throw new Error('auth_required'); continue; }
+          const payload = parseMonitorPayload(type, key, toDoc(r.text));
+          const target = (key === 'full' || key === 'unknown') ? bridge.monitorFull : (bridge.monitorPeriods[key] = bridge.monitorPeriods[key] || {});
+          if (type === 'flUtil') target.flUtil = { ...(target.flUtil || {}), ...payload.flUtil };
+          if (type === 'belt') target.belt = { ...(target.belt || {}), ...payload.belt };
+        }
+      }
+    }
+    async function pullRoster(bridge, fails) {
+      const r = await proxyFetch(FLUID_ROSTER_URL);
+      if (!r.ok) { fails.push(`Fluid Roster (${r.error})`); if (r.authError) throw new Error('auth_required'); return; }
+      const groups = normalizeFluidRosterBuckets(rosterSectionsFromText(toDoc(r.text)));
+      const headcount = groups.reduce((s, i) => s + i.current, 0);
+      const target = groups.reduce((s, i) => s + i.target, 0);
+      bridge.roster = bridge.roster || {};
+      bridge.roster.fluid = { headcount, target, gap: headcount - target, groups, updatedAt: nowTs(), url: FLUID_ROSTER_URL };
+    }
+
+    async function pull(opts) {
+      opts = opts || {};
+      if (state.busy) return false;
+      if (!state.usable) { await probe(); if (!state.usable) return false; }
+      state.busy = true;
+
+      const shiftDate = opts.shiftDate || document.getElementById('shiftDate')?.value || '';
+      const includeMET = opts.includeMET != null ? opts.includeMET : (document.getElementById('useMET')?.value === 'true');
+      const periods = opts.periods || (includeMET ? ['full', 'p1', 'p2', 'p3', 'met'] : ['full', 'p1', 'p2', 'p3']);
+      const sources = opts.sources || ['fclm', 'flUtil', 'belt', 'roster'];
+      const label = opts.label || sources.join(' + ');
+      const fails = [];
+
+      try { window.setAutoFclmStatus && window.setAutoFclmStatus(`Midway proxy: pulling ${label}…`, 'good'); } catch (e) {}
+      try { window.updateMiniStatus && window.updateMiniStatus(`Midway proxy: pulling ${label}…`); } catch (e) {}
+
+      const bridge = baseBridge(shiftDate, includeMET);
+      try {
+        if (sources.includes('fclm')) await pullFclm(bridge, periods, shiftDate, includeMET, fails);
+        const monTypes = sources.filter((s) => s === 'flUtil' || s === 'belt');
+        if (monTypes.length) await pullMonitor(bridge, periods, monTypes, shiftDate, includeMET, fails);
+        if (sources.includes('roster')) await pullRoster(bridge, fails);
+
+        bridge.lastPull = { source: opts.source || label, label, detail: periods.map((k) => k.toUpperCase()).join(', '), updatedAt: nowTs() };
+        bridge.updatedAt = nowTs();
+        persist(bridge);
+
+        const status = fails.length
+          ? `Midway proxy: ${label} pulled — ${fails.length} window(s) failed.`
+          : `Midway proxy: ${label} pull complete.`;
+        try {
+          if (window.importBridgePayload) window.importBridgePayload(bridge, status);
+          else if (window.updateMiniStatus) window.updateMiniStatus(status);
+        } catch (e) {}
+        try { window.setAutoFclmStatus && window.setAutoFclmStatus(status, fails.length ? 'warn' : 'good'); } catch (e) {}
+        return true;
+      } catch (err) {
+        const msg = err && err.message === 'auth_required'
+          ? 'Midway session expired — run mwinit, then pull again.'
+          : `Midway proxy pull failed: ${err?.message || err}`;
+        try { window.updateMiniStatus && window.updateMiniStatus(msg); } catch (e) {}
+        try { window.setAutoFclmStatus && window.setAutoFclmStatus(msg, 'warn'); } catch (e) {}
+        // Auth/transport failure → let the caller fall back to the userscript.
+        state.usable = false;
+        return false;
+      } finally {
+        state.busy = false;
+      }
+    }
+
+    // Public surface used by requestBridgeSourcePull() / requestFclmPull().
+    window.MidwayBridge = {
+      base: PROXY_BASE,
+      get available() { return state.usable; },
+      get reachable() { return state.reachable; },
+      probe,
+      pull
+    };
+
+    // Probe on load + every 60s so the dashboard knows when the proxy is up.
+    probe();
+    setInterval(probe, 60000);
+  })();
   </script>
 </body>
 </html>
