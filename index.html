@@ -128,8 +128,39 @@ body.top-min #topControls{display:none}
   position:sticky;
   top:0;
   z-index:20;
-  padding:14px 16px;
+  padding:14px 18px;
   margin-bottom:14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px 24px;
+  flex-wrap:wrap;
+}
+.topbar-id{
+  flex:1 1 320px;
+  min-width:0;
+}
+.topbar h1{font-size:22px}
+.topbar-id .sub{margin-top:3px}
+.topbar-id #miniStatus{margin-top:6px}
+.topbar-actions{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.topbar-meta{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:5px;
+  text-align:right;
+}
+.topbar-meta .mini{margin-top:0}
+.topbar-meta .live-clock{
+  font-size:18px;
+  font-weight:900;
+  color:var(--text);
 }
 .top-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
 h1{margin:0;font-size:24px;line-height:1.05}
@@ -2572,17 +2603,21 @@ button.copy-success{
 <body class="theme-midnight">
   <div class="app">
     <header class="topbar">
-      <div>
+      <div class="topbar-id">
         <h1>OB Period Report Card</h1>
         <p class="sub">OB02 release — shift planner, merged pace tracker, bridge-powered FCLM / MonitorPortal</p>
         <p id="miniStatus" class="mini">Ready.</p>
-        <p id="saveCounter" class="mini save-counter">Current not saved | Week 0/4</p>
-        <p id="liveClock" class="mini live-clock">--:-- CT · --</p>
       </div>
-      <div class="btnrow">
-        <button id="toggleTopBtn" class="soft">Minimize</button>
-        <button id="saveBtn" class="primary">Save + Log</button>
-        <button id="resetShiftBtn" class="danger">Reset Shift</button>
+      <div class="topbar-actions">
+        <div class="topbar-meta">
+          <p id="liveClock" class="mini live-clock">--:-- CT · --</p>
+          <p id="saveCounter" class="mini save-counter">Current not saved | Week 0/4</p>
+        </div>
+        <div class="btnrow">
+          <button id="toggleTopBtn" class="soft">Minimize</button>
+          <button id="saveBtn" class="primary">Save + Log</button>
+          <button id="resetShiftBtn" class="danger">Reset Shift</button>
+        </div>
       </div>
     </header>
 
