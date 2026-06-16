@@ -935,6 +935,43 @@ body.met-enabled .view-tabs{
   height:12px;
   border-radius:3px;
 }
+/* FL Utilization hero (prominent overview panel) */
+.flutil-hero{
+  display:grid;
+  grid-template-columns:minmax(200px,280px) 1fr;
+  gap:22px;
+  align-items:center;
+  padding:18px 16px;
+}
+.donut-lg{
+  width:min(280px,100%);
+}
+.flutil-hero-body{
+  display:grid;
+  gap:16px;
+  align-content:center;
+}
+.flutil-hero-kpis{
+  grid-template-columns:repeat(4,1fr)!important;
+}
+.flutil-kpi{
+  border-left:4px solid var(--line);
+}
+.flutil-kpi.fl{border-left-color:#173cff}
+.flutil-kpi.mp{border-left-color:#00f12a}
+.flutil-kpi.rwc{border-left-color:#ff00e6}
+.flutil-hero-age{
+  align-self:center;
+  font-size:12px;
+  font-weight:900;
+  color:var(--muted);
+  white-space:nowrap;
+}
+.flutil-hero-legend{display:none}
+@media (max-width:900px){
+  .flutil-hero{grid-template-columns:1fr}
+  .flutil-hero-kpis{grid-template-columns:repeat(2,1fr)!important}
+}
 .collapse-grid{
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -2733,6 +2770,50 @@ button.copy-success{
                 <div class="kpi-sub">remaining RWC capture</div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel span-12 flutil-hero-panel" data-view="overview">
+        <div class="panel-head">
+          <div>
+            <h2>FL Utilization</h2>
+            <p class="panel-sub">Live MP / FL / RWC successful-divert split — full shift window</p>
+          </div>
+          <div class="btnrow">
+            <span id="flUtilHeroAge" class="flutil-hero-age">FL Util · No pull yet</span>
+            <button id="flUtilHeroPullBtn" class="primary">Pull FL Utilization</button>
+            <button id="flUtilHeroOpenBtn" class="soft">Open in MonitorPortal</button>
+          </div>
+        </div>
+        <div class="flutil-hero">
+          <div class="flutil-hero-chart">
+            <div id="chartFlUtilHero" class="donut donut-lg"></div>
+          </div>
+          <div class="flutil-hero-body">
+            <div class="kpi-grid flutil-hero-kpis">
+              <div class="kpi flutil-kpi fl">
+                <div class="kpi-label">TOTAL FL</div>
+                <div id="flUtilHeroFl" class="kpi-value">0</div>
+                <div id="flUtilHeroFlPct" class="kpi-sub">0% of divert</div>
+              </div>
+              <div class="kpi flutil-kpi mp">
+                <div class="kpi-label">TOTAL MP</div>
+                <div id="flUtilHeroMp" class="kpi-value">0</div>
+                <div id="flUtilHeroMpPct" class="kpi-sub">0% of divert</div>
+              </div>
+              <div class="kpi flutil-kpi rwc">
+                <div class="kpi-label">TOTAL RWC</div>
+                <div id="flUtilHeroRwc" class="kpi-value">0</div>
+                <div id="flUtilHeroRwcPct" class="kpi-sub">0% of divert</div>
+              </div>
+              <div class="kpi flutil-kpi total">
+                <div class="kpi-label">Total Diverts</div>
+                <div id="flUtilHeroTotal" class="kpi-value">0</div>
+                <div class="kpi-sub">MP + FL + RWC</div>
+              </div>
+            </div>
+            <div id="legendFlUtilHero" class="legend flutil-hero-legend"></div>
           </div>
         </div>
       </section>
@@ -4652,6 +4733,36 @@ function renderCharts(board) {
     value: p.value,
     color: ['#173cff', '#00f12a', '#ff00e6', '#facc15'][i]
   })));
+}
+
+function renderFlUtilHero(board) {
+  const eos = board.eos;
+  const fl = num(eos.fl);
+  const mp = num(eos.mp);
+  const rwc = num(eos.rwc);
+  const total = fl + mp + rwc;
+
+  renderPieChart('chartFlUtilHero', 'legendFlUtilHero', [
+    { label: 'TOTAL FL', value: fl, color: '#173cff' },
+    { label: 'TOTAL MP', value: mp, color: '#00f12a' },
+    { label: 'TOTAL RWC', value: rwc, color: '#ff00e6' }
+  ]);
+
+  const pct = (v) => total > 0 ? `${fmt(v / total * 100, 1)}% of divert` : '0% of divert';
+  setText('flUtilHeroFl', fmt(fl));
+  setText('flUtilHeroMp', fmt(mp));
+  setText('flUtilHeroRwc', fmt(rwc));
+  setText('flUtilHeroTotal', fmt(total));
+  setText('flUtilHeroFlPct', pct(fl));
+  setText('flUtilHeroMpPct', pct(mp));
+  setText('flUtilHeroRwcPct', pct(rwc));
+
+  const bridge = latestBridgePayload || readStoredBridgePayload() || {};
+  const ts = Math.max(
+    num(bridge.monitorFull?.flUtil?.updatedAt),
+    ...Object.values(bridge.monitorPeriods || {}).map((row) => num(row?.flUtil?.updatedAt))
+  );
+  setText('flUtilHeroAge', `FL Util · ${formatBridgeAge(ts)}`);
 }
 
 function periodHourSegments(key) {
@@ -7545,6 +7656,8 @@ function bind() {
   on('openFclmMetBtn', 'click', () => openFclmPeriod('met'));
   on('pullFclmOnlyBtn', 'click', () => requestBridgeSourcePull('fclm'));
   on('pullFlUtilBtn', 'click', () => { requestBridgeSourcePull('flUtil'); runLiveMetricsPull('manual'); });
+  on('flUtilHeroPullBtn', 'click', () => { requestBridgeSourcePull('flUtil'); runLiveMetricsPull('manual'); });
+  on('flUtilHeroOpenBtn', 'click', () => openMonitorUrl('fl', 'full'));
   on('pullBattleBeltBtn', 'click', () => { requestBridgeSourcePull('belt'); runLiveMetricsPull('manual'); });
   on('pullFclmPeriodsBtn', 'click', () => { requestFclmPull(); runLiveMetricsPull('manual'); });
   on('pullLiveMetricsBtn', 'click', () => runLiveMetricsPull('manual'));
@@ -7696,6 +7809,7 @@ function renderAll() {
   renderPeriodPulse(rows, board);
   renderBoardBreakout(rows, board);
   renderCharts(board);
+  renderFlUtilHero(board);
   renderMonitorLinks();
   renderFclmSourceLinks();
   buildSummaries(board, full);
