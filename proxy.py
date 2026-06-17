@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """
-RC Sort Dashboard — FCLM Local Proxy
-Forwards requests to the FCLM portal using your Midway session cookie.
+RC Sort Dashboard — FCLM / Dockflow Local Proxy
+Forwards requests to internal Amazon tools using your Midway session cookie.
+
+Routes:
+  GET /health                 → cookie status
+  GET /api/<fclm-path>        → https://fclm-portal.amazon.com/<fclm-path>
+  GET /fetch?url=<https url>   → any https://*.amazon.com URL (e.g. Dockflow)
+  POST /set-cookie            → paste a session cookie manually
 
 Usage:
   python proxy.py                  # default port 8765, warehouse RFD2
@@ -15,6 +21,7 @@ import http.server
 import http.cookiejar
 import urllib.request
 import urllib.error
+import urllib.parse
 import json
 import os
 import sys
@@ -26,6 +33,10 @@ FCLM_BASE      = "https://fclm-portal.amazon.com"
 DEFAULT_PORT   = 8765
 COOKIE_FILE    = os.path.expanduser("~/.midway/cookie")
 COOKIE_MAX_AGE = 12 * 3600  # 12 hours in seconds
+
+# Hosts the generic /fetch route is allowed to reach. Dockflow, FCLM and other
+# internal Midway-gated tools all live under *.amazon.com. Broaden if needed.
+ALLOWED_HOST_SUFFIX = ".amazon.com"
 
 # Module-level manual cookie override (set via POST /set-cookie)
 _manual_cookie: str = ""
@@ -86,6 +97,8 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
             self._handle_health()
         elif self.path.startswith("/api/"):
             self._handle_proxy(self.path[4:])   # strip /api → /reports/...
+        elif self.path.startswith("/fetch"):
+            self._handle_fetch()                # generic *.amazon.com passthrough (Dockflow etc.)
         else:
             self._json({"error": "not found"}, 404)
 
@@ -116,7 +129,35 @@ class ProxyHandler(http.server.BaseHTTPRequestHandler):
         })
 
     def _handle_proxy(self, path: str):
-        url = FCLM_BASE + path
+        """FCLM convenience route: /api/<fclm-path> → fclm-portal.amazon.com."""
+        self._forward(FCLM_BASE + path)
+
+    def _handle_fetch(self):
+        """Generic route: /fetch?url=<https url> → any *.amazon.com host (e.g. Dockflow).
+
+        The dashboard discovers the exact Dockflow endpoint from browser DevTools
+        and passes it here so it inherits the same Midway session cookie."""
+        qs     = urllib.parse.urlparse(self.path).query
+        raw    = (urllib.parse.parse_qs(qs).get("url") or [""])[0]
+        target = urllib.parse.unquote(raw)
+
+        if not target:
+            self._json({"error": "missing 'url' query parameter"}, 400)
+            return
+
+        parts = urllib.parse.urlparse(target)
+        host  = parts.hostname or ""
+        if parts.scheme != "https" or not host.endswith(ALLOWED_HOST_SUFFIX):
+            self._json({
+                "error":   "url_not_allowed",
+                "message": f"Only https://*{ALLOWED_HOST_SUFFIX} URLs are permitted.",
+                "host":    host,
+            }, 403)
+            return
+
+        self._forward(target)
+
+    def _forward(self, url: str):
         cookie = load_cookie_header()
 
         req = urllib.request.Request(url)
