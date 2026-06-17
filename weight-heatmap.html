@@ -266,13 +266,13 @@
     <input type="text" id="cfg-url" placeholder="https://dockflow….amazon.com/api/…?node=RFD2" />
 
     <label>Default target weight per trailer (lb) — the value that equals 100%</label>
-    <input type="number" id="cfg-target" value="45000" />
+    <input type="number" id="cfg-target" value="40000" />
 
     <label>Manual data (JSON array or CSV) — used when URL is blank</label>
     <textarea id="cfg-data" placeholder='[{"destination":"SBN1","trailerId":"YTF21313988237","payloadWeight":36953.9,"contentCount":1760,"liveRate":772}]
 — or CSV —
 destination,trailerId,payloadWeight,contentCount,liveRate,targetWeight
-SBN1,YTF21313988237,36953.9,1760,772,45000'></textarea>
+SBN1,YTF21313988237,36953.9,1760,772,40000'></textarea>
 
     <div class="modal-actions">
       <button class="btn btn-modal-cancel" onclick="hideConfig()">Cancel</button>
@@ -292,7 +292,7 @@ const PROXY_BASE = "http://localhost:8765";
 
 const cfg = {
   url:          localStorage.getItem("wh_url")    || "",
-  target:       parseFloat(localStorage.getItem("wh_target")) || 45000,
+  target:       parseFloat(localStorage.getItem("wh_target")) || 40000,
   manual:       localStorage.getItem("wh_manual") || "",
   refreshMs:    parseInt(localStorage.getItem("wh_refresh")) || 120000,
 };
@@ -460,11 +460,11 @@ function ingest(newRows, status) {
 ════════════════════════════════════════════════════════════════════════ */
 function loadSample() {
   const sample = [
-    { destination: "SBN1 (RFD2→SBN1)", trailerId: "YTF21313988237", payloadWeight: 36953.9, contentCount: 1760, liveRate: 772, targetWeight: 45000 },
-    { destination: "MKE2_CASE",        trailerId: "YTF44120097713", payloadWeight: 8200,    contentCount: 410,  liveRate: 772, targetWeight: 45000 },
-    { destination: "DET6",             trailerId: "YTF55013377420", payloadWeight: 22500,   contentCount: 1080, liveRate: 540, targetWeight: 45000 },
-    { destination: "ORD9",             trailerId: "YTF88820041190", payloadWeight: 43100,   contentCount: 2050, liveRate: 610, targetWeight: 45000 },
-    { destination: "MDW2",             trailerId: "YTF20391100245", payloadWeight: 0,       contentCount: 0,    liveRate: 480, targetWeight: 45000 },
+    { destination: "SBN1 (RFD2→SBN1)", trailerId: "YTF21313988237", payloadWeight: 36953.9, contentCount: 1760, liveRate: 772, targetWeight: 40000 },
+    { destination: "MKE2_CASE",        trailerId: "YTF44120097713", payloadWeight: 8200,    contentCount: 410,  liveRate: 772, targetWeight: 40000 },
+    { destination: "DET6",             trailerId: "YTF55013377420", payloadWeight: 22500,   contentCount: 1080, liveRate: 540, targetWeight: 40000 },
+    { destination: "ORD9",             trailerId: "YTF88820041190", payloadWeight: 39200,   contentCount: 2050, liveRate: 610, targetWeight: 40000 },
+    { destination: "MDW2",             trailerId: "YTF20391100245", payloadWeight: 0,       contentCount: 0,    liveRate: 480, targetWeight: 40000 },
   ].map(normalizeRow);
   ingest(sample, "sample");
 }
@@ -583,7 +583,7 @@ function showConfig() {
 function hideConfig() { document.getElementById("config-modal").classList.remove("show"); }
 function saveConfig() {
   cfg.url    = document.getElementById("cfg-url").value.trim();
-  cfg.target = parseFloat(document.getElementById("cfg-target").value) || 45000;
+  cfg.target = parseFloat(document.getElementById("cfg-target").value) || 40000;
   cfg.manual = document.getElementById("cfg-data").value.trim();
   localStorage.setItem("wh_url", cfg.url);
   localStorage.setItem("wh_target", cfg.target);

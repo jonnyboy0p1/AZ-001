@@ -22,10 +22,10 @@ projWeight(t)  = payloadWeight + fillRate * hoursSinceSnapshot   ← the "runnin
 etaToFull(hr)  = (targetWeight - projWeight) / fillRate
 ```
 
-- **`targetWeight`** is the weight that equals **100%** (red). Default `45000` lb
-  (a typical dry-van max payload). Override per row, or change the default in
-  **⚙ Source / Settings**. Set it to the legal/loadout max, a planned target,
-  or `forecastUnits × weightPerUnit` — whatever "full" means for you.
+- **`targetWeight`** is the weight that equals **100%** (red). Default `40000` lb.
+  Override per row, or change the default in **⚙ Source / Settings**. Set it to
+  the legal/loadout max, a planned target, or `forecastUnits × weightPerUnit` —
+  whatever "full" means for you.
 - The **live rate makes the % "run"**: between server refreshes the page
   extrapolates the weight forward every second using `fillRate`, so the tile
   climbs toward 100% in real time. Each refresh (1–3 min) replaces it with the
@@ -40,10 +40,10 @@ else:            hue = 120 * (1 - (bucket - 5) / 95)   → HSL(hue, 72%, 45%)
                  # 5% = 120° green, ~52% = 60° yellow, 100% = 0° red
 ```
 
-Worked example (the trailer in the screenshot):
-`36953.9 / 45000 = 82.1%` → bucket **80%** → orange-red.
+Worked example (the trailer in the screenshot, target = 40,000 lb):
+`36953.9 / 40000 = 92.4%` → bucket **90%** → red.
 At 772 jobs/hr and `36953.9/1760 = 21.0 lb/job`, fill rate ≈ **16,200 lb/hr**,
-so ETA to full ≈ `(45000 − 36953.9) / 16200` ≈ **0.5 h**.
+so ETA to full ≈ `(40000 − 36953.9) / 16200` ≈ **0.19 h ≈ 11 min**.
 
 ---
 
@@ -69,15 +69,21 @@ click **Load sample**. Manual CSV header:
 
 ```
 destination,trailerId,payloadWeight,contentCount,liveRate,targetWeight
-SBN1,YTF21313988237,36953.9,1760,772,45000
+SBN1,YTF21313988237,36953.9,1760,772,40000
 ```
 
 ---
 
 ## 3. Excel version
 
-The dashboard's **⬇ Export CSV** opens directly in Excel. To make a live,
-auto-refreshing Excel sheet instead:
+**Ready-made mock:** open **`weight-heatmap-mock.xlsx`** — it already has the
+formulas and the grey→green→yellow→red heat scale wired up, with **100% =
+40,000 lb** (column F). Change any Payload in column E and the % + colour
+recalculate on the spot. Regenerate it any time with `python build_mock_xlsx.py`
+(pure standard library, no add-ins).
+
+The dashboard's **⬇ Export CSV** also opens directly in Excel. To build a live,
+auto-refreshing Excel sheet from scratch:
 
 **Columns** (`A:destination  B:trailerId  C:liveRate  D:contentCount  E:payloadWeight  F:targetWeight`)
 
@@ -116,6 +122,8 @@ the file*). The formulas + colour scale recompute on every refresh.
 
 | File | Purpose |
 |------|---------|
-| `weight-heatmap.html` | The live heat-map dashboard |
-| `proxy.py`            | Midway-authenticated proxy: `/api/*` (FCLM) + `/fetch?url=*` (Dockflow / any `*.amazon.com`) |
-| `WEIGHT-HEATMAP.md`   | This document |
+| `weight-heatmap.html`       | The live heat-map dashboard |
+| `weight-heatmap-mock.xlsx`  | Ready-to-test Excel mock (formulas + heat scale, 100% = 40,000 lb) |
+| `build_mock_xlsx.py`        | Regenerates the mock `.xlsx` (stdlib only) |
+| `proxy.py`                  | Midway-authenticated proxy: `/api/*` (FCLM) + `/fetch?url=*` (Dockflow / any `*.amazon.com`) |
+| `WEIGHT-HEATMAP.md`         | This document |
