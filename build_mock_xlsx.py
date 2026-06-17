@@ -97,8 +97,8 @@ def build_sheet():
     # notes
     note1 = ("Test me: change a Payload in column E — Fill % (col G) and its "
              "colour update live. 100% = 40,000 lb (column F).")
-    note2 = ("Heat scale: 0% grey · 5% green · ~50% yellow · 100% red "
-             "(Conditional Formatting applied to column G).")
+    note2 = ("Heat scale (Conditional Formatting on col G): grey=empty · green=filling · "
+             "yellow=28,000 lb dispatch floor (70%) · red=40,000 lb cube-out.")
     rows.append(f'<row r="{last+2}">{str_cell(f"A{last+2}", note1, 0)}</row>')
     rows.append(f'<row r="{last+3}">{str_cell(f"A{last+3}", note2, 0)}</row>')
 
@@ -106,8 +106,10 @@ def build_sheet():
     cond = (
         f'<conditionalFormatting sqref="{cf_range}">'
         f'<cfRule type="cellIs" dxfId="0" priority="1" operator="equal" stopIfTrue="1"><formula>0</formula></cfRule>'
+        # midpoint (yellow) anchored at the 28k dispatch floor = 70% of 40k,
+        # so colour spreads across the real 28k-40k window instead of all-red
         f'<cfRule type="colorScale" priority="2"><colorScale>'
-        f'<cfvo type="num" val="0.05"/><cfvo type="num" val="0.5"/><cfvo type="num" val="1"/>'
+        f'<cfvo type="num" val="0.05"/><cfvo type="num" val="0.70"/><cfvo type="num" val="1"/>'
         f'<color rgb="FF38A169"/><color rgb="FFF6E05E"/><color rgb="FFE53E3E"/>'
         f'</colorScale></cfRule></conditionalFormatting>'
     )
