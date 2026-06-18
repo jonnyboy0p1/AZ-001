@@ -188,12 +188,74 @@ persist via Tampermonkey storage.
 
 ---
 
+## 5. Close-out ETA — when a trailer will finish loading (RTD)
+
+`closeout-eta.js` predicts when an OB trailer will **close out
+(FINISHED_LOADING / RTD)** and whether it beats its **SDT**. It reuses the
+signals `nIXD OB Insights` already pulls — no new API calls.
+
+**Inputs**
+- YMS `loadMetrics` (`dashEvents.loadMetrics`): `vrId`, `startTs`
+  (OB_DOCK_STARTED), `completeTs` (OB_DOCK_COMPLETED), `startToFinish` (min).
+- SSP loads (`dashData.loads`): `vrid`, `status`, `route`, `sdt`.
+
+**Formulas** (auto-selected per load)
+```
+time-based (default):   predictedClose = startTs + avg(startToFinish for that dest)
+                        etaMin         = predictedClose − now
+                        progress%      = (now − startTs) / avg(startToFinish)
+
+weight-based (if Dockflow weight+rate are merged onto the load):
+                        fillRate(lb/hr)= liveRate * payloadWeight/contentCount
+                        etaMin         = (40000 − payloadWeight) / fillRate
+                        progress%      = payloadWeight / 40000      ← same as the heat map
+
+SDT risk:   slackMin = SDT − predictedClose;  MISS < 0,  AT_RISK < 30m,  else ON_TRACK
+```
+`FINISHED_LOADING` → already closed (0m). `SCHEDULED/READY` → optimistic "if it
+started now" = avg duration.
+
+**Drop it into nIXD OB Insights**
+
+1. Add the module at the top of the userscript (paste `closeout-eta.js`, or
+   `// @require <hosted-url>/closeout-eta.js`). It exposes `unsafeWindow.CloseoutETA`.
+2. In `refreshData()`, after `dashData` / `dashEvents` are set:
+   ```js
+   if (unsafeWindow.CloseoutETA && dashData && dashEvents) {
+     dashData.loads = CloseoutETA.enrichWithCloseout(
+       dashData.loads, dashEvents.loadMetrics,
+       { now: Math.floor(getNow()/1000), sdtBufferMin: 30 });
+   }
+   ```
+3. Add a column to the loads table — extend the header list and the row:
+   ```js
+   // header array → add 'Close-Out'
+   ['VRID','Status','Route','Location','Carrier','Trailer','SDT','Hrs','Dwell','Close-Out']
+
+   // inside sorted.forEach(l=>{ ... }) → append one cell
+   const co=l.closeout||{};
+   const cc=co.risk==='MISS'?t.rd:co.risk==='AT_RISK'?t.am:co.risk==='ON_TRACK'?t.gn:t.dm;
+   h.push(`<td style="padding:5px 8px;border-bottom:1px solid ${t.bd};color:${cc};font-weight:600">`
+        + CloseoutETA.fmtEta(co.etaMin)
+        + (co.slackMin!=null?` <span style="color:${t.dm};font-weight:400">(${co.slackMin>=0?'+':''}${co.slackMin}m)</span>`:'')
+        + `</td>`);
+   ```
+4. (Optional) summary card via `CloseoutETA.fleetCloseoutSummary(dashData.loads)`
+   → `{ openLoads, risk:{ON_TRACK,AT_RISK,MISS}, next }`.
+
+**Weight-based mode:** set `l.payloadWeight`, `l.contentCount`, `l.liveRate`
+(and optional `l.targetWeight`) on an SSP load — e.g., merge Dockflow rows by
+`vrid`/trailer — and the module switches to the heat-map weight ETA automatically.
+
+---
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `weight-heatmap.html`       | Live heat-map dashboard (proxy / manual / simulate) |
 | `dockflow-heatmap.user.js`  | Tampermonkey overlay — live heat map inside the Dockflow tab |
+| `closeout-eta.js`           | Close-out / RTD ETA + SDT-miss risk (plugs into nIXD OB Insights or the heat map) |
 | `weight-heatmap-mock.xlsx`  | Ready-to-test Excel mock (formulas + heat scale; 100% = 40k, yellow = 28k) |
 | `build_mock_xlsx.py`        | Regenerates the mock `.xlsx` (stdlib only) |
 | `proxy.py`                  | Midway-authenticated proxy: `/api/*` (FCLM) + `/fetch?url=*` (Dockflow / any `*.amazon.com`) |
