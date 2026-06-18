@@ -249,11 +249,36 @@ started now" = avg duration.
 
 ---
 
+## 6. Dock door board (West / East)
+
+`door-board.html` reproduces the YMS/Dockflow door board: one row per **physical
+dock door**, with ARC, TRAILER %, STATUS, high-value lock, carrier, TRAILER WT
+(28k–40k heat scale), SDT and trailer type. A door with **no ARC routed in
+Dockflow** — or listed in `ALWAYS_EMPTY` (e.g. **DD340**) — auto-shows **NOT IN
+USE** (grey). The exact same `renderBoard(side)` runs for West and East, so the
+two sides stay consistent.
+
+**Set your doors** (top of the file):
+```js
+const DOORS = {
+  West: range(104, 126, [112, 123]),   // extend 126 to your real last West door
+  East: range(334, 355, []),           // extend 355 to your real last East door
+};
+const ALWAYS_EMPTY = { West: [], East: [340] };   // always NOT IN USE
+```
+Replace `getData()` with your live feed (proxy `/fetch?url=…` or the userscript's
+GM storage); it returns `{ West:{door:entry}, East:{door:entry} }`. Ships with
+sample data matching the screenshots, a 🎲 Simulate mode, CSV export and 1–3 min
+auto-refresh.
+
+---
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `weight-heatmap.html`       | Live heat-map dashboard (proxy / manual / simulate) |
+| `door-board.html`           | West/East dock-door board; empties auto-flag NOT IN USE |
 | `dockflow-heatmap.user.js`  | Tampermonkey overlay — live heat map inside the Dockflow tab |
 | `closeout-eta.js`           | Close-out / RTD ETA + SDT-miss risk (plugs into nIXD OB Insights or the heat map) |
 | `weight-heatmap-mock.xlsx`  | Ready-to-test Excel mock (formulas + heat scale; 100% = 40k, yellow = 28k) |

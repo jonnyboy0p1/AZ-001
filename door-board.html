@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OB Dock Door Board — West / East</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:13px;background:#0f1115;color:#e6e6e6;}
+  .hdr{background:#111827;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid #222;}
+  .hdr h1{font-size:16px;font-weight:700;flex:1;min-width:200px;}
+  .hdr .sub{font-weight:400;opacity:.65;font-size:12px;}
+  .btn{padding:5px 12px;border-radius:5px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:#2563eb;color:#fff;}
+  .btn.sec{background:#374151;}
+  .btn:hover{opacity:.88;}
+  select.sel{background:#374151;color:#fff;border:none;border-radius:5px;padding:5px 8px;font-size:12px;font-weight:600;}
+  .ts{font-size:11px;color:#9aa0a6;}
+  .wrap{padding:14px 16px;}
+  .board{margin-bottom:22px;}
+  .board h2{font-size:13px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#9aa0a6;margin-bottom:6px;}
+  .board h2 .cnt{color:#60a5fa;font-weight:600;margin-left:6px;}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  th{background:#7a1f1f;color:#fff;font-size:11px;font-weight:700;padding:6px 4px;text-align:center;border:1px solid #5c1717;text-transform:uppercase;}
+  td{padding:4px 6px;text-align:center;border:1px solid #1f2430;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .c-dest{background:#15306b;color:#fff;font-weight:700;}
+  .c-arc {background:#1f2937;color:#34d399;font-weight:700;}
+  .niu{background:#3a3f4b !important;color:#8b909a !important;font-weight:600;font-style:normal;}
+  .niu-arc{background:#2b3038 !important;color:#7b8089 !important;}
+  /* fixed column widths */
+  col.k-dest{width:9%}col.k-arc{width:9%}col.k-pct{width:9%}col.k-status{width:11%}
+  col.k-lock{width:17%}col.k-car{width:8%}col.k-wt{width:8%}col.k-sdt{width:15%}col.k-type{width:14%}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:#9aa0a6;margin:4px 0 12px;align-items:center;}
+  .legend b{color:#cbd2da;}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:3px;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <h1>OB Dock Door Board <span class="sub">· West &amp; East · empties auto-flag NOT IN USE</span></h1>
+  <span class="ts" id="ts"></span>
+  <label class="ts">Side
+    <select id="side" class="sel" onchange="render()">
+      <option value="both" selected>Both</option>
+      <option value="West">West</option>
+      <option value="East">East</option>
+    </select>
+  </label>
+  <label class="ts">Refresh
+    <select id="refresh" class="sel" onchange="restart()">
+      <option value="60000">1 min</option>
+      <option value="120000" selected>2 min</option>
+      <option value="180000">3 min</option>
+    </select>
+  </label>
+  <button class="btn sec" onclick="simulate()">🎲 Simulate</button>
+  <button class="btn sec" onclick="exportCSV()">⬇ CSV</button>
+  <button class="btn" onclick="refresh()">⟳ Refresh</button>
+</div>
+
+<div class="wrap">
+  <div class="legend">
+    <span><span class="sw" style="background:#9aa0a6"></span><b>NOT IN USE</b> = no ARC routed in Dockflow</span>
+    <span><b>TRAILER %:</b> <span class="sw" style="background:#34a853"></span>&lt;40 <span class="sw" style="background:#fbbc04"></span>40–69 <span class="sw" style="background:#ea4335"></span>≥70</span>
+    <span><b>TRAILER WT:</b> grey 0 · green light · <b>yellow 28k</b> · red 40k (cube-out)</span>
+  </div>
+  <div id="boards"></div>
+</div>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════════════
+   CONFIG  — weight thresholds shared with the heat map
+════════════════════════════════════════════════════════════════════════ */
+const CFG = { target: 40000, floor: 28000, refreshMs: 120000 };
+
+/* ┌──────────────────────────────────────────────────────────────────────┐
+   │  EDIT THESE to your FULL physical door lists.                          │
+   │  range(firstDoor, lastDoor, [doorsThatDontExist])                      │
+   │  — bump the last number out to your real last door,                    │
+   │  — put any skipped/non-existent doors in the 3rd array.                │
+   │  Any door with no ARC routed (or listed in ALWAYS_EMPTY) shows         │
+   │  NOT IN USE automatically — identical rule for West and East.          │
+   └──────────────────────────────────────────────────────────────────────┘ */
+const DOORS = {
+  West: range(104, 126, [112, 123]),   // ← extend 126 to your last West door
+  East: range(334, 355, []),           // ← extend 355 to your last East door (340 kept, auto-empty)
+};
+const ALWAYS_EMPTY = {                  // doors that are ALWAYS NOT IN USE even if data appears
+  West: [],
+  East: [340],                          // DD340: nothing routed off Dockflow
+};
+
+function range(a, b, skip) {
+  skip = skip || [];
+  const out = [];
+  for (let d = a; d <= b; d++) if (!skip.includes(d)) out.push(d);
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   DATA  — keyed by side → door. Replace getData() with your live YMS/Dockflow
+   feed (proxy, Tampermonkey GM storage, etc.). Fields per door:
+   { arc, pct, status, lock, carrier, wtK, sdt, type }
+════════════════════════════════════════════════════════════════════════ */
+// sample rows: [door, arc, pct, status, lock, carrier, wtK, sdt, type]
+const SAMPLE_ROWS = {
+  West: [
+    [104,"IND1",50,"Loading","Need Smart Lock","AZNG",15,"","HYBRID"],
+    [105,"MSP1",70,"Loading","Smart Lock Not Required","AZNG",32,"","PURE CASE"],
+    [106,"OMA2",70,"Loading","Need Smart Lock","AZNG",29,"","PURE CASE"],
+    [107,"QXX6",10,"Loading","Smart Lock Not Required","AZNG",5,"","PURE CASE"],
+    [108,"MKE1",60,"Loading","Smart Lock Not Required","AZNG",21,"","HYBRID"],
+    [109,"LUK2",0,"On The Way !","Smart Lock Not Required","AZNG",0,"","PURE TOTE"],
+    [110,"CMH4",55,"Loading","Smart Lock Not Required","AZNG",29,"","PURE CASE"],
+    [111,"CMH1",30,"Loading","Need Smart Lock","AZNG",21,"","PURE CASE"],
+    [113,"STL8",75,"Loading","Smart Lock Not Required","AZNG",36,"","PURE CASE"],
+    [114,"SBN1",10,"Loading","Smart Lock Not Required","AZNG",8,"","HYBRID"],
+    [115,"GRR1",30,"Loading","Need Smart Lock","AZNG",15,"","PURE CASE"],
+    [116,"DSM5",0,"! On The Way !","Smart Lock Not Required","AZNG",0,"","PURE CASE"],
+    [117,"DSM5",25,"Loading","Smart Lock Not Required","AZNG",8,"","PURE TOTE"],
+    [118,"MKE2",25,"Loading","Smart Lock Not Required","AZNG",7,"","PURE TOTE"],
+    [119,"PCW1",60,"Loading","Need Smart Lock","AZNG",26,"","HYBRID"],
+    [120,"FWA6",65,"Loading","Smart Lock Not Required","AZNG",28,"","PURE CASE"],
+    [121,"IGQ1",20,"Loading","Need Smart Lock","AZNG",6,"","PURE TOTE"],
+    [122,"DET6",15,"Loading","Smart Lock Not Required","AZNG",4,"","PURE TOTE"],
+    // 124,125,126 → no data → NOT IN USE
+  ],
+  East: [
+    [338,"MKC6",55,"Loading","Smart Lock Not Required","AZNU",26,"6/17/2026 23:30","HYBRID"],
+    [339,"KRB6",5,"Loading","Smart Lock Not Required","AZNG",1,"6/18/2026 12:30","PURE CASE"],
+    [341,"MDW7",95,"Last Wall","Smart Lock Not Required","AZNG",39,"6/18/2026 6:32","PURE CASE"],
+    [342,"ORD5",5,"Loading","Smart Lock Not Required","AZNG",1,"6/18/2026 5:30","PURE CASE"],
+    [343,"CLE3",30,"Loading","Smart Lock Not Required","AZNG",13,"6/17/2026 23:15","PURE CASE"],
+    [344,"DTW1",50,"Loading","Need Smart Lock","AZNG",25,"6/17/2026 18:46","HYBRID"],
+    [345,"ORD5",25,"Loading","Smart Lock Not Required","AZNG",13,"6/18/2026 5:39","PURE TOTE"],
+    [346,"PCW1",0,"! On The Way !","Need Smart Lock","AZNG",0,"6/17/2026 7:53","PURE CASE"],
+    [347,"CLE2",30,"Loading","Need Smart Lock","AZNG",18,"6/17/2026 20:43","PURE CASE"],
+    [348,"DET6",60,"Loading","Smart Lock Not Required","AZNG",31,"6/17/2026 20:16","PURE TOTE"],
+    [349,"DET3",25,"Loading","Smart Lock Not Required","AZNG",13,"6/18/2026 1:30","HYBRID"],
+    [350,"MLI1",5,"Loading","Smart Lock Not Required","AZNG",5,"6/18/2026 5:30","PURE CASE"],
+    [351,"FSD1",15,"Loading","Need Smart Lock","AZNG",19,"6/17/2026 23:00","PURE CASE"],
+    [352,"IGQ1",35,"Loading","Need Smart Lock","AZNG",17,"6/17/2026 19:12","PURE CASE"],
+    [353,"MKE2",50,"Loading","Need Smart Lock","AZNG",23,"6/17/2026 23:28","PURE CASE"],
+    [354,"OVERFLOW",5,"Loading","Need Smart Lock","AZNG",0,"6/10/2026 21:30","PURE CASE"],
+    [355,"HMW3",75,"Loading","Need Smart Lock","AZNG",37,"6/10/2026 19:28","PURE CASE"],
+    // 334,335,336,337,340 → no data → NOT IN USE (340 also in ALWAYS_EMPTY)
+  ],
+};
+
+let feed = {};   // side → { door: entry }
+let simOn = false;
+
+function rowsToMap(rows) {
+  const m = {};
+  for (const r of rows) m[r[0]] = { arc:r[1], pct:r[2], status:r[3], lock:r[4], carrier:r[5], wtK:r[6], sdt:r[7], type:r[8] };
+  return m;
+}
+
+/* Replace this with a live fetch (proxy /fetch?url=… or GM storage). It must
+   return { West:{door:entry}, East:{door:entry} }. */
+async function getData() {
+  if (simOn) return simulateData();
+  return { West: rowsToMap(SAMPLE_ROWS.West), East: rowsToMap(SAMPLE_ROWS.East) };
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   COLOUR
+════════════════════════════════════════════════════════════════════════ */
+function bucket5(p){ return Math.max(0, Math.min(100, Math.floor(p/5)*5)); }
+// weight heat scale shared with the heat map (28k yellow → 40k red)
+function wtColor(wt){
+  const pct = bucket5(CFG.target>0 ? wt/CFG.target*100 : 0);
+  const fp = CFG.target>0 ? CFG.floor/CFG.target*100 : 70;
+  if (pct<=0)   return ["#3a3f4b","#8b909a"];
+  if (pct>=100) return ["hsl(0,75%,45%)","#fff"];
+  const hue = pct<fp ? 140-70*(pct/fp) : 60-60*((pct-fp)/(100-fp));
+  return [`hsl(${Math.round(hue)},72%,42%)`, "#fff"];
+}
+// fill-% bands matching the board's look
+function pctColor(p){
+  if (p<=0)  return ["#3a3f4b","#8b909a"];
+  if (p<40)  return ["#1e8e3e","#fff"];
+  if (p<70)  return ["#fbbc04","#202124"];
+  return ["#ea4335","#fff"];
+}
+function lockColor(s){
+  if (/need/i.test(s))   return ["#1e8e3e","#fff"];     // Need Smart Lock
+  if (/not required/i.test(s)) return ["#c5221f","#fff"]; // Smart Lock Not Required
+  return ["#2b3038","#7b8089"];
+}
+function statusColor(s){
+  if (/not in use/i.test(s)) return ["#3a3f4b","#8b909a"];
+  if (/on the way/i.test(s)) return ["#9ccc65","#1b2a10"];
+  if (/last wall/i.test(s))  return ["#fbbc04","#202124"];
+  if (/loading/i.test(s))    return ["#a5d6a7","#16310f"];
+  return ["#2b3038","#cbd2da"];
+}
+function typeColor(s){
+  if (/hybrid/i.test(s))    return ["#d68fd6","#2a112a"];
+  if (/pure case/i.test(s)) return ["#caa15a","#241a08"];
+  if (/pure tote/i.test(s)) return ["#f4e04d","#26230a"];
+  return ["#3a3f4b","#8b909a"];
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER  — one function, used identically for West and East
+════════════════════════════════════════════════════════════════════════ */
+const COLGRP = `<colgroup>
+  <col class="k-dest"><col class="k-arc"><col class="k-pct"><col class="k-status">
+  <col class="k-lock"><col class="k-car"><col class="k-wt"><col class="k-sdt"><col class="k-type">
+</colgroup>`;
+const HEAD = `<tr>
+  <th>DESTINATION</th><th>ARC</th><th>TRAILER %</th><th>STATUS?</th>
+  <th>High value lock</th><th>CARRIER</th><th>TRAILER WT</th><th>SDT</th><th>TRAILER TYPE</th>
+</tr>`;
+
+function isEmpty(side, door, e){
+  return !e || !e.arc || /^n\/?a$/i.test(e.arc) || ALWAYS_EMPTY[side].includes(door);
+}
+
+function renderBoard(side){
+  const data = feed[side] || {};
+  const doors = DOORS[side];
+  let active = 0;
+  let rows = "";
+  for (const door of doors){
+    const e = data[door];
+    if (isEmpty(side, door, e)){
+      rows += `<tr>
+        <td class="c-dest">${door}</td>
+        <td class="niu-arc">N/A</td>
+        <td class="niu">NOT IN USE</td>
+        <td class="niu">NOT IN USE</td>
+        <td class="niu"></td>
+        <td class="niu">NOT IN USE</td>
+        <td class="niu">0</td>
+        <td class="niu"></td>
+        <td class="niu">NOT IN USE</td>
+      </tr>`;
+      continue;
+    }
+    active++;
+    const pc = pctColor(e.pct), wc = wtColor((e.wtK||0)*1000), lc = lockColor(e.lock),
+          sc = statusColor(e.status), tc = typeColor(e.type);
+    rows += `<tr>
+      <td class="c-dest">${door}</td>
+      <td class="c-arc">${esc(e.arc)}</td>
+      <td style="background:${pc[0]};color:${pc[1]}">${e.pct}%</td>
+      <td style="background:${sc[0]};color:${sc[1]}">${esc(e.status)}</td>
+      <td style="background:${lc[0]};color:${lc[1]}">${esc(e.lock)}</td>
+      <td style="background:#b14fd6;color:#fff">${esc(e.carrier)}</td>
+      <td style="background:${wc[0]};color:${wc[1]}">${e.wtK?e.wtK+"K":"0"}</td>
+      <td>${esc(e.sdt)||""}</td>
+      <td style="background:${tc[0]};color:${tc[1]}">${esc(e.type)}</td>
+    </tr>`;
+  }
+  return `<div class="board">
+    <h2>${side} dock doors <span class="cnt">${active}/${doors.length} in use</span></h2>
+    <table>${COLGRP}<thead>${HEAD}</thead><tbody>${rows}</tbody></table>
+  </div>`;
+}
+
+function render(){
+  const which = document.getElementById("side").value;
+  const sides = which === "both" ? ["West","East"] : [which];
+  document.getElementById("boards").innerHTML = sides.map(renderBoard).join("");
+  document.getElementById("ts").textContent = "Updated " + new Date().toLocaleTimeString() + (simOn?" · SIMULATED":"");
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SIMULATE — perturb the sample so you can watch it move (testing anywhere)
+════════════════════════════════════════════════════════════════════════ */
+function simulateData(){
+  const out = {};
+  for (const side of ["West","East"]){
+    const base = rowsToMap(SAMPLE_ROWS[side]);
+    for (const d in base){
+      const e = base[d];
+      if (!e.arc) continue;
+      const wtK = Math.max(0, Math.round((e.wtK + (Math.random()*6-2))));
+      e.wtK = wtK;
+      e.pct = Math.min(100, Math.max(0, Math.round(wtK/ (CFG.target/1000) *100)));  // tie % to wt for the sim
+      if (wtK*1000 >= CFG.target*0.95) e.status = "Last Wall";
+    }
+    out[side] = base;
+  }
+  return out;
+}
+function simulate(){ simOn = !simOn; refresh(); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   EXPORT / TIMERS / UTIL
+════════════════════════════════════════════════════════════════════════ */
+function exportCSV(){
+  const head = ["side","door","arc","trailerPct","status","highValueLock","carrier","trailerWt_lb","sdt","trailerType","inUse"];
+  const lines = [head.join(",")];
+  for (const side of ["West","East"]){
+    const data = feed[side]||{};
+    for (const door of DOORS[side]){
+      const e = data[door];
+      if (isEmpty(side, door, e)){
+        lines.push([side,door,"N/A","","NOT IN USE","","0","","","NO"].join(","));
+      } else {
+        lines.push([side,door,`"${e.arc}"`,e.pct,`"${e.status}"`,`"${e.lock}"`,e.carrier,(e.wtK||0)*1000,`"${e.sdt||""}"`,`"${e.type}"`,"YES"].join(","));
+      }
+    }
+  }
+  const blob = new Blob([lines.join("\n")],{type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `dock-board-${new Date().toISOString().slice(0,16).replace(/[:T]/g,"-")}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+let pollTimer = null;
+async function refresh(){ feed = await getData(); render(); }
+function restart(){
+  CFG.refreshMs = parseInt(document.getElementById("refresh").value);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refresh, CFG.refreshMs);
+}
+function esc(s){ return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+document.getElementById("refresh").value = String(CFG.refreshMs);
+refresh();
+restart();
+</script>
+</body>
+</html>
