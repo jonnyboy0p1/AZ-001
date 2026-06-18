@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FUSE-CDT·WM · Weight & Departure</title>
+<style>
+:root{--ink:#14213d;--teal:#008891;--gold:#ffb703;--red:#d95d39;--green:#2a9d8f;--line:#d9e2ec;--field:#f0f4fa;--white:#fff;--ob:#9a3412}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5}
+.fuse-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--ink);position:sticky;top:0;z-index:100}
+.brand{font-size:16px;font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;flex-shrink:0}
+.brand em{color:rgba(255,255,255,.3);font-style:normal;font-weight:400;font-size:10px;margin-left:8px;letter-spacing:.12em}
+.pills{display:flex;gap:3px}
+.pills a{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-decoration:none;color:rgba(255,255,255,.45);transition:all .15s}
+.pills a:hover{background:rgba(255,255,255,.1);color:#fff}
+.pills a.p-ixd.active{background:var(--teal);color:#fff}
+.pills a.p-ib.active,.pills a.p-anti.active{background:#1d4ed8;color:#fff}
+.pills a.p-ob.active,.pills a.p-cdt.active{background:#b45309;color:#fff}
+.nclock{font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
+.shell{max-width:1600px;margin:0 auto;padding:18px}
+.ph{margin-bottom:16px}.ph h1{font-size:21px;font-weight:900}.ph p{color:#64748b;font-size:12px;margin-top:3px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:16px}
+.mb16{margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(20,33,61,.04)}
+.ct{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:12px}
+.card-ob{border-left:3px solid #c2410c}
+.card-alert{border:2px solid #fca5a5;background:#fff5f5}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kl{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748b}
+.kv{font-size:26px;font-weight:900;line-height:1.1;margin-top:4px}
+.ks{font-size:12px;color:#64748b;margin-top:3px}
+/* WEIGHT GAUGE */
+.gauge-wrap{position:relative;width:100%;margin-bottom:16px}
+.gauge-label-row{display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px;font-weight:600}
+.gauge-track{height:28px;border-radius:8px;background:#e2e8f0;position:relative;overflow:hidden}
+.gauge-band{position:absolute;top:0;bottom:0;background:rgba(22,163,74,.18);border-left:2px solid #16a34a;border-right:2px solid #16a34a}
+.gauge-warn-lo{position:absolute;top:0;bottom:0;background:rgba(217,119,6,.12)}
+.gauge-warn-hi{position:absolute;top:0;bottom:0;background:rgba(217,119,6,.12)}
+.gauge-fill{position:absolute;top:0;bottom:0;left:0;border-radius:8px 0 0 8px;transition:width .5s}
+.gauge-pointer{position:absolute;top:-6px;bottom:-6px;width:3px;border-radius:2px;background:#1e3a8a;transition:left .5s;z-index:2}
+.gauge-pointer::after{content:attr(data-val);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:800;color:#1e3a8a;background:#fff;border:1px solid var(--line);padding:2px 6px;border-radius:4px}
+.gauge-ticks{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:4px;padding:0 2px}
+/* STATUS BAND LABELS */
+.band-labels{display:flex;margin-top:6px;font-size:10px;font-weight:700;position:relative;height:16px}
+.band-lbl{position:absolute;text-align:center;transform:translateX(-50%)}
+/* CDT CARDS */
+.cdt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.cdt-card{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff;position:relative;transition:box-shadow .15s}
+.cdt-card:hover{box-shadow:0 4px 16px rgba(20,33,61,.1)}
+.cdt-card.urgent{border-color:#fca5a5;background:#fef2f2;animation:pulse-border 2s infinite}
+.cdt-card.warn{border-color:#fcd34d;background:#fffbeb}
+.cdt-card.ok{border-color:#86efac;background:#f0fdf4}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3)}50%{box-shadow:0 0 0 4px rgba(239,68,68,.1)}}
+.cdt-vrid{font-size:14px;font-weight:900;margin-bottom:2px}
+.cdt-meta{font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px}
+.cdt-countdown{font-size:28px;font-weight:900;line-height:1;margin-bottom:2px;font-variant-numeric:tabular-nums}
+.cdt-countdown.urgent{color:#991b1b}
+.cdt-countdown.warn{color:#92400e}
+.cdt-countdown.ok{color:#166534}
+.cdt-timelabel{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px}
+.cdt-wt{font-size:12px;margin-bottom:6px}
+.cdt-wt-val{font-weight:800}
+.cdt-status{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;font-size:10px;font-weight:800;text-transform:uppercase}
+.s-ok{background:#dcfce7;color:#166534}.s-warn{background:#fef9c3;color:#92400e}.s-urgent{background:#fee2e2;color:#991b1b}
+.cdt-gw-badge{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:4px;font-size:10px;font-weight:800;background:#ede9fe;color:#4c1d95;margin-left:4px}
+/* SWEEPER FLAGS */
+.flag-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:1px solid transparent;font-size:12px;margin-bottom:5px}
+.flag-row.flag-ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.flag-row.flag-warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.flag-row.flag-alert{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.flag-icon{font-size:16px;flex-shrink:0}
+/* SPIKE LOG */
+.spike-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:7px;font-size:12px;margin-bottom:4px;border:1px solid transparent}
+.spike-item.spike-clear{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.spike-item.spike-warn{background:#fef9c3;border-color:#fcd34d;color:#92400e}
+.spike-item.spike-alert{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.spike-time{font-variant-numeric:tabular-nums;font-size:11px;color:#94a3b8;min-width:50px;flex-shrink:0}
+/* ARC CONTROLS */
+.arc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.arc-item{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.arc-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:6px}
+.arc-input{display:flex;align-items:center;gap:6px}
+.arc-input input{height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px;font-weight:700;color:var(--ink);width:80px;text-align:right}
+.arc-input input:focus{outline:1px solid var(--teal)}
+.arc-input span{font-size:12px;color:#64748b}
+/* DIVERT */
+.div-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}
+.div-row:last-child{border-bottom:0}
+.div-bar{flex:1;height:5px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.div-bar span{display:block;height:100%;border-radius:999px}
+.btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:7px;background:#fff;font:600 12px inherit;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn.danger{border-color:#fca5a5;color:#991b1b}
+.btn.danger:hover{background:#fef2f2}
+.tg{color:#166534}.ta{color:#92400e}.tr{color:#991b1b}.tb{color:#1e3a8a}
+</style>
+</head>
+<body>
+
+<nav class="fuse-nav">
+  <a class="brand" href="fuse-ixd.html">FUSE <em>v001</em></a>
+  <div class="pills">
+    <a href="fuse-ixd.html" class="p-ixd">IXD</a>
+    <a href="fuse-ibd.html" class="p-ib">IBD</a>
+    <a href="fuse-anti.html" class="p-anti">ANTI</a>
+    <a href="fuse-obd.html" class="p-ob">OBD</a>
+    <a href="fuse-cdt.html" class="p-cdt active">CDT·WM</a>
+  </div>
+  <span class="nclock" id="clock">--:--:--</span>
+</nav>
+
+<div class="shell">
+  <div class="ph">
+    <h1>FUSE-CDT·WM · Weight Monitor & Departure Tracker</h1>
+    <p>OB-exclusive — live sorter weight monitoring (32K–40K band), ARC controls, spike detection, and CDT countdown tracker with sweeper flags.</p>
+  </div>
+
+  <!-- Active alerts banner -->
+  <div id="alert-banner" class="mb16" style="display:none"></div>
+
+  <!-- Weight monitor + ARC controls -->
+  <div class="g12 mb16">
+    <!-- Weight Monitor -->
+    <div class="card card-ob">
+      <div class="ct">Weight Monitor</div>
+
+      <!-- Gauge -->
+      <div class="gauge-wrap">
+        <div class="gauge-label-row">
+          <span>0</span>
+          <span>Target Band</span>
+          <span>55K lbs</span>
+        </div>
+        <div class="gauge-track" id="gauge-track">
+          <!-- Bands rendered by JS -->
+        </div>
+        <div class="gauge-ticks" id="gauge-ticks"></div>
+      </div>
+
+      <!-- Weight input + status -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:4px">Current Weight (lbs)</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" id="weight-input" value="36500" min="0" max="55000" step="100"
+              style="height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;font:700 16px inherit;color:var(--ink);width:110px"
+              oninput="updateWeight()">
+            <span style="font-size:12px;color:#64748b">lbs</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:4px">Status</div>
+          <div id="weight-status" style="font-size:14px;font-weight:800;padding-top:8px"></div>
+        </div>
+      </div>
+
+      <!-- Weight KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div class="kpi" style="padding:10px">
+          <div class="kl" style="font-size:10px">Target Band</div>
+          <div class="kv" style="font-size:16px;color:#166534">32–40K</div>
+          <div class="ks" style="font-size:11px">Optimal range</div>
+        </div>
+        <div class="kpi" style="padding:10px" id="gap-kpi">
+          <div class="kl" style="font-size:10px">Gap to Band</div>
+          <div class="kv" style="font-size:16px" id="gap-val">—</div>
+          <div class="ks" style="font-size:11px" id="gap-dir">—</div>
+        </div>
+        <div class="kpi" style="padding:10px" id="spike-kpi">
+          <div class="kl" style="font-size:10px">Spike Status</div>
+          <div class="kv" style="font-size:16px" id="spike-val">Clear</div>
+          <div class="ks" style="font-size:11px">No rapid change</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ARC Controls + Divert -->
+    <div style="display:grid;gap:16px">
+      <div class="card">
+        <div class="ct">ARC Inputs</div>
+        <div class="arc-grid" id="arc-grid">
+          <!-- Rendered by JS -->
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="recalcWeight()">↺ Recalculate Weight</button>
+          <button class="btn" style="margin-left:auto" onclick="clearArcs()">✕ Clear ARCs</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ct">Divert Breakdown</div>
+        <div id="divert-breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CDT Tracker -->
+  <div class="card mb16">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="ct" style="margin-bottom:0">CDT Tracker · Upcoming Departures</div>
+      <div style="display:flex;gap:6px;font-size:11px;color:#64748b;align-items:center">
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fef2f2;border:1px solid #fca5a5;display:inline-block"></span>Critical (&lt;30 min)</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fffbeb;border:1px solid #fcd34d;display:inline-block"></span>Watch (30–90 min)</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f0fdf4;border:1px solid #86efac;display:inline-block"></span>On track</span>
+      </div>
+    </div>
+    <div class="cdt-grid" id="cdt-cards"></div>
+  </div>
+
+  <!-- Sweeper Flags + Spike Log -->
+  <div class="g2 mb16">
+    <div class="card card-ob">
+      <div class="ct">Sweeper Flags</div>
+      <div id="sweeper-flags"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Spike Detection Log</div>
+      <div id="spike-log"></div>
+    </div>
+  </div>
+
+  <!-- Data controls -->
+  <div class="card">
+    <div class="ct">Data Controls</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="runDockHubPull()">▶ DockFlow Pull</button>
+      <button class="btn" onclick="renderAll()">↺ Refresh</button>
+      <button class="btn danger" onclick="addSpikeTest()">⚡ Simulate Spike</button>
+    </div>
+  </div>
+</div>
+
+<script src="fuse-theory.js"></script>
+<script>
+const STORE={get:(k,fb)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+// FUSE theory hooks: prefer collector-provided live CDT (ff.cdt); derive status + weight heat from the theory
+function cdtData(){return STORE.get('ff.cdt',null)||sampleCDT;}
+function cdtStatus(c){return c.status||(window.FUSE_THEORY?FUSE_THEORY.cdtRisk(c.minRemaining,c.weight).level:'ok');}
+
+// Weight state
+let currentWeight=36500;
+const BAND_LO=32000,BAND_HI=40000,GAUGE_MAX=55000;
+const WARN_LO=28000,WARN_HI=43000;
+
+// Weight history for spike detection
+let weightHistory=STORE.get('ff.weightHistory',[]);
+let spikeLog=STORE.get('ff.spikeLog',[]);
+
+// ARC configuration
+const arcs=[
+  {id:'arc1',label:'ARC 1',weight:8200,pct:22},
+  {id:'arc2',label:'ARC 2',weight:9400,pct:25},
+  {id:'arc3',label:'ARC 3',weight:7800,pct:21},
+  {id:'arc4',label:'ARC 4',weight:6100,pct:16},
+  {id:'arc5',label:'ARC 5',weight:5000,pct:14},
+];
+
+// CDT sample data (from SSP in production)
+const sampleCDT=[
+  {vrid:'OB-T7782',type:'Fluid',cdtHH:1,cdtMM:45,minRemaining:17,weight:22800,gwOpen:true,status:'urgent'},
+  {vrid:'OB-T4421',type:'RWC',  cdtHH:2,cdtMM:15,minRemaining:47,weight:28400,gwOpen:false,status:'warn'},
+  {vrid:'OB-T9001',type:'RWC',  cdtHH:2,cdtMM:45,minRemaining:77,weight:31200,gwOpen:false,status:'warn'},
+  {vrid:'OB-T3319',type:'Fluid',cdtHH:3,cdtMM:30,minRemaining:102,weight:35200,gwOpen:false,status:'ok'},
+  {vrid:'OB-T5510',type:'MP',   cdtHH:4,cdtMM:0, minRemaining:132,weight:38900,gwOpen:false,status:'ok'},
+  {vrid:'OB-T2210',type:'Fluid',cdtHH:4,cdtMM:30,minRemaining:162,weight:33700,gwOpen:false,status:'ok'},
+];
+
+function pct(val){return Math.round((val/GAUGE_MAX)*100);}
+
+function buildGauge(weight){
+  const track=document.getElementById('gauge-track');
+  const fillPct=Math.min(pct(weight),100);
+  const fillColor=weight>=BAND_LO&&weight<=BAND_HI?'#16a34a':weight>=WARN_LO&&weight<=WARN_HI?'#d97706':'#dc2626';
+  track.innerHTML=`
+    <div class="gauge-warn-lo" style="left:${pct(WARN_LO)}%;width:${pct(BAND_LO-WARN_LO)}%"></div>
+    <div class="gauge-band" style="left:${pct(BAND_LO)}%;width:${pct(BAND_HI-BAND_LO)}%"></div>
+    <div class="gauge-warn-hi" style="left:${pct(BAND_HI)}%;width:${pct(WARN_HI-BAND_HI)}%"></div>
+    <div class="gauge-fill" style="width:${fillPct}%;background:${fillColor};opacity:.25"></div>
+    <div class="gauge-pointer" data-val="${(weight/1000).toFixed(1)}K" style="left:calc(${fillPct}% - 1px)"></div>`;
+  const ticks=[0,10,20,30,40,50,55];
+  document.getElementById('gauge-ticks').innerHTML=ticks.map(t=>`<span>${t}K</span>`).join('');
+}
+
+function updateWeight(){
+  currentWeight=Number(document.getElementById('weight-input').value)||0;
+  buildGauge(currentWeight);
+  // Record in history
+  weightHistory.push({t:Date.now(),w:currentWeight});
+  if(weightHistory.length>20)weightHistory=weightHistory.slice(-20);
+  STORE.set('ff.weightHistory',weightHistory);
+  // Check spike (>8K increase in last 2 readings)
+  if(weightHistory.length>=2){
+    const prev=weightHistory[weightHistory.length-2];
+    const curr=weightHistory[weightHistory.length-1];
+    const delta=curr.w-prev.w;
+    if(delta>=8000){
+      const entry={time:new Date().toLocaleTimeString(),from:(prev.w/1000).toFixed(1),to:(curr.w/1000).toFixed(1),delta:(delta/1000).toFixed(1),level:'alert'};
+      spikeLog.unshift(entry);
+      if(spikeLog.length>10)spikeLog=spikeLog.slice(0,10);
+      STORE.set('ff.spikeLog',spikeLog);
+    }else if(delta>=4000){
+      const entry={time:new Date().toLocaleTimeString(),from:(prev.w/1000).toFixed(1),to:(curr.w/1000).toFixed(1),delta:(delta/1000).toFixed(1),level:'warn'};
+      spikeLog.unshift(entry);
+      if(spikeLog.length>10)spikeLog=spikeLog.slice(0,10);
+      STORE.set('ff.spikeLog',spikeLog);
+    }
+  }
+  renderWeightStatus();
+  renderSweeperFlags();
+  renderSpikeLog();
+}
+
+function renderWeightStatus(){
+  const w=currentWeight;
+  const el=document.getElementById('weight-status');
+  if(w>=BAND_LO&&w<=BAND_HI){el.innerHTML='<span class="tg">✓ In band</span>';}
+  else if(w<BAND_LO){el.innerHTML=`<span class="tr">↓ Under — ${((BAND_LO-w)/1000).toFixed(1)}K below target</span>`;}
+  else if(w>BAND_HI){el.innerHTML=`<span class="ta">↑ Over — ${((w-BAND_HI)/1000).toFixed(1)}K above target</span>`;}
+  // Gap KPI
+  const gapEl=document.getElementById('gap-val');
+  const gapDir=document.getElementById('gap-dir');
+  if(w>=BAND_LO&&w<=BAND_HI){gapEl.textContent='In band';gapEl.className='kv tg';gapDir.textContent='No sweep needed';}
+  else if(w<BAND_LO){gapEl.textContent=`−${((BAND_LO-w)/1000).toFixed(1)}K`;gapEl.className='kv tr';gapDir.textContent='Need more freight';}
+  else{gapEl.textContent=`+${((w-BAND_HI)/1000).toFixed(1)}K`;gapEl.className='kv ta';gapDir.textContent='Reduce divert';}
+  // Alert banner
+  const banner=document.getElementById('alert-banner');
+  if(spikeLog.length>0&&spikeLog[0].level==='alert'){
+    banner.style.display='block';
+    banner.innerHTML=`<div style="background:#fee2e2;border:2px solid #ef4444;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-weight:700;color:#991b1b;font-size:13px"><span style="font-size:20px">🚨</span><span>WEIGHT SPIKE DETECTED — ${spikeLog[0].from}K → ${spikeLog[0].to}K (+${spikeLog[0].delta}K) at ${spikeLog[0].time} — Notify PA and AM immediately</span><button class="btn danger" style="margin-left:auto;font-size:11px" onclick="this.parentElement.parentElement.style.display='none'">Dismiss</button></div>`;
+  }else{banner.style.display='none';}
+}
+
+function renderSweeperFlags(){
+  const w=currentWeight;
+  const flags=[];
+  if(w<BAND_LO){const gap=BAND_LO-w;flags.push({cls:'flag-warn',icon:'📦',msg:`Weight ${(w/1000).toFixed(1)}K — ${(gap/1000).toFixed(1)}K below target band. Load heavier freight or increase divert throughput.`});}
+  if(w>BAND_HI){const over=w-BAND_HI;flags.push({cls:'flag-warn',icon:'⚠️',msg:`Weight ${(w/1000).toFixed(1)}K — ${(over/1000).toFixed(1)}K above target band. Reduce divert or shift to lighter freight.`});}
+  if(w<WARN_LO)flags.push({cls:'flag-alert',icon:'🚨',msg:`Critical underweight at ${(w/1000).toFixed(1)}K. Sweeper sweep is urgently needed.`});
+  if(w>WARN_HI)flags.push({cls:'flag-alert',icon:'🚨',msg:`Critical overweight at ${(w/1000).toFixed(1)}K. Risk of system overload — reduce flow immediately.`});
+  const critical=cdtData().filter(x=>cdtStatus(x)==='urgent');
+  if(critical.length>0)flags.push({cls:'flag-alert',icon:'⏰',msg:`${critical.length} trailer${critical.length>1?'s':''} at critical CDT — sweeper closeout required now: ${critical.map(x=>x.vrid).join(', ')}`});
+  const watching=cdtData().filter(x=>cdtStatus(x)==='warn');
+  if(watching.length>0)flags.push({cls:'flag-warn',icon:'👁',msg:`${watching.length} trailer${watching.length>1?'s':''} entering gatekeeping window — prepare closeout: ${watching.map(x=>x.vrid).join(', ')}`});
+  if(w>=BAND_LO&&w<=BAND_HI&&critical.length===0&&watching.length===0)flags.push({cls:'flag-ok',icon:'✓',msg:'Weight in target band. No sweeper flags active.'});
+  document.getElementById('sweeper-flags').innerHTML=flags.map(f=>`<div class="flag-row ${f.cls}"><span class="flag-icon">${f.icon}</span><span>${f.msg}</span></div>`).join('');
+}
+
+function renderSpikeLog(){
+  const log=STORE.get('ff.spikeLog',[]);
+  if(!log.length){document.getElementById('spike-log').innerHTML='<p style="color:#64748b;font-size:12px">No spikes recorded this session.</p>';return;}
+  document.getElementById('spike-log').innerHTML=log.map(entry=>`
+    <div class="spike-item ${entry.level==='alert'?'spike-alert':'spike-warn'}">
+      <span class="spike-time">${entry.time}</span>
+      <span><strong>${entry.from}K → ${entry.to}K</strong> (+${entry.delta}K) ${entry.level==='alert'?'🚨 SPIKE — PA + AM notified':'⚠ Rapid change detected'}</span>
+    </div>`).join('');
+}
+
+function renderArcs(){
+  const arcHTML=arcs.map((arc,i)=>`
+    <div class="arc-item">
+      <div class="arc-label">${arc.label}</div>
+      <div class="arc-input">
+        <input type="number" id="${arc.id}-wt" value="${arc.weight}" min="0" max="20000" step="100" onchange="recalcWeight()">
+        <span>lbs</span>
+      </div>
+      <div style="margin-top:4px;font-size:11px;color:#64748b">
+        <input type="number" id="${arc.id}-pct" value="${arc.pct}" min="0" max="100" step="1" style="width:42px;height:22px;padding:0 4px;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:11px" onchange="recalcWeight()">% active
+      </div>
+    </div>`).join('');
+  document.getElementById('arc-grid').innerHTML=arcHTML;
+}
+
+function recalcWeight(){
+  let total=0;
+  arcs.forEach(arc=>{
+    const wt=Number(document.getElementById(arc.id+'-wt')?.value||arc.weight);
+    const pctVal=Number(document.getElementById(arc.id+'-pct')?.value||arc.pct)/100;
+    total+=wt*pctVal;
+  });
+  document.getElementById('weight-input').value=Math.round(total);
+  currentWeight=Math.round(total);
+  buildGauge(currentWeight);
+  renderWeightStatus();
+  renderSweeperFlags();
+}
+
+function clearArcs(){arcs.forEach(arc=>{const el=document.getElementById(arc.id+'-wt');if(el)el.value=0;const pe=document.getElementById(arc.id+'-pct');if(pe)pe.value=0;});recalcWeight();}
+
+function renderDivert(){
+  const divData=[
+    {name:'MP',val:41,color:'#1d4ed8'},{name:'FL',val:38,color:'#008891'},{name:'RWC',val:21,color:'#c2410c'},
+  ];
+  const total=divData.reduce((s,x)=>s+x.val,0);
+  document.getElementById('divert-breakdown').innerHTML=divData.map(d=>`
+    <div class="div-row">
+      <span style="min-width:32px;font-weight:800;font-size:12px">${d.name}</span>
+      <div class="div-bar"><span style="width:${Math.round((d.val/total)*100)}%;background:${d.color}"></span></div>
+      <span style="min-width:36px;text-align:right;font-size:12px;font-weight:700">${d.val}%</span>
+      <span style="min-width:50px;text-align:right;font-size:11px;color:#64748b">${((total*d.val/100)/1000).toFixed(1)}K lbs</span>
+    </div>`).join('')+`<p style="font-size:11px;color:#64748b;margin-top:8px">Recirc rate: ~12% · Sample data — connect DockFlow for live values</p>`;
+}
+
+function renderCDT(){
+  document.getElementById('cdt-cards').innerHTML=cdtData().map(c=>{
+    const h=Math.floor(c.minRemaining/60),m=c.minRemaining%60;
+    const countdownStr=h>0?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m`;
+    const status=cdtStatus(c);
+    const heat=window.FUSE_THEORY?FUSE_THEORY.weightHeat(c.weight):{bg:'#94a3b8',fg:'#fff',label:''};
+    const cdtTime=c.cdtHH!=null?`${String(c.cdtHH).padStart(2,'0')}:${String(c.cdtMM).padStart(2,'0')}`:(c.cdt||'');
+    // Close-out ETA vs CDT (theory) — shown when the collector supplies it
+    const co=c.closeout;
+    const etaStr=window.FUSE_THEORY?FUSE_THEORY.fmtEta(co?co.etaMin:0):((co?co.etaMin:0)+'m');
+    const coLine=co?`<div class="cdt-wt">Close-out: <span class="cdt-wt-val" style="color:${co.risk==='MISS'?'#991b1b':co.risk==='AT_RISK'?'#92400e':'#166534'}">${etaStr}${co.slackMin!=null?` (${co.slackMin>=0?'+':''}${co.slackMin}m vs CDT)`:''}</span></div>`:'';
+    return`<div class="cdt-card ${status}">
+      <div class="cdt-vrid">${c.vrid}</div>
+      <div class="cdt-meta">${c.type} · CDT ${cdtTime}</div>
+      <div class="cdt-countdown ${status}">${countdownStr}</div>
+      <div class="cdt-timelabel">Time to departure</div>
+      <div class="cdt-wt">Weight: <span class="cdt-wt-val" style="background:${heat.bg};color:${heat.fg};padding:1px 7px;border-radius:4px">${(c.weight/1000).toFixed(1)}K · ${heat.label}</span></div>
+      ${coLine}
+      <span class="cdt-status ${status==='ok'?'s-ok':status==='warn'?'s-warn':'s-urgent'}">${status==='ok'?'On Track':status==='warn'?'Watch':'Critical'}</span>
+      ${c.gwOpen?'<span class="cdt-gw-badge">🔑 GW Open</span>':''}
+    </div>`}).join('');
+}
+
+function addSpikeTest(){
+  const prev=currentWeight;
+  const spikeVal=prev+12000;
+  document.getElementById('weight-input').value=spikeVal;
+  currentWeight=spikeVal;
+  weightHistory.push({t:Date.now(),w:prev},{t:Date.now()+100,w:spikeVal});
+  const delta=12;
+  const entry={time:new Date().toLocaleTimeString(),from:(prev/1000).toFixed(1),to:(spikeVal/1000).toFixed(1),delta:delta.toFixed(1),level:'alert'};
+  spikeLog.unshift(entry);
+  STORE.set('ff.spikeLog',spikeLog);
+  STORE.set('ff.weightHistory',weightHistory);
+  buildGauge(currentWeight);
+  renderWeightStatus();
+  renderSweeperFlags();
+  renderSpikeLog();
+}
+
+function renderAll(){
+  buildGauge(currentWeight);
+  renderWeightStatus();
+  renderArcs();
+  renderDivert();
+  renderCDT();
+  renderSweeperFlags();
+  renderSpikeLog();
+}
+
+function runDockHubPull(){fetch('/api/dock-hub').then(r=>{if(!r.ok)throw 0;return r.json()}).then(p=>{STORE.set('ff.dockHubCapture',p);renderAll();alert('FUSE: DockFlow data updated.')}).catch(()=>alert('No DockFlow capture yet.'));}
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+// Auto-refresh CDT countdowns every 30s
+setInterval(()=>{renderCDT();},30000);
+renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FUSE-OBD · OB Command</title>
+<style>
+:root{--ink:#14213d;--teal:#008891;--gold:#ffb703;--red:#d95d39;--green:#2a9d8f;--line:#d9e2ec;--field:#f0f4fa;--white:#fff;--ob:#9a3412}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5}
+.fuse-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--ink);position:sticky;top:0;z-index:100}
+.brand{font-size:16px;font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;flex-shrink:0}
+.brand em{color:rgba(255,255,255,.3);font-style:normal;font-weight:400;font-size:10px;margin-left:8px;letter-spacing:.12em}
+.pills{display:flex;gap:3px}
+.pills a{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-decoration:none;color:rgba(255,255,255,.45);transition:all .15s}
+.pills a:hover{background:rgba(255,255,255,.1);color:#fff}
+.pills a.p-ixd.active{background:var(--teal);color:#fff}
+.pills a.p-ib.active,.pills a.p-anti.active{background:#1d4ed8;color:#fff}
+.pills a.p-ob.active,.pills a.p-cdt.active{background:#b45309;color:#fff}
+.nclock{font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
+.shell{max-width:1600px;margin:0 auto;padding:18px}
+.ph{margin-bottom:16px}.ph h1{font-size:21px;font-weight:900}.ph p{color:#64748b;font-size:12px;margin-top:3px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.mb16{margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(20,33,61,.04)}
+.ct{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:12px}
+.card-ob{border-left:3px solid #c2410c}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kl{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748b}
+.kv{font-size:28px;font-weight:900;line-height:1.1;margin-top:4px}
+.ks{font-size:12px;color:#64748b;margin-top:3px}
+.kpi-bar{height:4px;border-radius:999px;background:#e2e8f0;margin-top:8px;overflow:hidden}
+.kpi-bar span{display:block;height:100%;border-radius:999px}
+.gr{margin-bottom:11px}
+.gm{display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:4px}
+.gm strong{color:var(--ink);font-weight:600}
+.bar{height:7px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.bar span{display:block;height:100%;border-radius:999px;transition:width .4s}
+/* CDT CARDS */
+.cdt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.cdt-card{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fff}
+.cdt-card.urgent{border-color:#fca5a5;background:#fef2f2}
+.cdt-card.warn{border-color:#fcd34d;background:#fffbeb}
+.cdt-card.ok{border-color:#86efac;background:#f0fdf4}
+.cdt-vrid{font-size:13px;font-weight:900}
+.cdt-type{font-size:11px;color:#64748b;font-weight:600;margin:2px 0}
+.cdt-time{font-size:20px;font-weight:900;margin:6px 0 2px}
+.cdt-label{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}
+.cdt-status{display:inline-flex;align-items:center;height:18px;padding:0 6px;border-radius:4px;font-size:10px;font-weight:800;text-transform:uppercase;margin-top:4px}
+.s-ok{background:#dcfce7;color:#166534}.s-warn{background:#fef9c3;color:#92400e}.s-urgent{background:#fee2e2;color:#991b1b}
+/* DIVERT */
+.div-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.div-row:last-child{border-bottom:0}
+.div-bar{flex:1;height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.div-bar span{display:block;height:100%;border-radius:999px;background:var(--teal)}
+/* ALERTS */
+.ai{display:flex;align-items:flex-start;gap:7px;padding:8px 10px;border-radius:8px;border:1px solid transparent;font-size:12px;margin-bottom:5px}
+.ai.bridge{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.ai.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.ai.warn{background:#fef9c3;border-color:#fcd34d;color:#92400e}
+.ad{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.ad.bridge{background:#f97316}.ad.ok{background:#22c55e}.ad.warn{background:#eab308}
+.lrow{display:flex;flex-wrap:wrap;gap:5px}
+.sl{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;background:#fff}
+.sl:hover{border-color:var(--teal);color:var(--teal)}
+.btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:7px;background:#fff;font:600 12px inherit;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.tg{color:#166534}.ta{color:#92400e}.tr{color:#991b1b}
+</style>
+</head>
+<body>
+
+<nav class="fuse-nav">
+  <a class="brand" href="fuse-ixd.html">FUSE <em>v001</em></a>
+  <div class="pills">
+    <a href="fuse-ixd.html" class="p-ixd">IXD</a>
+    <a href="fuse-ibd.html" class="p-ib">IBD</a>
+    <a href="fuse-anti.html" class="p-anti">ANTI</a>
+    <a href="fuse-obd.html" class="p-ob active">OBD</a>
+    <a href="fuse-cdt.html" class="p-cdt">CDT·WM</a>
+  </div>
+  <span class="nclock" id="clock">--:--:--</span>
+</nav>
+
+<div class="shell">
+  <div class="ph">
+    <h1>FUSE-OBD · OB Command</h1>
+    <p>Outbound dock command center — goals, CDT windows, divert breakdown, and bridge signals to IBD. See <a href="fuse-cdt.html" style="color:var(--teal);font-weight:700">FUSE-CDT·WM</a> for the live weight monitor and full departure tracker.</p>
+  </div>
+
+  <!-- OB goals + CDT summary -->
+  <div class="g21 mb16">
+    <div class="card card-ob">
+      <div class="ct">OBD Goals</div>
+      <div id="ob-goals"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Shift KPIs</div>
+      <div id="ob-kpis"></div>
+    </div>
+  </div>
+
+  <!-- CDT cards -->
+  <div class="card mb16">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="ct" style="margin-bottom:0">CDT Windows · Upcoming Departures</div>
+      <a href="fuse-cdt.html" class="btn">Full tracker →</a>
+    </div>
+    <div class="cdt-grid" id="cdt-cards"></div>
+  </div>
+
+  <!-- Divert breakdown + OB door status -->
+  <div class="g2 mb16">
+    <div class="card">
+      <div class="ct">Divert Breakdown</div>
+      <div id="divert-panel"></div>
+    </div>
+    <div class="card card-ob">
+      <div class="ct">OB Zone Status</div>
+      <div id="ob-zones"></div>
+    </div>
+  </div>
+
+  <!-- Bridge signals to IB + Source links -->
+  <div class="g2 mb16">
+    <div class="card card-ob">
+      <div class="ct">Bridge: OB → IB Requests</div>
+      <div id="bridge-ob-ib"></div>
+    </div>
+    <div class="card">
+      <div class="ct">OBD Source Links</div>
+      <div class="lrow" id="obd-links"></div>
+    </div>
+  </div>
+
+  <!-- Data controls -->
+  <div class="card">
+    <div class="ct">Data Controls</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="runNeoPull()">▶ NEO Pull</button>
+      <button class="btn" onclick="runLiveFeedPull()">▶ Live Feed Pull</button>
+      <button class="btn" onclick="runDockHubPull()">▶ DockFlow Pull</button>
+      <button class="btn" onclick="renderAll()">↺ Refresh</button>
+    </div>
+  </div>
+</div>
+
+<script src="fuse-theory.js"></script>
+<script>
+const STORE={get:(k,fb)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+// FUSE theory hooks: prefer collector-provided live CDT (ff.cdt); derive status + weight heat from the theory
+function cdtData(){return STORE.get('ff.cdt',null)||sampleCDT;}
+function cdtStatus(c){return c.status||(window.FUSE_THEORY?FUSE_THEORY.cdtRisk(c.minRemaining,c.weight).level:'ok');}
+
+const sampleGoalsCsv=`department,subtype,goal,actual,period
+IBDock,RC Presort Cases,12500,9800,P1
+IBDock,Combined Cartons,85617,72400,P1
+IBDock,PID Cartons,63887,51200,P1
+IBDock,PR Pallets,227,198,P1
+OBDock,Fluid Load Jobs,61021,60236,P1
+OBDock,RWC Jobs,14509,17004,P1
+OBDock,Manual Palletize Jobs,4328,2618,P1
+OBDock,Pallets Loaded,900,849,P1`;
+
+const sampleTrailersCsv=`vrid,isa,yard_location,arrival_time,dwell_hours,freight_type,totes_pct,cases_pct,status,is_live_load
+VRID12345,ISA111,YD-41,2026-05-13 19:15,28,PR,10,90,Ready,false
+VRID88821,ISA222,YD-09,2026-05-13 20:40,14,LP,20,80,Ready,false
+VRID55291,ISA333,YD-22,2026-05-13 22:10,7,Eaches,70,30,Ready,false
+VRID77120,ISA444,YD-31,2026-05-14 01:30,5,Mixed,45,55,Waiting,false
+VRID99901,ISA555,YD-02,2026-05-14 02:00,1,Fluid,65,35,Arriving,true
+VRID44210,ISA556,YD-44,2026-05-12 23:20,31,Rex,40,60,Ready,false
+VRID66214,ISA557,YD-15,2026-05-13 10:00,19,MP,35,65,Ready,false
+VRID73009,ISA558,YD-36,2026-05-13 04:00,24,RWC,50,50,Ready,false`;
+
+// Sample OB CDT data (would come from SSP in production)
+const sampleCDT=[
+  {vrid:'OB-T4421',type:'RWC',cdt:'02:15',minRemaining:47,weight:28400,status:'warn'},
+  {vrid:'OB-T3319',type:'Fluid',cdt:'03:30',minRemaining:102,weight:35200,status:'ok'},
+  {vrid:'OB-T7782',type:'Fluid',cdt:'01:45',minRemaining:17,weight:22800,status:'urgent'},
+  {vrid:'OB-T5510',type:'MP',cdt:'04:00',minRemaining:132,weight:38900,status:'ok'},
+  {vrid:'OB-T9001',type:'RWC',cdt:'02:45',minRemaining:77,weight:31200,status:'warn'},
+];
+
+const obdLinks=[
+  ['SSP OB','https://trans-logistics.amazon.com/ssp/dock/hrz/ob?'],
+  ['FMC','https://trans-logistics.amazon.com/fmc/execution/Zt2ojN'],
+  ['YMS Yard','https://trans-logistics.amazon.com/yms/shipclerk/#/yard?locationType=ProcessingLocation'],
+  ['DockFlow','https://prod-na.dockflow.robotics.a2z.com/RFD2/wc/MainSorter/Sorter?workAreasTableConfig=%7B%22Sorter%22%3A%7B%22filterConfig%22%3Anull%7D%7D'],
+  ['NEO Planning','https://neo.meta.amazon.dev/planning'],
+  ['FUSE-CDT·WM →','fuse-cdt.html'],
+];
+
+function parseCsv(text){if(!text)return[];const lines=text.trim().split(/\r?\n/).filter(Boolean);const delim=lines[0].includes('\t')?'\t':',';const headers=lines[0].split(delim).map(h=>h.trim());return lines.slice(1).map(line=>{const cols=line.split(delim);return headers.reduce((r,h,i)=>{r[h]=(cols[i]||'').trim();return r},{})});}
+function goals(){const csv=STORE.get('ff.goalsCsv',null)||sampleGoalsCsv;return parseCsv(csv).map(row=>{const g=Number(row.goal||0),a=Number(row.actual||0),p=g?Math.round((a/g)*100):0;return{department:row.department,subtype:row.subtype,goal:g,actual:a,gap:Math.max(g-a,0),percent:p}});}
+
+function fmtTime(mins){const h=Math.floor(mins/60),m=mins%60;return h>0?`${h}h ${m}m`:`${m}m`;}
+
+function renderAll(){
+  const g=goals();
+  const obG=g.filter(x=>x.department==='OBDock');
+  const ibG=g.filter(x=>x.department==='IBDock');
+  const obPct=obG.length?Math.round(obG.reduce((s,x)=>s+x.percent,0)/obG.length):0;
+
+  // OB goals
+  document.getElementById('ob-goals').innerHTML=obG.length
+    ?obG.map(x=>`<div class="gr"><div class="gm"><strong>${x.subtype}</strong><span class="${x.percent>=100?'tg':x.percent>=85?'ta':'tr'}">${x.actual.toLocaleString()} / ${x.goal.toLocaleString()} (${x.percent}%)</span></div><div class="bar"><span style="width:${Math.min(x.percent,100)}%;background:${x.percent>=100?'#16a34a':x.percent>=85?'#d97706':'#dc2626'}"></span></div></div>`).join('')
+    :'<p style="color:#64748b;font-size:12px">No data — run NEO Pull.</p>';
+
+  // OB KPIs
+  const cdt=cdtData();
+  const urgent=cdt.filter(x=>cdtStatus(x)==='urgent').length;
+  const warn=cdt.filter(x=>cdtStatus(x)==='warn').length;
+  document.getElementById('ob-kpis').innerHTML=`
+    <div style="display:grid;gap:8px">
+      <div class="kpi" style="padding:10px"><div class="kl">OB Goal Avg</div><div class="kv ${obPct>=85?'tg':obPct>=70?'ta':'tr'}" style="font-size:22px">${obPct}%</div></div>
+      <div class="kpi" style="padding:10px"><div class="kl">CDT Urgent</div><div class="kv tr" style="font-size:22px">${urgent}</div><div class="ks">${warn} warnings</div></div>
+    </div>`;
+
+  // CDT cards
+  document.getElementById('cdt-cards').innerHTML=cdtData().map(c=>{
+    const status=cdtStatus(c);
+    const heat=window.FUSE_THEORY?FUSE_THEORY.weightHeat(c.weight):{bg:'#94a3b8',fg:'#fff',label:''};
+    const co=c.closeout;
+    return`
+    <div class="cdt-card ${status}">
+      <div class="cdt-vrid">${c.vrid}</div>
+      <div class="cdt-type">${c.type}</div>
+      <div class="cdt-label">CDT</div>
+      <div class="cdt-time">${c.cdt!=null?c.cdt:(c.cdtHH!=null?String(c.cdtHH).padStart(2,'0')+':'+String(c.cdtMM).padStart(2,'0'):'')}</div>
+      <div class="cdt-label">Time remaining</div>
+      <div style="font-size:14px;font-weight:700;margin:2px 0">${fmtTime(c.minRemaining)}</div>
+      ${co?`<div class="cdt-label" style="margin-top:4px">Close-out</div><div style="font-size:12px;font-weight:700;color:${co.risk==='MISS'?'#991b1b':co.risk==='AT_RISK'?'#92400e':'#166534'}">${window.FUSE_THEORY?FUSE_THEORY.fmtEta(co.etaMin):co.etaMin+'m'}${co.slackMin!=null?' ('+(co.slackMin>=0?'+':'')+co.slackMin+'m)':''}</div>`:''}
+      <div class="cdt-label" style="margin-top:4px">Weight</div>
+      <div><span style="font-size:11px;font-weight:800;background:${heat.bg};color:${heat.fg};padding:1px 7px;border-radius:4px">${(c.weight/1000).toFixed(1)}K · ${heat.label}</span></div>
+      <span class="cdt-status ${status==='ok'?'s-ok':status==='warn'?'s-warn':'s-urgent'}">${status==='ok'?'On Track':status==='warn'?'Watch':'Critical'}</span>
+    </div>`}).join('');
+
+  // Divert breakdown (from DockFlow data or sample)
+  const dockHub=STORE.get('ff.dockHubCapture',null);
+  const divData={MP:41,FL:38,RWC:21};
+  const total=Object.values(divData).reduce((s,v)=>s+v,0);
+  document.getElementById('divert-panel').innerHTML=Object.entries(divData).map(([name,val])=>`
+    <div class="div-row">
+      <span style="min-width:36px;font-weight:700;font-size:12px">${name}</span>
+      <div class="div-bar"><span style="width:${Math.round((val/total)*100)}%"></span></div>
+      <span style="font-size:12px;font-weight:700;min-width:32px;text-align:right">${val}%</span>
+    </div>`).join('')+`<p style="font-size:11px;color:#64748b;margin-top:8px">${dockHub?`DockFlow capture: ${new Date(dockHub.capturedAt).toLocaleTimeString()}`:'Sample data — run DockFlow Pull for live values'}</p>`;
+
+  // OB zones
+  document.getElementById('ob-zones').innerHTML=`
+    <div style="display:grid;gap:7px">
+      ${[{zone:'East Fluid',status:'Active',pct:74},{zone:'West Fluid',status:'Active',pct:81},{zone:'East EOL',status:'Active',pct:58},{zone:'West EOL',status:'Slowing',pct:42}].map(z=>`
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;font-weight:600;min-width:90px">${z.zone}</span>
+        <div class="div-bar"><span style="width:${z.pct}%;background:${z.pct>=70?'#16a34a':z.pct>=50?'#d97706':'#dc2626'}"></span></div>
+        <span style="font-size:11px;font-weight:700;min-width:32px;color:${z.pct>=70?'#166534':z.pct>=50?'#92400e':'#991b1b'}">${z.pct}%</span>
+      </div>`).join('')}
+    </div>`;
+
+  // Bridge signals to IB
+  const sigs=[];
+  const rwcNeeded=obG.find(x=>x.subtype==='RWC Jobs'&&x.percent<90);
+  const fluidNeeded=obG.find(x=>x.subtype==='Fluid Load Jobs'&&x.percent<90);
+  const cdtUrg=cdtData().filter(x=>cdtStatus(x)==='urgent').length;
+  if(cdtUrg>0)sigs.push({type:'bridge',msg:`🚨 ${cdtUrg} trailer${cdtUrg>1?'s':''} at critical CDT — gatekeeping window open now`});
+  if(rwcNeeded)sigs.push({type:'bridge',msg:`Requesting RWC freight from IBD — OB ${rwcNeeded.percent}% on RWC Jobs (gap: ${rwcNeeded.gap.toLocaleString()})`});
+  if(fluidNeeded)sigs.push({type:'bridge',msg:`Requesting Fluid freight from IBD — OB ${fluidNeeded.percent}% on Fluid Load Jobs`});
+  if(!sigs.length)sigs.push({type:'ok',msg:'OB is on track. No active IB requests at this time.'});
+  document.getElementById('bridge-ob-ib').innerHTML=sigs.map(s=>`<div class="ai ${s.type}"><div class="ad ${s.type}"></div><span>${s.msg}</span></div>`).join('');
+
+  document.getElementById('obd-links').innerHTML=obdLinks.map(([l,h])=>`<a class="sl" href="${h}" ${h.startsWith('http')?'target="_blank" rel="noreferrer"':''}>${l}</a>`).join('');
+}
+
+function runNeoPull(){fetch('/api/neo-goals').then(r=>{if(!r.ok)throw 0;return r.json()}).then(p=>{STORE.set('ff.goalsCsv',p.csv);renderAll();alert('FUSE: NEO goals updated.')}).catch(()=>alert('No NEO capture yet.'));}
+function runLiveFeedPull(){fetch('/api/live-feed').then(r=>{if(!r.ok)throw 0;return r.json()}).then(p=>{STORE.set('ff.liveFeed',p);renderAll();}).catch(()=>alert('No live feed capture yet.'));}
+function runDockHubPull(){fetch('/api/dock-hub').then(r=>{if(!r.ok)throw 0;return r.json()}).then(p=>{STORE.set('ff.dockHubCapture',p);renderAll();alert('FUSE: DockFlow data updated.')}).catch(()=>alert('No DockFlow capture yet.'));}
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+renderAll();
+</script>
+</body>
+</html>

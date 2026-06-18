@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FUSE-IBD · IB Command</title>
+<style>
+:root{--ink:#14213d;--teal:#008891;--gold:#ffb703;--red:#d95d39;--green:#2a9d8f;--line:#d9e2ec;--field:#f0f4fa;--white:#fff;--ib:#1e3a8a;--ob:#9a3412}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5}
+.fuse-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--ink);position:sticky;top:0;z-index:100}
+.brand{font-size:16px;font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;flex-shrink:0}
+.brand em{color:rgba(255,255,255,.3);font-style:normal;font-weight:400;font-size:10px;margin-left:8px;letter-spacing:.12em}
+.pills{display:flex;gap:3px}
+.pills a{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-decoration:none;color:rgba(255,255,255,.45);transition:all .15s}
+.pills a:hover{background:rgba(255,255,255,.1);color:#fff}
+.pills a.p-ixd.active{background:var(--teal);color:#fff}
+.pills a.p-ib.active,.pills a.p-anti.active{background:#1d4ed8;color:#fff}
+.pills a.p-ob.active,.pills a.p-cdt.active{background:#b45309;color:#fff}
+.nclock{font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
+.shell{max-width:1600px;margin:0 auto;padding:18px}
+.ph{margin-bottom:16px}.ph h1{font-size:21px;font-weight:900}.ph p{color:#64748b;font-size:12px;margin-top:3px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.mb16{margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(20,33,61,.04)}
+.ct{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:12px}
+.card-ib{border-left:3px solid #1d4ed8}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kl{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748b}
+.kv{font-size:26px;font-weight:900;line-height:1.1;margin-top:4px}
+.ks{font-size:12px;color:#64748b;margin-top:3px}
+.gr{margin-bottom:11px}
+.gm{display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:4px}
+.gm strong{color:var(--ink);font-weight:600}
+.bar{height:7px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.bar span{display:block;height:100%;border-radius:999px;transition:width .4s}
+/* DOOR GRID */
+.door-grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:7px}
+.door-card{border:1px solid var(--line);border-radius:8px;padding:9px 8px;background:#fff;font-size:11px;text-align:center;cursor:default;transition:box-shadow .15s}
+.door-card:hover{box-shadow:0 4px 12px rgba(20,33,61,.12)}
+.d-num{font-size:15px;font-weight:900;line-height:1;margin-bottom:3px}
+.d-type{font-size:9px;color:#64748b;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d-badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.d-vrid{font-size:9px;color:#64748b;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.door-open{border-color:#86efac;background:#f0fdf4}
+.door-open .d-num{color:#166534}
+.door-open .d-badge{background:#dcfce7;color:#166534}
+.door-occupied{border-color:#fcd34d;background:#fffbeb}
+.door-occupied .d-num{color:#92400e}
+.door-occupied .d-badge{background:#fef9c3;color:#92400e}
+.door-maint{border-color:#e2e8f0;background:#f8fafc;opacity:.65}
+.door-maint .d-badge{background:#f1f5f9;color:#64748b}
+.door-live{border-color:#93c5fd;background:#eff6ff}
+.door-live .d-num{color:#1e3a8a}
+.door-live .d-badge{background:#dbeafe;color:#1e3a8a}
+.door-reserved{border-color:#c4b5fd;background:#f5f3ff}
+.door-reserved .d-badge{background:#ede9fe;color:#4c1d95}
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;align-items:center}
+.legend span{display:flex;align-items:center;gap:4px}
+.leg-dot{width:10px;height:10px;border-radius:3px;border:1px solid}
+/* ALERT */
+.ai{display:flex;align-items:flex-start;gap:7px;padding:8px 10px;border-radius:8px;border:1px solid transparent;font-size:12px;margin-bottom:5px}
+.ai.bridge{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
+.ai.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.ai.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.ad{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.ad.bridge{background:#3b82f6}.ad.warn{background:#f97316}.ad.ok{background:#22c55e}
+.lrow{display:flex;flex-wrap:wrap;gap:5px}
+.sl{display:inline-flex;align-items:center;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:6px;font-size:12px;font-weight:600;color:var(--ink);text-decoration:none;background:#fff}
+.sl:hover{border-color:var(--teal);color:var(--teal)}
+.btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:7px;background:#fff;font:600 12px inherit;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.tg{color:#166534}.ta{color:#92400e}.tr{color:#991b1b}.tb{color:#1e3a8a}
+/* Door summary tags */
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:4px;font-size:11px;font-weight:800}
+.tag-g{background:#dcfce7;color:#166534}.tag-a{background:#fef9c3;color:#92400e}.tag-b{background:#dbeafe;color:#1e3a8a}.tag-r{background:#fef2f2;color:#991b1b}
+</style>
+</head>
+<body>
+
+<nav class="fuse-nav">
+  <a class="brand" href="fuse-ixd.html">FUSE <em>v001</em></a>
+  <div class="pills">
+    <a href="fuse-ixd.html" class="p-ixd">IXD</a>
+    <a href="fuse-ibd.html" class="p-ib active">IBD</a>
+    <a href="fuse-anti.html" class="p-anti">ANTI</a>
+    <a href="fuse-obd.html" class="p-ob">OBD</a>
+    <a href="fuse-cdt.html" class="p-cdt">CDT·WM</a>
+  </div>
+  <span class="nclock" id="clock">--:--:--</span>
+</nav>
+
+<div class="shell">
+  <div class="ph">
+    <h1>FUSE-IBD · IB Command</h1>
+    <p>Inbound dock command center — goals, door status (201–232), live load protection, and bridge signals from OBD.</p>
+  </div>
+
+  <!-- Goals + Live load protection -->
+  <div class="g21 mb16">
+    <div class="card card-ib">
+      <div class="ct">IBD Goals</div>
+      <div id="ib-goals"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Live Load Protection</div>
+      <div id="live-protect"></div>
+    </div>
+  </div>
+
+  <!-- Door grid 201-232 -->
+  <div class="card mb16">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="ct" style="margin-bottom:0">Dock Doors 201–232</div>
+      <div class="legend">
+        <span><span class="leg-dot" style="background:#f0fdf4;border-color:#86efac"></span>Open</span>
+        <span><span class="leg-dot" style="background:#fffbeb;border-color:#fcd34d"></span>Occupied</span>
+        <span><span class="leg-dot" style="background:#eff6ff;border-color:#93c5fd"></span>Live</span>
+        <span><span class="leg-dot" style="background:#f5f3ff;border-color:#c4b5fd"></span>Reserved</span>
+        <span><span class="leg-dot" style="background:#f8fafc;border-color:#e2e8f0;opacity:.65"></span>Maint</span>
+      </div>
+      <div id="door-summary" style="font-size:12px;color:#64748b;display:flex;gap:8px"></div>
+    </div>
+    <div class="door-grid" id="door-grid"></div>
+  </div>
+
+  <!-- Bridge signals from OB + Source links -->
+  <div class="g2 mb16">
+    <div class="card card-ib">
+      <div class="ct">Bridge: OB → IB Requests</div>
+      <div id="bridge-ob-ib"></div>
+    </div>
+    <div class="card">
+      <div class="ct">IBD Source Links</div>
+      <div class="lrow" id="ibd-links"></div>
+    </div>
+  </div>
+
+  <!-- Data controls -->
+  <div class="card">
+    <div class="ct">Data Controls</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn" onclick="runNeoPull()">▶ NEO Pull</button>
+      <button class="btn" onclick="runDockHubPull()">▶ DockFlow Pull</button>
+      <label class="btn" style="cursor:pointer">Upload Trailers<input type="file" accept=".csv" style="display:none" onchange="loadFile(this,'ff.trailersCsv')"></label>
+      <label class="btn" style="cursor:pointer">Upload Doors<input type="file" accept=".csv" style="display:none" onchange="loadFile(this,'ff.doorsCsv')"></label>
+      <button class="btn" onclick="renderAll()">↺ Refresh</button>
+      <button class="btn" style="margin-left:auto" onclick="resetDoors()">↩ Reset Sample Doors</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE={get:(k,fb)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+
+const sampleGoalsCsv=`department,subtype,goal,actual,period
+IBDock,RC Presort Cases,12500,9800,P1
+IBDock,Combined Cartons,85617,72400,P1
+IBDock,PID Cartons,63887,51200,P1
+IBDock,PR Pallets,227,198,P1
+OBDock,Fluid Load Jobs,61021,60236,P1
+OBDock,RWC Jobs,14509,17004,P1
+OBDock,Manual Palletize Jobs,4328,2618,P1
+OBDock,Pallets Loaded,900,849,P1`;
+
+const sampleTrailersCsv=`vrid,isa,yard_location,arrival_time,dwell_hours,freight_type,totes_pct,cases_pct,status,is_live_load
+VRID12345,ISA111,YD-41,2026-05-13 19:15,28,PR,10,90,Ready,false
+VRID88821,ISA222,YD-09,2026-05-13 20:40,14,LP,20,80,Ready,false
+VRID55291,ISA333,YD-22,2026-05-13 22:10,7,Eaches,70,30,Ready,false
+VRID77120,ISA444,YD-31,2026-05-14 01:30,5,Mixed,45,55,Waiting,false
+VRID99901,ISA555,YD-02,2026-05-14 02:00,1,Fluid,65,35,Arriving,true
+VRID44210,ISA556,YD-44,2026-05-12 23:20,31,Rex,40,60,Ready,false
+VRID66214,ISA557,YD-15,2026-05-13 10:00,19,MP,35,65,Ready,false
+VRID73009,ISA558,YD-36,2026-05-13 04:00,24,RWC,50,50,Ready,false`;
+
+const sampleDoorsCsv=`door,door_type,status,current_trailer,reserved_for_live,estimated_completion
+201,Receive Dock,Open,,false,
+202,Receive Dock,Occupied,VRID55291,false,2026-05-14 01:00
+203,Receive Dock,Open,,false,
+204,Receive Dock,Open,,false,
+205,LP,Open,,false,
+206,LP,Occupied,VRID88821,false,2026-05-14 01:30
+207,LP,Open,,false,
+208,LP,Open,,false,
+209,Prep,Open,,false,
+210,Prep,Open,,false,
+211,Prep,Open,,false,
+212,Prep,Maintenance,,false,
+213,PID Cartons,Open,,false,
+214,PID Cartons,Open,,false,
+215,PID Cartons,Occupied,VRID73009,false,2026-05-14 02:10
+216,PID Cartons,Open,,false,
+217,PR Pallets,Open,,false,
+218,PR Pallets,Open,,false,
+219,PR Pallets,Occupied,VRID12345,false,2026-05-14 01:45
+220,PR Pallets,Open,,false,
+221,East Fluid,Open,,false,
+222,East Fluid,Open,,false,
+223,East Fluid,Reserved,,false,
+224,East EOL,Open,,false,
+225,East EOL,Open,,false,
+226,East EOL,Open,,false,
+227,West Fluid,Open,,false,
+228,West Fluid,Open,,false,
+229,West Fluid,Reserved Live,,true,
+230,West EOL,Open,,false,
+231,West EOL,Reserved Live,,true,
+232,West EOL,Open,,false`;
+
+const ibdLinks=[
+  ['NEO Planning','https://neo.meta.amazon.dev/planning'],
+  ['YMS Yard','https://trans-logistics.amazon.com/yms/shipclerk/#/yard?locationType=ProcessingLocation'],
+  ['DockMaster 2.0','https://fc-inbound-dock-hub-na.aka.amazon.com/en_US/#/dockmaster/dayschedule/RFD2?date=2025-04-03'],
+  ['DockMaster 3.0','https://prod-na.us-east-1.idx-website.aft.amazon.dev/en_US/RFD2/day-schedule?source=dockhub_modal'],
+  ['Oculus','https://oculus.qubit.amazon.dev/vendorfreight/RFD2'],
+  ['Troubleshoot','https://trans-logistics.amazon.com/sortcenter/tantei?nodeId=RFD2&searchType=Container&searchId=YTF21312458329'],
+  ['FUSE-ANTI →','fuse-anti.html'],
+];
+
+function parseCsv(text){if(!text)return[];const lines=text.trim().split(/\r?\n/).filter(Boolean);const delim=lines[0].includes('\t')?'\t':',';const headers=lines[0].split(delim).map(h=>h.trim());return lines.slice(1).map(line=>{const cols=line.split(delim);return headers.reduce((r,h,i)=>{r[h]=(cols[i]||'').trim();return r},{})});}
+function goals(){const csv=STORE.get('ff.goalsCsv',null)||sampleGoalsCsv;return parseCsv(csv).map(row=>{const g=Number(row.goal||0),a=Number(row.actual||0),p=g?Math.round((a/g)*100):0;return{department:row.department,subtype:row.subtype,goal:g,actual:a,gap:Math.max(g-a,0),percent:p}});}
+function trailers(){const csv=STORE.get('ff.trailersCsv',null)||sampleTrailersCsv;return parseCsv(csv).map(row=>({vrid:row.vrid,freightType:row.freight_type||'Mixed',dwellHours:Number(row.dwell_hours||0),isLiveLoad:String(row.is_live_load).toLowerCase()==='true',status:row.status||'Ready'}));}
+function doors(){const csv=STORE.get('ff.doorsCsv',null)||sampleDoorsCsv;return parseCsv(csv).map(row=>({door:row.door,doorType:row.door_type,status:row.status||'Open',currentTrailer:row.current_trailer,reservedForLive:String(row.reserved_for_live).toLowerCase()==='true',estimatedCompletion:row.estimated_completion}));}
+
+function doorClass(d){
+  if(d.reservedForLive||d.status==='Reserved Live')return'door-reserved';
+  if(d.status==='Maintenance'||d.status==='Closed')return'door-maint';
+  if(d.currentTrailer&&d.currentTrailer!=='')return'door-occupied';
+  if(d.status==='Reserved')return'door-reserved';
+  return'door-open';
+}
+function doorLabel(d){
+  if(d.reservedForLive||d.status==='Reserved Live')return'Live Rsv';
+  if(d.status==='Maintenance')return'Maint';
+  if(d.status==='Closed')return'Closed';
+  if(d.currentTrailer)return'In Use';
+  if(d.status==='Reserved')return'Reserved';
+  return'Open';
+}
+
+function renderAll(){
+  const g=goals(),t=trailers(),d=doors();
+  const ibG=g.filter(x=>x.department==='IBDock');
+  const live=t.filter(x=>x.isLiveLoad);
+  const obG=g.filter(x=>x.department==='OBDock');
+
+  // IB goals
+  document.getElementById('ib-goals').innerHTML=ibG.length
+    ?ibG.map(x=>`<div class="gr"><div class="gm"><strong>${x.subtype}</strong><span class="${x.percent>=100?'tg':x.percent>=85?'ta':'tr'}">${x.actual.toLocaleString()} / ${x.goal.toLocaleString()} (${x.percent}%)</span></div><div class="bar"><span style="width:${Math.min(x.percent,100)}%;background:${x.percent>=100?'#16a34a':x.percent>=85?'#d97706':'#dc2626'}"></span></div></div>`).join('')
+    :'<p style="color:#64748b;font-size:12px">No data — run NEO Pull.</p>';
+
+  // Live load protection
+  const reservedDoors=d.filter(x=>x.reservedForLive||x.status==='Reserved Live').length;
+  document.getElementById('live-protect').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="kpi" style="padding:10px"><div class="kl" style="font-size:10px">Reserved Doors</div><div class="kv" style="font-size:20px;color:#1e3a8a">${reservedDoors}</div></div>
+      <div class="kpi" style="padding:10px"><div class="kl" style="font-size:10px">Live Inbound</div><div class="kv" style="font-size:20px;color:#1e3a8a">${live.length}</div></div>
+    </div>
+    ${live.length?live.map(x=>`<div class="ai bridge"><div class="ad bridge"></div><span><strong>${x.vrid}</strong> · ${x.freightType} · Arriving</span></div>`).join(''):'<p style="color:#64748b;font-size:12px">No live loads currently inbound.</p>'}`;
+
+  // Door grid
+  const open=d.filter(x=>doorClass(x)==='door-open').length;
+  const occupied=d.filter(x=>doorClass(x)==='door-occupied').length;
+  const reserved=d.filter(x=>doorClass(x)==='door-reserved').length;
+  document.getElementById('door-summary').innerHTML=`<span class="tag tag-g">${open} Open</span><span class="tag tag-a">${occupied} In Use</span><span class="tag tag-b">${reserved} Reserved</span>`;
+
+  document.getElementById('door-grid').innerHTML=d.map(door=>`
+    <div class="door-card ${doorClass(door)}" title="${door.doorType}${door.currentTrailer?' · '+door.currentTrailer:''}${door.estimatedCompletion?' · ETA '+door.estimatedCompletion:''}">
+      <div class="d-num">${door.door}</div>
+      <div class="d-type">${door.doorType}</div>
+      <span class="d-badge">${doorLabel(door)}</span>
+      <div class="d-vrid">${door.currentTrailer||'—'}</div>
+    </div>`).join('');
+
+  // Bridge signals from OB
+  const obBehind=obG.filter(x=>x.percent<85);
+  const sigs=[];
+  obBehind.forEach(x=>sigs.push({type:'warn',msg:`OBD needs <strong>${x.subtype}</strong> freight — ${x.percent}% (gap: ${x.gap.toLocaleString()}) · prioritize compatible trailers`}));
+  const aged=t.filter(x=>x.dwellHours>=24);
+  if(aged.length)sigs.push({type:'warn',msg:`${aged.length} trailer${aged.length>1?'s':''} aged 24h+ — see <a href="fuse-anti.html" style="font-weight:700;text-decoration:underline">FUSE-ANTI</a> for priority order`});
+  if(!sigs.length)sigs.push({type:'ok',msg:'No active OB requests. IB operating normally.'});
+  document.getElementById('bridge-ob-ib').innerHTML=sigs.map(s=>`<div class="ai ${s.type}"><div class="ad ${s.type}"></div><span>${s.msg}</span></div>`).join('');
+
+  document.getElementById('ibd-links').innerHTML=ibdLinks.map(([l,h])=>`<a class="sl" href="${h}" ${h.startsWith('http')?'target="_blank" rel="noreferrer"':''}>${l}</a>`).join('');
+}
+
+function runNeoPull(){fetch('/api/neo-goals').then(r=>{if(!r.ok)throw 0;return r.json()}).then(p=>{STORE.set('ff.goalsCsv',p.csv);renderAll();alert('FUSE: NEO goals updated.')}).catch(()=>alert('No NEO capture yet.'));}
+function runDockHubPull(){fetch('/api/dock-hub').then(r=>{if(!r.ok)throw 0;return r.json()}).then(p=>{STORE.set('ff.dockHubCapture',p);renderAll();alert('FUSE: DockFlow data updated.')}).catch(()=>alert('No DockFlow capture yet.'));}
+function loadFile(input,key){const f=input.files[0];if(!f)return;f.text().then(txt=>{STORE.set(key,txt);renderAll();});}
+function resetDoors(){STORE.set('ff.doorsCsv',sampleDoorsCsv);renderAll();}
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+renderAll();
+</script>
+</body>
+</html>
