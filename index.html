@@ -6163,6 +6163,7 @@ function importBridge() {
 function hasUsableBridgeData(data) {
   if (!data || typeof data !== 'object') return false;
   if (data.neo && Object.values(data.neo).some((value) => num(value) !== 0)) return true;
+  if (data.dock && Object.values(data.dock).some((value) => num(value) !== 0)) return true;
   if (data.fclmFull && Object.values(data.fclmFull).some((value) => num(value) !== 0)) return true;
   if (data.fclmPeriods && Object.values(data.fclmPeriods).some((row) => row && Object.values(row).some((value) => num(value) !== 0))) return true;
   if (data.monitorPeriods && Object.values(data.monitorPeriods).some((row) => {
