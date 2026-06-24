@@ -2417,6 +2417,9 @@ button.copy-success{
 .shift-goals-panel .goal-input-card select{padding:6px 10px;font-size:13px;}
 .shift-goals-panel .goal-roster-card{gap:5px;}
 .shift-goals-panel .goal-roster-card button{padding:7px 11px;}
+.goal-pallets-card{grid-column:1 / -1;}
+.pallets-goal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+@media (max-width:760px){.pallets-goal-grid{grid-template-columns:1fr;}}
 .shift-goals-panel .goal-card-status{min-height:0;padding:5px 8px;line-height:1.25;font-size:11px;}
 .shift-goals-panel .inline-collapse{margin:0 16px 10px;}
 .shift-goals-panel .inline-collapse summary{padding:7px 11px;}
@@ -2856,6 +2859,27 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
               <div><label>Fluid HC</label><input id="fluidHC" value="0" /></div>
             </div>
           </details>
+          <div class="goal-input-card goal-pallets-card">
+            <h3>Pallets Loaded <span class="label-hint">Dock &middot; Transfer Out Dock</span></h3>
+            <div class="pallets-goal-grid">
+              <div>
+                <label>Pallets Loaded Goal <span class="label-hint">NEO</span></label>
+                <input id="goalPallets" value="0" />
+              </div>
+              <div>
+                <label>PL Rate Goal <span class="label-hint">NEO</span></label>
+                <input id="palletsRateGoal" value="0" />
+              </div>
+              <div>
+                <label>Dock PL HC <span class="label-hint">NEO</span></label>
+                <input id="palletsHcGoal" value="0" />
+              </div>
+            </div>
+            <div id="palletsStatus" class="goal-card-status warn">Auto-pull NEO + Dock Pallet Loader to compare.</div>
+            <input id="palletsActual" type="hidden" value="0" />
+            <input id="palletsRateActual" type="hidden" value="0" />
+            <input id="palletsHcActual" type="hidden" value="0" />
+          </div>
         </div>
         <div class="note compact">
           <div><b>OB Diverts Calc:</b> <span id="obCalc">0</span></div>
@@ -4038,6 +4062,26 @@ function renderGoals() {
     setText('fluidRosterStatus', `Below HC by ${fmt(Math.abs(rosterGap))} (${fmt(rosterFluidHc)} fulfilled vs ${fmt(compareTarget)} ${rosterSource}).`, 'bad');
   } else {
     setText('fluidRosterStatus', `At HC (${fmt(rosterFluidHc)} fulfilled vs ${fmt(compareTarget)} ${rosterSource}).`, 'good');
+  }
+
+  // Pallets Loaded (Dock) — NEO goal vs Dock Pallet Loader actual.
+  const palletsGoal = val('goalPallets');
+  const palletsRateGoal = val('palletsRateGoal');
+  const palletsHcGoal = val('palletsHcGoal');
+  const palletsActual = val('palletsActual');
+  const palletsRateActual = val('palletsRateActual');
+  const palletsHcActual = val('palletsHcActual');
+  const hasPalletGoals = palletsGoal || palletsRateGoal || palletsHcGoal;
+  const hasPalletActuals = palletsActual || palletsRateActual || palletsHcActual;
+  if (!hasPalletGoals && !hasPalletActuals) {
+    setText('palletsStatus', 'Auto-pull NEO + Dock Pallet Loader to compare.', 'warn');
+  } else if (!hasPalletActuals) {
+    setText('palletsStatus', `Goal set: Pallets ${fmt(palletsGoal)} · Rate ${fmt(palletsRateGoal, 2)} · HC ${fmt(palletsHcGoal)}. Dock actual pending.`, 'warn');
+  } else {
+    const pGap = palletsActual - palletsGoal;
+    const rGap = palletsRateActual - palletsRateGoal;
+    const hcText = (palletsHcActual || palletsHcGoal) ? ` · HC ${fmt(palletsHcActual)}/${fmt(palletsHcGoal)}` : '';
+    setText('palletsStatus', `Pallets ${fmt(palletsActual)}/${fmt(palletsGoal)} (${signed(pGap)}) · Rate ${fmt(palletsRateActual, 2)}/${fmt(palletsRateGoal, 2)} (${signed(rGap, 2)})${hcText}`, pGap >= 0 ? 'good' : 'bad');
   }
 }
 
@@ -6142,6 +6186,17 @@ function applyBridgeData(data) {
     setVal('shipSortGoal', data.neo.shipSortDiverts);
     setVal('fluidRate', data.neo.fluidLoadRate, 2);
     setVal('fluidHC', data.neo.fluidLoadHC);
+    setVal('goalPallets', data.neo.palletsLoadedJobs);
+    setVal('palletsRateGoal', data.neo.palletsLoadedRate, 2);
+    setVal('palletsHcGoal', data.neo.dockPalletLoaderHC);
+  }
+
+  // Dock Pallet Loader actuals (FCLM processId 1003022): Pallet UNIT total,
+  // Pallet UPH rate, and headcount. Provided by the bridge as data.dock.
+  if (data.dock) {
+    setVal('palletsActual', data.dock.palletsLoaded);
+    setVal('palletsRateActual', data.dock.rate, 2);
+    setVal('palletsHcActual', data.dock.hc);
   }
 
   if (data.fclmPeriods) {
@@ -6371,7 +6426,7 @@ function resetShift() {
   clearWorkingShift(keepShiftDate, includeMET, `Reset working shift for next day: ${keepShiftDate}${includeMET ? ' with MET on.' : '.'}`);
 }
 
-function buildFclmUrl(period = 'full') {
+function buildFclmUrl(period = 'full', processId = '1003021') {
   const shiftDate = $('shiftDate').value || new Date().toISOString().slice(0, 10);
   const [y, m, d] = shiftDate.split('-').map(Number);
   const start = { y, m, d };
@@ -6406,7 +6461,7 @@ function buildFclmUrl(period = 'full') {
   const u = new URL('https://fclm-portal.amazon.com/reports/functionRollup');
   u.searchParams.set('reportFormat', 'HTML');
   u.searchParams.set('warehouseId', 'RFD2');
-  u.searchParams.set('processId', '1003021');
+  u.searchParams.set('processId', processId);
   u.searchParams.set('maxIntradayDays', '1');
   u.searchParams.set('spanType', 'Intraday');
   u.searchParams.set('startDateIntraday', fmtDate(win.sd));
@@ -7295,6 +7350,16 @@ function renderFclmSourceLinks() {
   const el = $('fclmSourceLinks');
   if (!el) return;
 
+  const dockUrl = buildFclmUrl('full', '1003022');
+  const dockCard = `
+      <div class="source-link-card">
+        <div class="source-link-name">Dock Pallet Loader</div>
+        <div class="source-link-url" title="${escapeHtml(dockUrl)}">${escapeHtml(dockUrl)}</div>
+        <button class="soft" data-dock-source-open>Open</button>
+        <button class="soft" data-dock-source-copy>Copy</button>
+      </div>
+    `;
+
   el.innerHTML = fclmSourcePeriods().map((period) => {
     const url = buildFclmUrl(period.key);
     return `
@@ -7305,7 +7370,7 @@ function renderFclmSourceLinks() {
         <button class="soft" data-fclm-source-copy="${escapeHtml(period.key)}">Copy</button>
       </div>
     `;
-  }).join('');
+  }).join('') + dockCard;
 }
 
 function copyFclmUrl(period) {
@@ -7524,6 +7589,21 @@ function bind() {
   });
 
   document.addEventListener('click', (event) => {
+    const dockOpen = event.target.closest('[data-dock-source-open]');
+    if (dockOpen) {
+      const url = buildFclmUrl('full', '1003022');
+      if (url) window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    const dockCopy = event.target.closest('[data-dock-source-copy]');
+    if (dockCopy) {
+      const url = buildFclmUrl('full', '1003022');
+      if (url) {
+        navigator.clipboard.writeText(url);
+        updateMiniStatus('Dock Pallet Loader source URL copied.');
+      }
+      return;
+    }
     const openBtn = event.target.closest('[data-fclm-source-open]');
     if (openBtn) {
       openFclmPeriod(openBtn.dataset.fclmSourceOpen);

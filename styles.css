@@ -2198,6 +2198,9 @@ button.copy-success{
 .shift-goals-panel .goal-input-card select{padding:6px 10px;font-size:13px;}
 .shift-goals-panel .goal-roster-card{gap:5px;}
 .shift-goals-panel .goal-roster-card button{padding:7px 11px;}
+.goal-pallets-card{grid-column:1 / -1;}
+.pallets-goal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+@media (max-width:760px){.pallets-goal-grid{grid-template-columns:1fr;}}
 .shift-goals-panel .goal-card-status{min-height:0;padding:5px 8px;line-height:1.25;font-size:11px;}
 .shift-goals-panel .inline-collapse{margin:0 16px 10px;}
 .shift-goals-panel .inline-collapse summary{padding:7px 11px;}
