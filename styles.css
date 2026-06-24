@@ -2208,6 +2208,11 @@ button.copy-success{
 body[data-view="goals"] .quick-tools-panel .btnstack{padding:10px 16px;gap:7px;}
 .quick-tools-panel .btnstack button{padding:8px 11px;}
 .quick-tools-panel .source-panel-summary{padding:9px 12px;}
+/* Even the two Goals panels to equal height */
+body[data-view="goals"] .shift-goals-panel,
+body[data-view="goals"] .quick-tools-panel{align-self:stretch;}
+body[data-view="goals"] .quick-tools-panel{display:flex;flex-direction:column;}
+body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bottom:16px;}
 
 /* ── Period workboards: smaller squares, bypass rail on the side ──── */
 .workboard-layout{
