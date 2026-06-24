@@ -2211,7 +2211,7 @@ button.copy-success{
   border-bottom:1px solid var(--line);
 }
 .workboard-layout .period-pulse{padding:0;border-bottom:0;}
-.workboard-layout .period-pulse-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+.workboard-layout .period-pulse-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
 .workboard-layout .period-pulse-head{padding:8px 11px;}
 .workboard-layout .period-pulse-metrics{padding:10px 11px;gap:8px;}
 .workboard-layout .period-pulse-metrics b{font-size:16px;}
