@@ -2437,6 +2437,54 @@ body[data-view="goals"] .shift-goals-panel,
 body[data-view="goals"] .quick-tools-panel{align-self:stretch;}
 body[data-view="goals"] .quick-tools-panel{display:flex;flex-direction:column;}
 body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bottom:16px;}
+/* Stacked period selector — opens Fluid / EOL for the live Central-time period */
+.period-open-control{
+  grid-column:1 / -1;
+  display:grid;
+  gap:7px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--panel2);
+}
+.period-open-head{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.period-open-head #periodOpenNow{color:var(--text);}
+.period-open-tabs{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(46px,1fr));
+  gap:6px;
+}
+.period-open-tab{
+  position:relative;
+  padding:8px 6px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  text-align:center;
+}
+.period-open-tab.active{background:var(--blue);color:#fff;border-color:transparent;}
+.period-open-tab.now{border-color:rgba(114,240,164,.7);}
+.period-open-tab .now-dot{
+  position:absolute;
+  top:4px;
+  right:5px;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:var(--green);
+}
+.period-open-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.period-open-actions button{min-height:36px;}
 
 /* ── Period workboards: smaller squares, bypass rail on the side ──── */
 .workboard-layout{
@@ -2891,10 +2939,21 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
                 <input id="palletsHcGoal" value="0" />
               </div>
             </div>
+            <div class="pallets-goal-grid">
+              <div>
+                <label>Pallets Actual <span class="label-hint">Dock</span></label>
+                <input id="palletsActual" value="0" />
+              </div>
+              <div>
+                <label>PL Rate Actual <span class="label-hint">Dock</span></label>
+                <input id="palletsRateActual" value="0" />
+              </div>
+              <div>
+                <label>PL HC Actual <span class="label-hint">Dock</span></label>
+                <input id="palletsHcActual" value="0" />
+              </div>
+            </div>
             <div id="palletsStatus" class="goal-card-status warn">Auto-pull NEO + Dock Pallet Loader to compare.</div>
-            <input id="palletsActual" type="hidden" value="0" />
-            <input id="palletsRateActual" type="hidden" value="0" />
-            <input id="palletsHcActual" type="hidden" value="0" />
           </div>
         </div>
         <div class="note compact">
@@ -2920,16 +2979,14 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
         <div class="btnstack">
           <button id="openNeoBtn">Open NEO Planning</button>
           <button id="openFluidRosterBtn">Open Fluid Roster</button>
-          <button id="openFclmFullBtn">Open Fluid Full</button>
-          <button id="openFclmP1Btn">Open Fluid P1</button>
-          <button id="openFclmP2Btn">Open Fluid P2</button>
-          <button id="openFclmP3Btn">Open Fluid P3</button>
-          <button id="openFclmMetBtn" data-met-only hidden>Open Fluid MET</button>
-          <button id="openEolFullBtn">Open EOL Full</button>
-          <button id="openEolP1Btn">Open EOL P1</button>
-          <button id="openEolP2Btn">Open EOL P2</button>
-          <button id="openEolP3Btn">Open EOL P3</button>
-          <button id="openEolMetBtn" data-met-only hidden>Open EOL MET</button>
+          <div class="period-open-control">
+            <div class="period-open-head">Open report — live period: <span id="periodOpenNow">--</span> <span class="label-hint">(Central time)</span></div>
+            <div class="period-open-tabs" id="periodOpenTabs"></div>
+            <div class="period-open-actions">
+              <button id="openFluidSelBtn" class="primary">Open Fluid</button>
+              <button id="openEolSelBtn" class="primary">Open EOL</button>
+            </div>
+          </div>
           <button id="pullFclmOnlyBtn">Pull FCLM</button>
           <button id="pullFlUtilBtn">Pull FL Utilization</button>
           <button id="pullBattleBeltBtn">Pull Battle of the Belt</button>
@@ -3286,6 +3343,7 @@ function updateLiveClock() {
   else if (isMetShift && t >= 5 * 60 + 30 && t < 6 * 60 + 30) { label = 'MET'; cls = 'warn'; }
   el.textContent = `${ct} CT · ${label}`;
   el.className = `mini live-clock${cls ? ` ${cls}` : ''}`;
+  renderPeriodOpenTabs();
 }
 
 function updateShiftProgressBar(rows) {
@@ -4525,12 +4583,10 @@ function renderPeriodPulse(rows, board) {
       periods: data.map((p) => ({ label: p.label, goal: p.mp, actual: p.actualMp }))
     }
   ];
-  wrap.innerHTML = `
-    <div class="period-pulse-grid">
-      ${streamRows.map((stream) => {
-        const gap = stream.actual - stream.goal;
-        const pct = stream.goal > 0 ? stream.actual / stream.goal * 100 : 0;
-        return `
+  const streamCard = (stream) => {
+    const gap = stream.actual - stream.goal;
+    const pct = stream.goal > 0 ? stream.actual / stream.goal * 100 : 0;
+    return `
         <article class="period-pulse-card stream-card ${stream.cls}">
           <div class="period-pulse-head">
             <b>${stream.label}</b>
@@ -4550,9 +4606,10 @@ function renderPeriodPulse(rows, board) {
               </div>
             `).join('')}
           </div>
-        </article>
-      `;
-      }).join('')}
+        </article>`;
+  };
+  const byKey = (k) => streamRows.find((s) => s.key === k);
+  const obCard = `
       <article class="period-pulse-card total">
         <div class="period-pulse-head">
           <b>OB</b>
@@ -4564,7 +4621,8 @@ function renderPeriodPulse(rows, board) {
           <div><span>Remain</span><b class="${board.eos.remain <= 0 ? 'good' : 'warn'}">${fmt(board.eos.remain)}</b></div>
           <div><span>Belt</span><b>${fmt(board.eos.belt)}</b></div>
         </div>
-      </article>
+      </article>`;
+  const eolCard = `
       <article class="period-pulse-card eol">
         <div class="period-pulse-head">
           <b>EOL</b>
@@ -4576,7 +4634,8 @@ function renderPeriodPulse(rows, board) {
           <div><span>PL Rate Goal</span><b>${fmt(eolRateGoal, 2)}</b></div>
           <div><span>PL Rate Actual</span><b class="${eolRateGap >= 0 ? 'good' : 'warn'}">${fmt(eolRateActual, 2)}</b></div>
         </div>
-      </article>
+      </article>`;
+  const struggleCard = `
       <article class="period-pulse-card struggle">
         <div class="period-pulse-head">
           <b>Biggest Miss</b>
@@ -4593,7 +4652,16 @@ function renderPeriodPulse(rows, board) {
             ? `Use this in EOS: ${spread.worstSegment.period} was lightest during ${spread.worstSegment.label}.`
             : 'Enter FL Utilization Actuals and this will identify the weakest handoff window.'}
         </div>
-      </article>
+      </article>`;
+  // Board order: OB · FL / EOL · RWC / MP · Biggest Miss
+  wrap.innerHTML = `
+    <div class="period-pulse-grid">
+      ${obCard}
+      ${streamCard(byKey('fluid'))}
+      ${eolCard}
+      ${streamCard(byKey('rwc'))}
+      ${streamCard(byKey('mp'))}
+      ${struggleCard}
     </div>
   `;
 }
@@ -6524,6 +6592,61 @@ function openEolPeriod(period) {
   if (url) window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+let periodOpenSelection = null; // null = follow the live Central-time period
+
+function ctNowMinutes() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'America/Chicago'
+  }).formatToParts(new Date());
+  const h = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+  const m = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+  return h * 60 + m;
+}
+
+// Which shift period is live right now, by America/Chicago time. During the
+// short breaks between periods it returns the upcoming period; off-shift -> full.
+function currentShiftPeriodCT() {
+  const includeMET = $('useMET')?.value === 'true';
+  let t = ctNowMinutes();
+  if (t < 12 * 60) t += 24 * 60; // fold past-midnight onto the evening timeline
+  const P1s = 19 * 60, P2e = (2 * 60 + 30) + 1440, P3e = (5 * 60 + 30) + 1440, METe = (6 * 60 + 30) + 1440;
+  if (t >= P1s && t < 23 * 60) return 'p1';
+  if (t >= 23 * 60 && t < P2e) return 'p2'; // includes the 23:00-23:30 break
+  if (t >= P2e && t < P3e) return 'p3';     // includes the 02:30-03:00 break
+  if (includeMET && t >= P3e && t < METe) return 'met';
+  return 'full';
+}
+
+function periodOpenKeys() {
+  const keys = ['full', 'p1', 'p2', 'p3'];
+  if ($('useMET')?.value === 'true') keys.push('met');
+  return keys;
+}
+
+function periodOpenSelected() {
+  const cur = currentShiftPeriodCT();
+  const sel = periodOpenSelection || cur;
+  return periodOpenKeys().includes(sel) ? sel : cur;
+}
+
+let lastPeriodOpenSig = '';
+function renderPeriodOpenTabs() {
+  const wrap = $('periodOpenTabs');
+  if (!wrap) return;
+  const labels = { full: 'Full', p1: 'P1', p2: 'P2', p3: 'P3', met: 'MET' };
+  const nowKey = currentShiftPeriodCT();
+  const sel = periodOpenSelected();
+  const keys = periodOpenKeys();
+  const sig = keys.join(',') + '|' + nowKey + '|' + sel;
+  if (sig === lastPeriodOpenSig) return;
+  lastPeriodOpenSig = sig;
+  wrap.innerHTML = keys.map((k) =>
+    `<button type="button" class="period-open-tab${k === sel ? ' active' : ''}${k === nowKey ? ' now' : ''}" data-period-open="${k}">${labels[k] || k}${k === nowKey ? '<span class="now-dot"></span>' : ''}</button>`
+  ).join('');
+  const nowEl = $('periodOpenNow');
+  if (nowEl) nowEl.textContent = labels[nowKey] || nowKey;
+}
+
 function openNeoPlanning() {
   window.open('https://neo.meta.amazon.dev/planning', '_blank', 'noopener,noreferrer');
 }
@@ -7539,16 +7662,14 @@ function bind() {
   on('openNeoBtn', 'click', openNeoPlanning);
   on('openFluidRosterBtn', 'click', openFluidRoster);
   on('openFluidRosterGoalBtn', 'click', openFluidRoster);
-  on('openFclmFullBtn', 'click', () => openFclmPeriod('full'));
-  on('openFclmP1Btn', 'click', () => openFclmPeriod('p1'));
-  on('openFclmP2Btn', 'click', () => openFclmPeriod('p2'));
-  on('openFclmP3Btn', 'click', () => openFclmPeriod('p3'));
-  on('openFclmMetBtn', 'click', () => openFclmPeriod('met'));
-  on('openEolFullBtn', 'click', () => openEolPeriod('full'));
-  on('openEolP1Btn', 'click', () => openEolPeriod('p1'));
-  on('openEolP2Btn', 'click', () => openEolPeriod('p2'));
-  on('openEolP3Btn', 'click', () => openEolPeriod('p3'));
-  on('openEolMetBtn', 'click', () => openEolPeriod('met'));
+  on('openFluidSelBtn', 'click', () => openFclmPeriod(periodOpenSelected()));
+  on('openEolSelBtn', 'click', () => openEolPeriod(periodOpenSelected()));
+  document.addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-period-open]');
+    if (!tab) return;
+    periodOpenSelection = tab.dataset.periodOpen;
+    renderPeriodOpenTabs();
+  });
   on('pullFclmOnlyBtn', 'click', () => requestBridgeSourcePull('fclm'));
   on('pullFlUtilBtn', 'click', () => { requestBridgeSourcePull('flUtil'); runLiveMetricsPull('manual'); });
   on('pullBattleBeltBtn', 'click', () => { requestBridgeSourcePull('belt'); runLiveMetricsPull('manual'); });
@@ -7719,6 +7840,7 @@ function renderAll() {
   renderCharts(board);
   renderMonitorLinks();
   renderFclmSourceLinks();
+  renderPeriodOpenTabs();
   buildSummaries(board, full);
   renderShiftLog(board, full);
   renderOperationsInsights(board, full);

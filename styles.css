@@ -2219,6 +2219,54 @@ body[data-view="goals"] .shift-goals-panel,
 body[data-view="goals"] .quick-tools-panel{align-self:stretch;}
 body[data-view="goals"] .quick-tools-panel{display:flex;flex-direction:column;}
 body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bottom:16px;}
+/* Stacked period selector — opens Fluid / EOL for the live Central-time period */
+.period-open-control{
+  grid-column:1 / -1;
+  display:grid;
+  gap:7px;
+  padding:10px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--panel2);
+}
+.period-open-head{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.period-open-head #periodOpenNow{color:var(--text);}
+.period-open-tabs{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(46px,1fr));
+  gap:6px;
+}
+.period-open-tab{
+  position:relative;
+  padding:8px 6px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  text-align:center;
+}
+.period-open-tab.active{background:var(--blue);color:#fff;border-color:transparent;}
+.period-open-tab.now{border-color:rgba(114,240,164,.7);}
+.period-open-tab .now-dot{
+  position:absolute;
+  top:4px;
+  right:5px;
+  width:6px;
+  height:6px;
+  border-radius:50%;
+  background:var(--green);
+}
+.period-open-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.period-open-actions button{min-height:36px;}
 
 /* ── Period workboards: smaller squares, bypass rail on the side ──── */
 .workboard-layout{
