@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OB Rollup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a1628;
+      --card:      #0e1f38;
+      --card-2:    #0c1a30;
+      --grid:      rgba(125,165,215,.13);
+      --label:     #7f97b6;
+      --text:      #e8f0fb;
+      --muted:     #8298b6;
+      --blue:      #2f7fe0;
+      --green:     #43c98a;
+      --orange:    #e08a3c;
+      --red:       #ff6b76;
+      --maroon:    #c2566b;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+      padding: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .span2 { grid-column: 1 / -1; }
+    .rowspan2 { grid-row: span 2; }
+
+    /* ── Card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--grid);
+      border-top: 2px solid var(--blue);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .card.acc-blue   { border-top-color: var(--blue); }
+    .card.acc-orange { border-top-color: var(--orange); }
+    .card.acc-red    { border-top-color: var(--maroon); }
+
+    .card > header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .card > header h2 {
+      font-size: 14px; font-weight: 800; letter-spacing: .4px;
+    }
+    .miss { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .miss.neg { color: var(--red); }
+    .miss.pos { color: var(--green); }
+
+    /* ── Stat grid ── */
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 24px;
+    }
+    .stats > div { display: flex; flex-direction: column; gap: 2px; }
+    .lbl {
+      font-size: 9.5px; font-weight: 700; letter-spacing: .6px;
+      text-transform: uppercase; color: var(--label);
+    }
+    .val { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .val.warn { color: #f0c674; }
+    .val.good { color: var(--green); }
+
+    /* ── Period bars ── */
+    .periods { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .prow {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-2);
+      border: 1px solid var(--grid);
+      border-radius: 5px;
+      padding: 6px 10px;
+    }
+    .pk { font-size: 11px; font-weight: 800; color: var(--muted); }
+    .pbar { height: 6px; border-radius: 3px; background: rgba(125,165,215,.15); overflow: hidden; }
+    .pbar > span { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+    .prow.green .pbar > span { background: var(--green); }
+    .pv { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cdd9ea; }
+
+    /* ── EOL sub-cards (RWC + MP) ── */
+    .subgrid {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .subcard {
+      background: var(--card-2);
+      border: 1px solid var(--grid);
+      border-left: 3px solid var(--green);
+      border-radius: 6px;
+      padding: 11px 12px;
+    }
+    .subcard .subhead {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 9px;
+    }
+    .subcard .subhead > span:first-child { font-size: 12px; font-weight: 800; }
+    .subcard .stats { gap: 7px 16px; }
+    .subcard .val { font-size: 14px; }
+    .subcard .periods { margin-top: 9px; gap: 5px; }
+
+    .divider {
+      margin: 14px -16px 0;
+      border-top: 1px solid var(--grid);
+      padding: 12px 16px 0;
+    }
+    .divider-label {
+      font-size: 9.5px; font-weight: 800; letter-spacing: .6px;
+      text-transform: uppercase; color: var(--label); margin-bottom: 2px;
+    }
+
+    /* ── Biggest Miss ── */
+    .miss-note {
+      margin-top: 12px;
+      background: rgba(194,86,107,.10);
+      border: 1px solid rgba(194,86,107,.35);
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #f3c6cf;
+    }
+
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .rowspan2 { grid-row: auto; }
+      .subgrid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grid" id="grid"></div>
+
+  <script>
+  "use strict";
+
+  // ── Data (OB → FL + EOL[RWC + MP]) ─────────────────────────────────────────
+  const DATA = {
+    ob:  { goal: 89999, actual: 27190, remain: 59072, belt: 23477 },
+    fl:  { goal: 68400, actual: 23884, periods: [
+             { k: "P1", a: 23884, g: 28800 },
+             { k: "P2", a: 0,     g: 21600 },
+             { k: "P3", a: 0,     g: 18000 } ] },
+    eol: { palletsGoal: 1000, palletsActual: 298, rateGoal: 17.00, rateActual: 25.86 },
+    rwc: { goal: 17712, actual: 5768, periods: [
+             { k: "P1", a: 5768, g: 7458 },
+             { k: "P2", a: 0,    g: 5593 },
+             { k: "P3", a: 0,    g: 4661 } ] },
+    mp:  { goal: 3887, actual: 1275, periods: [
+             { k: "P1", a: 1275, g: 1637 },
+             { k: "P2", a: 0,    g: 1227 },
+             { k: "P3", a: 0,    g: 1023 } ] },
+    miss: { where: "P1  22:00 - 23:00", result: [5998, 9473], eos: "Callout",
+            note: "Use this in EOS: P1 was lightest during 22:00 - 23:00." },
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const NF = new Intl.NumberFormat("en-US");
+  const fmt = v => NF.format(v);
+  const fmtSigned = v => (v < 0 ? "-" : "+") + NF.format(Math.abs(v));
+  const missClass = v => v < 0 ? "neg" : v > 0 ? "pos" : "";
+
+  function periodBars(d, accent) {
+    return `<div class="periods">` + d.periods.map(p => {
+      const pct = p.g ? Math.min(100, (p.a / p.g) * 100) : 0;
+      return `<div class="prow ${accent || ""}">
+        <span class="pk">${p.k}</span>
+        <span class="pbar"><span style="width:${pct.toFixed(1)}%"></span></span>
+        <span class="pv">${fmt(p.a)} / ${fmt(p.g)}</span>
+      </div>`;
+    }).join("") + `</div>`;
+  }
+
+  function throughputStats(d) {
+    const left = d.goal - d.actual;
+    const done = d.goal ? Math.round((d.actual / d.goal) * 100) : 0;
+    return `<div class="stats">
+      <div><span class="lbl">Goal</span><span class="val">${fmt(d.goal)}</span></div>
+      <div><span class="lbl">Actual</span><span class="val">${fmt(d.actual)}</span></div>
+      <div><span class="lbl">Left</span><span class="val warn">${fmt(left)}</span></div>
+      <div><span class="lbl">Done</span><span class="val">${done}%</span></div>
+    </div>`;
+  }
+
+  function subCard(title, d) {
+    const miss = d.actual - d.goal;
+    return `<div class="subcard">
+      <div class="subhead">
+        <span>${title}</span>
+        <span class="miss ${missClass(miss)}">${fmtSigned(miss)}</span>
+      </div>
+      ${throughputStats(d)}
+      ${periodBars(d, "green")}
+    </div>`;
+  }
+
+  // ── Cards ──────────────────────────────────────────────────────────────────
+  const cards = [];
+
+  // OB — outbound rollup (spans full width)
+  {
+    const d = DATA.ob;
+    const miss = d.actual - d.goal;
+    cards.push(`<section class="card acc-blue span2">
+      <header><h2>OB &middot; Outbound</h2>
+        <span class="miss ${missClass(miss)}">${fmtSigned(miss)} OB</span></header>
+      <div class="stats">
+        <div><span class="lbl">Goal</span><span class="val">${fmt(d.goal)}</span></div>
+        <div><span class="lbl">Actual</span><span class="val">${fmt(d.actual)}</span></div>
+        <div><span class="lbl">Remain</span><span class="val warn">${fmt(d.remain)}</span></div>
+        <div><span class="lbl">Belt</span><span class="val">${fmt(d.belt)}</span></div>
+      </div>
+    </section>`);
+  }
+
+  // FL
+  {
+    const d = DATA.fl;
+    const miss = d.actual - d.goal;
+    cards.push(`<section class="card acc-blue">
+      <header><h2>FL &middot; Fluid Load</h2>
+        <span class="miss ${missClass(miss)}">${fmtSigned(miss)}</span></header>
+      ${throughputStats(d)}
+      ${periodBars(d)}
+    </section>`);
+  }
+
+  // EOL = RWC + MP (tall card, spans two rows)
+  {
+    const e = DATA.eol;
+    const palletMiss = e.palletsActual - e.palletsGoal;
+    cards.push(`<section class="card acc-orange rowspan2">
+      <header><h2>EOL &middot; End of Line</h2>
+        <span class="miss ${missClass(palletMiss)}">${fmtSigned(palletMiss)}</span></header>
+      <div class="stats">
+        <div><span class="lbl">Pallets Goal</span><span class="val">${fmt(e.palletsGoal)}</span></div>
+        <div><span class="lbl">Pallets Actual</span><span class="val">${fmt(e.palletsActual)}</span></div>
+        <div><span class="lbl">PL Rate Goal</span><span class="val">${e.rateGoal.toFixed(2)}</span></div>
+        <div><span class="lbl">PL Rate Actual</span><span class="val good">${e.rateActual.toFixed(2)}</span></div>
+      </div>
+      <div class="divider">
+        <div class="divider-label">EOL = RWC + MP</div>
+        <div class="subgrid">
+          ${subCard("RWC", DATA.rwc)}
+          ${subCard("MP", DATA.mp)}
+        </div>
+      </div>
+    </section>`);
+  }
+
+  // Biggest Miss
+  {
+    const m = DATA.miss;
+    const miss = m.result[0] - m.result[1];
+    cards.push(`<section class="card acc-red">
+      <header><h2>Biggest Miss</h2>
+        <span class="miss ${missClass(miss)}">${fmtSigned(miss)}</span></header>
+      <div class="stats">
+        <div><span class="lbl">Where</span><span class="val" style="font-size:14px">${m.where}</span></div>
+        <div><span class="lbl">Result</span><span class="val" style="font-size:14px">${fmt(m.result[0])} / ${fmt(m.result[1])}</span></div>
+        <div><span class="lbl">Miss</span><span class="val" style="color:var(--red)">${fmtSigned(miss)}</span></div>
+        <div><span class="lbl">EOS</span><span class="val" style="font-size:14px">${m.eos}</span></div>
+      </div>
+      <div class="miss-note">${m.note}</div>
+    </section>`);
+  }
+
+  document.getElementById("grid").innerHTML = cards.join("");
+  </script>
+</body>
+</html>
