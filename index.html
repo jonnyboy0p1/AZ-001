@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ROB — OB Rollup &amp; Fluid Pace</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0a1628;
+      --card:        #0e1f38;
+      --card-2:      #0c1a30;
+      --panel:       #0d1d34;
+      --grid:        rgba(125,165,215,.13);
+      --grid-strong: rgba(125,165,215,.24);
+      --head:        #13243d;
+      --label:       #7f97b6;
+      --text:        #e8f0fb;
+      --muted:       #8298b6;
+      --blue:        #2f7fe0;
+      --blue-total:  #1e5fbf;
+      --green:       #43c98a;
+      --orange:      #e08a3c;
+      --red:         #ff6b76;
+      --maroon:      #c2566b;
+    }
+    /* Fluid Pace keeps its original accent values, scoped to its view */
+    .pace-view {
+      --label:  #8fb9ea;
+      --blue:   #1f6fd6;
+      --green:  #54d495;
+      --maroon: #9a4a5e;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Top nav ── */
+    .topnav {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; gap: 18px;
+      background: linear-gradient(90deg, #14315a, #0e2038);
+      border-bottom: 1px solid var(--grid-strong);
+      padding: 10px 18px;
+    }
+    .topnav .brand { font-size: 16px; font-weight: 800; letter-spacing: 1px; color: #cfe2fb; }
+    .tabs { display: flex; gap: 6px; }
+    .tab {
+      font-size: 12px; font-weight: 700; color: var(--muted);
+      text-decoration: none; padding: 6px 14px; border-radius: 6px;
+      border: 1px solid transparent; transition: background .15s, color .15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: #fff; background: rgba(47,127,224,.18); border-color: rgba(47,127,224,.5); }
+
+    /* ── Views ── */
+    .view { display: none; }
+    .view.active-view { display: block; }
+    #view-overview { padding: 16px; }
+
+    /* ═══════════ OB OVERVIEW ═══════════ */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: stretch;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .span2 { grid-column: 1 / -1; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--grid);
+      border-top: 2px solid var(--blue);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .card.acc-blue   { border-top-color: var(--blue); }
+    .card.acc-orange { border-top-color: var(--orange); }
+    .card.acc-red    { border-top-color: var(--maroon); }
+
+    a.card-link { text-decoration: none; color: inherit; display: block; transition: border-color .15s; }
+    a.card-link:hover { border-color: var(--blue); }
+    .go { font-size: 10px; font-weight: 700; color: var(--blue); margin-left: 6px; letter-spacing: .3px; }
+
+    .card > header {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 12px; margin-bottom: 12px;
+    }
+    .card > header h2 { font-size: 14px; font-weight: 800; letter-spacing: .4px; }
+    .miss { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .miss.neg { color: var(--red); }
+    .miss.pos { color: var(--green); }
+
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
+    .stats > div { display: flex; flex-direction: column; gap: 2px; }
+    .lbl { font-size: 9.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--label); }
+    .val { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .val.warn { color: #f0c674; }
+    .val.good { color: var(--green); }
+
+    .periods { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .prow {
+      display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px;
+      background: var(--card-2); border: 1px solid var(--grid); border-radius: 5px; padding: 6px 10px;
+    }
+    .pk { font-size: 11px; font-weight: 800; color: var(--muted); }
+    .pbar { height: 6px; border-radius: 3px; background: rgba(125,165,215,.15); overflow: hidden; }
+    .pbar > span { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+    .prow.green .pbar > span { background: var(--green); }
+    .pv { font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: #cdd9ea; }
+
+    .subgrid { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .subcard {
+      background: var(--card-2); border: 1px solid var(--grid);
+      border-left: 3px solid var(--green); border-radius: 6px; padding: 11px 12px;
+    }
+    .subcard .subhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+    .subcard .subhead > span:first-child { font-size: 12px; font-weight: 800; }
+    .subcard .stats { gap: 7px 16px; }
+    .subcard .val { font-size: 14px; }
+    .subcard .periods { margin-top: 9px; gap: 5px; }
+
+    .divider { margin: 14px -16px 0; border-top: 1px solid var(--grid); padding: 12px 16px 0; }
+    .divider-label { font-size: 9.5px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--label); margin-bottom: 2px; }
+
+    .miss-note {
+      margin-top: 12px; background: rgba(194,86,107,.10); border: 1px solid rgba(194,86,107,.35);
+      border-radius: 6px; padding: 9px 12px; font-size: 12px; font-weight: 600; color: #f3c6cf;
+    }
+
+    /* ═══════════ FLUID PACE ═══════════ */
+    .pace-view .wrap { padding: 14px; max-width: 1400px; margin: 0 auto; }
+    .app-header {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      background: linear-gradient(90deg, #14315a, #0e2038);
+      border: 1px solid var(--grid-strong); border-radius: 8px 8px 0 0; padding: 13px 18px;
+    }
+    .app-header h1 { font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+    .app-header .src { font-size: 11px; font-weight: 700; color: var(--label); text-align: right; line-height: 1.4; }
+
+    .table-scroll { overflow-x: auto; }
+    .fp {
+      width: 100%; min-width: 920px; border-collapse: separate; border-spacing: 0;
+      background: var(--panel); border: 1px solid var(--grid-strong); border-top: none;
+      border-radius: 0 0 8px 8px; overflow: hidden;
+    }
+    .fp th, .fp td { border-right: 1px solid var(--grid); border-bottom: 1px solid var(--grid); padding: 9px 12px; }
+    .fp th:last-child, .fp td:last-child { border-right: none; }
+    .fp thead th {
+      background: var(--head); color: var(--label); font-size: 10.5px; font-weight: 800;
+      letter-spacing: .6px; text-transform: uppercase; text-align: center; white-space: nowrap;
+      border-bottom: 2px solid var(--grid-strong);
+    }
+    .fp thead th.l { text-align: left; }
+    .fp thead th small { display: block; font-size: 8.5px; font-weight: 700; color: var(--muted); margin-top: 2px; letter-spacing: .4px; }
+
+    .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .c-period   { text-align: center; font-weight: 800; font-size: 15px; color: #cfe2fb; background: rgba(31,111,214,.07); }
+    .c-shiftgoal{ text-align: center; font-weight: 800; font-size: 18px; color: #cfe2fb; background: rgba(31,111,214,.04); }
+    .c-goalper  { text-align: center; font-weight: 700; font-size: 14px; }
+    .c-planrate { text-align: center; color: var(--muted); font-weight: 600; }
+    .c-time { color: #cdd9ea; white-space: nowrap; }
+    .c-time.active { font-weight: 700; color: #fff; box-shadow: inset 3px 0 0 var(--blue); }
+    .now-badge {
+      display: inline-block; margin-left: 8px; background: rgba(31,111,214,.25); color: #7fd0ff;
+      border: 1px solid rgba(127,208,255,.4); border-radius: 4px; padding: 1px 6px;
+      font-size: 9px; font-weight: 800; letter-spacing: .4px; vertical-align: middle;
+    }
+    .proj { color: var(--muted); }
+    .proj-finish { font-weight: 800; color: #fff; }
+    .c-actual { text-align: center; }
+    .pill {
+      display: inline-block; min-width: 66px; text-align: center; border-radius: 14px;
+      padding: 4px 12px; font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums;
+      background: var(--blue); color: #fff; border: 1px solid rgba(255,255,255,.18);
+    }
+    .pill.ghost { background: rgba(31,111,214,.10); color: #6f9fd6; border: 1px dashed rgba(111,159,214,.5); font-weight: 600; }
+
+    .fp-neg { color: var(--red);   font-weight: 700; }
+    .fp-pos { color: var(--green); font-weight: 700; }
+
+    .period-total td { font-weight: 800; border-top: 1px solid var(--grid-strong); border-bottom: 1px solid var(--grid-strong); }
+    .period-total.behind td { background: var(--maroon); color: #ffe3e8; }
+    .period-total.behind .fp-neg { color: #ffd2d8; }
+    .period-total.ahead  td { background: var(--blue-total); color: #eaf2ff; }
+    .pt-label { text-align: center; }
+    .pt-label small, .period-total .num small { display: block; font-size: 9.5px; font-weight: 600; opacity: .85; margin-top: 2px; }
+
+    .grand-total td {
+      background: var(--blue-total); color: #fff; font-weight: 800; font-size: 14px; text-align: center;
+      font-variant-numeric: tabular-nums; border-top: 2px solid #2b7fe0; border-bottom: none;
+    }
+    .grand-total .gt-label { letter-spacing: .5px; }
+    .grand-total .fp-neg { color: #ff8d96; }
+
+    .foot { display: flex; justify-content: flex-end; gap: 14px; color: var(--muted); font-size: 10.5px; padding: 8px 4px 2px; }
+
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .subgrid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="topnav">
+    <span class="brand">ROB</span>
+    <div class="tabs">
+      <a class="tab" href="#overview" data-tab="overview">OB Overview</a>
+      <a class="tab" href="#pace" data-tab="pace">Fluid Pace</a>
+    </div>
+  </nav>
+
+  <!-- ═══════════ OB OVERVIEW ═══════════ -->
+  <section id="view-overview" class="view">
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- ═══════════ FLUID PACE ═══════════ -->
+  <section id="view-pace" class="view pace-view">
+    <div class="wrap">
+      <div class="app-header">
+        <h1>Fluid Pace</h1>
+        <div class="src">
+          Fluid Load Jobs from NEO<br />
+          vs &nbsp;FL Actual from FL Utilization
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table class="fp">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th class="l">Time</th>
+              <th>Shift Goal</th>
+              <th>Goal Per Period<small>NEO</small></th>
+              <th>Plan Rate</th>
+              <th>Planned</th>
+              <th>Projected</th>
+              <th>Actual</th>
+              <th>Difference</th>
+            </tr>
+          </thead>
+          <tbody id="fp-body"></tbody>
+        </table>
+      </div>
+      <div class="foot"><span id="ts"></span></div>
+    </div>
+  </section>
+
+  <script>
+  "use strict";
+
+  // ── Shared helpers ──────────────────────────────────────────────────────────
+  const NF = new Intl.NumberFormat("en-US");
+  const fmt = v => (v === null || v === undefined || v === "") ? "" : NF.format(v);
+  const fmtSigned = v => (v === null || v === undefined) ? "" : (v < 0 ? "-" : "+") + NF.format(Math.abs(v));
+
+  // ═══════════ OB OVERVIEW ═══════════
+  (function () {
+    const DATA = {
+      ob:  { goal: 89999, actual: 27190, remain: 59072, belt: 23477 },
+      fl:  { goal: 68400, actual: 23884, periods: [
+               { k: "P1", a: 23884, g: 28800 },
+               { k: "P2", a: 0,     g: 21600 },
+               { k: "P3", a: 0,     g: 18000 } ] },
+      eol: { palletsGoal: 1000, palletsActual: 298, rateGoal: 17.00, rateActual: 25.86 },
+      rwc: { goal: 17712, actual: 5768, periods: [
+               { k: "P1", a: 5768, g: 7458 },
+               { k: "P2", a: 0,    g: 5593 },
+               { k: "P3", a: 0,    g: 4661 } ] },
+      mp:  { goal: 3887, actual: 1275, periods: [
+               { k: "P1", a: 1275, g: 1637 },
+               { k: "P2", a: 0,    g: 1227 },
+               { k: "P3", a: 0,    g: 1023 } ] },
+      miss: { where: "P1  22:00 - 23:00", result: [5998, 9473], eos: "Callout",
+              note: "Use this in EOS: P1 was lightest during 22:00 - 23:00." },
+    };
+
+    const missClass = v => v < 0 ? "neg" : v > 0 ? "pos" : "";
+
+    function periodBars(d, accent) {
+      return `<div class="periods">` + d.periods.map(p => {
+        const pct = p.g ? Math.min(100, (p.a / p.g) * 100) : 0;
+        return `<div class="prow ${accent || ""}">
+          <span class="pk">${p.k}</span>
+          <span class="pbar"><span style="width:${pct.toFixed(1)}%"></span></span>
+          <span class="pv">${fmt(p.a)} / ${fmt(p.g)}</span>
+        </div>`;
+      }).join("") + `</div>`;
+    }
+
+    function throughputStats(d) {
+      const left = d.goal - d.actual;
+      const done = d.goal ? Math.round((d.actual / d.goal) * 100) : 0;
+      return `<div class="stats">
+        <div><span class="lbl">Goal</span><span class="val">${fmt(d.goal)}</span></div>
+        <div><span class="lbl">Actual</span><span class="val">${fmt(d.actual)}</span></div>
+        <div><span class="lbl">Left</span><span class="val warn">${fmt(left)}</span></div>
+        <div><span class="lbl">Done</span><span class="val">${done}%</span></div>
+      </div>`;
+    }
+
+    function subCard(title, d) {
+      const miss = d.actual - d.goal;
+      return `<div class="subcard">
+        <div class="subhead">
+          <span>${title}</span>
+          <span class="miss ${missClass(miss)}">${fmtSigned(miss)}</span>
+        </div>
+        ${throughputStats(d)}
+        ${periodBars(d, "green")}
+      </div>`;
+    }
+
+    const cards = [];
+
+    // FL — jumps to the Fluid Pace tab
+    {
+      const d = DATA.fl;
+      const miss = d.actual - d.goal;
+      cards.push(`<a class="card acc-blue card-link" href="#pace">
+        <header><h2>FL &middot; Fluid Load <span class="go">Fluid Pace &rarr;</span></h2>
+          <span class="miss ${missClass(miss)}">${fmtSigned(miss)}</span></header>
+        ${throughputStats(d)}
+        ${periodBars(d)}
+      </a>`);
+    }
+
+    // EOL = RWC + MP — headline is the combined unit miss
+    {
+      const e = DATA.eol;
+      const unitMiss = (DATA.rwc.actual + DATA.mp.actual) - (DATA.rwc.goal + DATA.mp.goal);
+      cards.push(`<section class="card acc-orange">
+        <header><h2>EOL &middot; End of Line</h2>
+          <span class="miss ${missClass(unitMiss)}">${fmtSigned(unitMiss)}</span></header>
+        <div class="stats">
+          <div><span class="lbl">Pallets Goal</span><span class="val">${fmt(e.palletsGoal)}</span></div>
+          <div><span class="lbl">Pallets Actual</span><span class="val">${fmt(e.palletsActual)}</span></div>
+          <div><span class="lbl">PL Rate Goal</span><span class="val">${e.rateGoal.toFixed(2)}</span></div>
+          <div><span class="lbl">PL Rate Actual</span><span class="val good">${e.rateActual.toFixed(2)}</span></div>
+        </div>
+        <div class="divider">
+          <div class="divider-label">EOL = RWC + MP</div>
+          <div class="subgrid">
+            ${subCard("RWC", DATA.rwc)}
+            ${subCard("MP", DATA.mp)}
+          </div>
+        </div>
+      </section>`);
+    }
+
+    // OB — outbound rollup (bottom-left, beside Biggest Miss)
+    {
+      const d = DATA.ob;
+      const miss = d.actual - d.goal;
+      cards.push(`<section class="card acc-blue">
+        <header><h2>OB &middot; Outbound</h2>
+          <span class="miss ${missClass(miss)}">${fmtSigned(miss)} OB</span></header>
+        <div class="stats">
+          <div><span class="lbl">Goal</span><span class="val">${fmt(d.goal)}</span></div>
+          <div><span class="lbl">Actual</span><span class="val">${fmt(d.actual)}</span></div>
+          <div><span class="lbl">Remain</span><span class="val warn">${fmt(d.remain)}</span></div>
+          <div><span class="lbl">Belt</span><span class="val">${fmt(d.belt)}</span></div>
+        </div>
+      </section>`);
+    }
+
+    // Biggest Miss
+    {
+      const m = DATA.miss;
+      const miss = m.result[0] - m.result[1];
+      cards.push(`<section class="card acc-red">
+        <header><h2>Biggest Miss</h2>
+          <span class="miss ${missClass(miss)}">${fmtSigned(miss)}</span></header>
+        <div class="stats">
+          <div><span class="lbl">Where</span><span class="val" style="font-size:14px">${m.where}</span></div>
+          <div><span class="lbl">Result</span><span class="val" style="font-size:14px">${fmt(m.result[0])} / ${fmt(m.result[1])}</span></div>
+          <div><span class="lbl">Miss</span><span class="val" style="color:var(--red)">${fmtSigned(miss)}</span></div>
+          <div><span class="lbl">EOS</span><span class="val" style="font-size:14px">${m.eos}</span></div>
+        </div>
+        <div class="miss-note">${m.note}</div>
+      </section>`);
+    }
+
+    document.getElementById("grid").innerHTML = cards.join("");
+  })();
+
+  // ═══════════ FLUID PACE ═══════════
+  (function () {
+    const SHIFT_GOAL = 68400;
+    const PERIODS = [
+      {
+        id: "P1", goalPerPeriod: 28800, planRate: "7,200/hr", actRate: "6,398/hr",
+        rows: [
+          { time: "19:00 - 20:00", planned: 7200, actual: 6395, status: "complete" },
+          { time: "20:00 - 21:00", planned: 7200, actual: 6395, status: "complete" },
+          { time: "21:00 - 22:00", planned: 6595, actual: 5858, status: "active",
+            active: true, activeLabel: "NOW · 8.9H ACTIVE" },
+          { time: "22:00 - 23:00", planned: null, projected: 6216, actual: null, status: "future" },
+        ],
+      },
+      {
+        id: "P2", goalPerPeriod: 21600, planRate: "7,200/hr",
+        rows: [
+          { time: "23:30 - 00:30", projected: 6216, actual: null, status: "future" },
+          { time: "00:30 - 01:30", projected: 6216, actual: null, status: "future" },
+          { time: "01:30 - 02:30", projected: 6216, actual: null, status: "future" },
+        ],
+      },
+      {
+        id: "P3", goalPerPeriod: 18000, planRate: "7,200/hr",
+        rows: [
+          { time: "03:00 - 04:00", projected: 6216, actual: null, status: "future" },
+          { time: "04:00 - 05:00", projected: 6216, actual: null, status: "future" },
+          { time: "05:00 - 05:30", projected: 3108, actual: null, status: "future" },
+        ],
+      },
+    ];
+
+    const diffClass = v => v == null ? "" : (v < 0 ? "fp-neg" : v > 0 ? "fp-pos" : "");
+
+    function render() {
+      const bodyRowCount = PERIODS.reduce((s, p) => s + p.rows.length + 1, 0);
+      let firstShiftCell = true;
+      let html = "";
+      let gPlanned = 0, gProjected = 0, gActual = 0, gGoalPer = 0;
+
+      for (const p of PERIODS) {
+        const span = p.rows.length + 1;
+        const plannedTotal = p.rows.reduce((s, r) => s + (r.planned || 0), 0);
+        const actualTotal  = p.rows.reduce((s, r) => s + (r.actual  || 0), 0);
+        const hasActual    = p.rows.some(r => r.actual != null);
+        const futureProj   = p.rows.filter(r => r.status === "future").reduce((s, r) => s + (r.projected || 0), 0);
+        const projectedTotal = actualTotal + futureProj;
+        const diffTotal      = hasActual ? actualTotal - plannedTotal : null;
+
+        gPlanned   += plannedTotal;
+        gProjected += projectedTotal;
+        gActual    += actualTotal;
+        gGoalPer   += p.goalPerPeriod;
+
+        p.rows.forEach((r, i) => {
+          html += "<tr>";
+          if (i === 0) html += `<td rowspan="${span}" class="c-period">${p.id}</td>`;
+          html += `<td class="c-time${r.active ? " active" : ""}">${r.time}` +
+                  `${r.active ? `<span class="now-badge">${r.activeLabel}</span>` : ""}</td>`;
+          if (firstShiftCell) {
+            html += `<td rowspan="${bodyRowCount}" class="c-shiftgoal">${fmt(SHIFT_GOAL)}</td>`;
+            firstShiftCell = false;
+          }
+          if (i === 0) {
+            html += `<td rowspan="${span}" class="c-goalper">${fmt(p.goalPerPeriod)}</td>`;
+            html += `<td rowspan="${span}" class="c-planrate">${p.planRate}</td>`;
+          }
+          html += `<td class="num">${fmt(r.planned)}</td>`;
+          let proj = "";
+          if (r.active)                   proj = `<span class="proj-finish">${fmt(projectedTotal)}</span>`;
+          else if (r.status === "future") proj = `<span class="proj">${fmt(r.projected)}</span>`;
+          html += `<td class="num">${proj}</td>`;
+          html += `<td class="c-actual">` +
+            (r.actual != null
+              ? `<span class="pill">${fmt(r.actual)}</span>`
+              : `<span class="pill ghost">Fluid actual</span>`) + `</td>`;
+          const d = (r.actual != null && r.planned != null) ? r.actual - r.planned : null;
+          html += `<td class="num ${diffClass(d)}">${fmtSigned(d)}</td>`;
+          html += "</tr>";
+        });
+
+        const ptCls = (hasActual && diffTotal < 0) ? "behind" : "ahead";
+        html += `<tr class="period-total ${ptCls}">` +
+          `<td class="pt-label">Period total<small>Req ${p.planRate}</small></td>` +
+          `<td class="num">${fmt(plannedTotal)}</td>` +
+          `<td class="num">${fmt(projectedTotal)}</td>` +
+          `<td class="num">${hasActual ? fmt(actualTotal) : "&ndash;"}` +
+            `${hasActual && p.actRate ? `<small>Act ${p.actRate}</small>` : ""}</td>` +
+          `<td class="num ${diffClass(diffTotal)}">${diffTotal != null ? fmtSigned(diffTotal) : "&ndash;"}</td>` +
+          `</tr>`;
+      }
+
+      const gDiff = gActual - gPlanned;
+      html += `<tr class="grand-total">` +
+        `<td colspan="2" class="gt-label">Total So Far</td>` +
+        `<td>${fmt(SHIFT_GOAL)}</td>` +
+        `<td>${fmt(gGoalPer)}</td>` +
+        `<td>7,200/hr</td>` +
+        `<td>${fmt(gPlanned)}</td>` +
+        `<td>${fmt(gProjected)}</td>` +
+        `<td>${fmt(gActual)}</td>` +
+        `<td class="${diffClass(gDiff)}">${fmtSigned(gDiff)}</td>` +
+        `</tr>`;
+
+      document.getElementById("fp-body").innerHTML = html;
+      document.getElementById("ts").textContent =
+        "Last refreshed " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    render();
+  })();
+
+  // ═══════════ Tab routing ═══════════
+  (function () {
+    const views = {
+      overview: document.getElementById("view-overview"),
+      pace:     document.getElementById("view-pace"),
+    };
+    const tabs = [...document.querySelectorAll(".tab")];
+    function route() {
+      let h = (location.hash || "#overview").replace("#", "");
+      if (!views[h]) h = "overview";
+      for (const k in views) views[k].classList.toggle("active-view", k === h);
+      tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === h));
+      window.scrollTo(0, 0);
+    }
+    window.addEventListener("hashchange", route);
+    route();
+  })();
+  </script>
+</body>
+</html>
