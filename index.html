@@ -35,12 +35,11 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
-      align-items: start;
+      align-items: stretch;
       max-width: 1200px;
       margin: 0 auto;
     }
     .span2 { grid-column: 1 / -1; }
-    .rowspan2 { grid-row: span 2; }
 
     /* ── Card ── */
     .card {
@@ -152,7 +151,6 @@
 
     @media (max-width: 760px) {
       .grid { grid-template-columns: 1fr; }
-      .rowspan2 { grid-row: auto; }
       .subgrid { grid-template-columns: 1fr; }
     }
   </style>
@@ -259,7 +257,7 @@
     const e = DATA.eol;
     // EOL = RWC + MP — headline is the combined unit miss
     const unitMiss = (DATA.rwc.actual + DATA.mp.actual) - (DATA.rwc.goal + DATA.mp.goal);
-    cards.push(`<section class="card acc-orange rowspan2">
+    cards.push(`<section class="card acc-orange">
       <header><h2>EOL &middot; End of Line</h2>
         <span class="miss ${missClass(unitMiss)}">${fmtSigned(unitMiss)}</span></header>
       <div class="stats">
