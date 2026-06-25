@@ -235,10 +235,10 @@ button.soft{background:#1e293b}
   justify-content:space-between;
   align-items:flex-start;
   gap:12px;
-  padding:14px 16px;
+  padding:11px 14px;
   border-bottom:1px solid var(--line);
 }
-.panel-body{padding:16px}
+.panel-body{padding:12px}
 .setup-panel{
   margin-bottom:14px;
 }
@@ -252,7 +252,7 @@ button.soft{background:#1e293b}
 .layout{
   display:grid;
   grid-template-columns:repeat(12,1fr);
-  gap:14px;
+  gap:11px;
   align-items:start;
 }
 .span-4{grid-column:span 4}
@@ -274,19 +274,19 @@ button.soft{background:#1e293b}
 .snapshot-stack{
   display:grid;
   grid-template-columns:repeat(12,minmax(0,1fr));
-  gap:14px;
-  padding:16px;
+  gap:11px;
+  padding:13px;
 }
 .snapshot-group{
   display:grid;
   grid-column:span 4;
-  gap:10px;
+  gap:8px;
 }
 .snapshot-group:first-child{
   grid-column:1 / -1;
 }
 .snapshot-group.stream-card{
-  padding:12px;
+  padding:10px;
   border:1px solid var(--line);
   border-radius:14px;
   background:var(--panel2);
@@ -713,27 +713,27 @@ body.met-enabled .view-tabs{
   border-color:rgba(250,204,21,.28);
 }
 .kpi{
-  padding:12px;
+  padding:10px 11px;
   border:1px solid var(--line);
-  border-radius:14px;
+  border-radius:12px;
   background:var(--panel2);
 }
 .kpi-label{font-size:12px;color:var(--muted);font-weight:900}
-.kpi-value{margin-top:8px;font-size:26px;font-weight:950}
-.kpi-sub{margin-top:4px;font-size:12px;color:var(--muted)}
+.kpi-value{margin-top:4px;font-size:22px;font-weight:950}
+.kpi-sub{margin-top:3px;font-size:11px;color:var(--muted)}
 .jplh-hero{
   display:grid;
   grid-template-columns:1.3fr 1fr 1fr;
   gap:10px;
-  margin:12px 0 0;
-  padding:12px;
+  margin:10px 0 0;
+  padding:10px;
   border:1px solid var(--line);
-  border-radius:14px;
+  border-radius:12px;
   background:var(--panel2);
 }
 .jplh-value{
-  margin-top:6px;
-  font-size:38px;
+  margin-top:4px;
+  font-size:30px;
   line-height:1;
   font-weight:950;
   font-variant-numeric:tabular-nums;
@@ -748,27 +748,27 @@ body.met-enabled .view-tabs{
 .chart-grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:14px;
-  padding:16px;
+  gap:12px;
+  padding:13px;
 }
 .chart-card{
   display:grid;
   grid-template-rows:auto auto 1fr;
-  gap:12px;
-  min-height:330px;
-  padding:14px;
+  gap:9px;
+  min-height:248px;
+  padding:12px;
   border:1px solid var(--line);
-  border-radius:14px;
+  border-radius:12px;
   background:var(--panel2);
 }
 .chart-card h3{
   margin:0;
   text-align:center;
-  font-size:18px;
+  font-size:15px;
   line-height:1.1;
 }
 .donut{
-  width:min(220px,100%);
+  width:min(150px,100%);
   aspect-ratio:1;
   align-self:center;
   justify-self:center;
@@ -1286,7 +1286,7 @@ body.met-enabled .view-tabs{
   grid-column:span 3;
 }
 .workboard-head{
-  padding:12px 14px;
+  padding:8px 12px;
   border-bottom:1px solid var(--line);
   background:var(--thead);
 }
@@ -1506,8 +1506,8 @@ td input{
 .note.compact{font-size:13px}
 .insights-body{
   display:grid;
-  gap:14px;
-  padding:16px;
+  gap:11px;
+  padding:13px;
 }
 .insight-alerts{
   display:grid;
@@ -1516,10 +1516,10 @@ td input{
 }
 .insight-alert{
   display:grid;
-  gap:4px;
-  padding:11px 12px;
+  gap:3px;
+  padding:9px 11px;
   border:1px solid var(--line);
-  border-radius:12px;
+  border-radius:11px;
   background:var(--panel2);
 }
 .insight-alert b{
@@ -1537,10 +1537,10 @@ td input{
   gap:10px;
 }
 .insight-card{
-  min-height:96px;
-  padding:12px;
+  min-height:78px;
+  padding:10px 11px;
   border:1px solid var(--line);
-  border-radius:12px;
+  border-radius:11px;
   background:var(--panel2);
 }
 .insight-card.good,
@@ -1563,17 +1563,17 @@ td input{
   letter-spacing:.06em;
 }
 .insight-value{
-  margin-top:8px;
+  margin-top:4px;
   color:var(--text);
-  font-size:20px;
+  font-size:17px;
   font-weight:950;
   line-height:1.1;
   font-variant-numeric:tabular-nums;
 }
 .insight-sub{
-  margin-top:5px;
+  margin-top:3px;
   color:var(--muted);
-  font-size:12px;
+  font-size:11px;
   font-weight:800;
   line-height:1.3;
 }
@@ -2331,6 +2331,85 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
 .projection-table .projection-segment-row.is-future.perf-bad td{
   background:inherit;
   color:var(--muted);
+}
+/* === Collapsed pace table: period rows expand to hourly detail === */
+.pace-head-hint{
+  font-size:10px;
+  font-weight:500;
+  color:var(--muted);
+  letter-spacing:.01em;
+}
+.pace-board .pace-collapse-table th:nth-child(1),
+.pace-board .pace-collapse-table td:nth-child(1){
+  width:40%;
+  min-width:220px;
+  text-align:left;
+}
+.pace-board .pace-collapse-table th:nth-child(n+2),
+.pace-board .pace-collapse-table td:nth-child(n+2){
+  width:15%;
+  min-width:96px;
+  text-align:center;
+}
+.projection-period-summary{
+  cursor:pointer;
+  transition:filter .12s ease;
+}
+.projection-period-summary td{
+  background:color-mix(in srgb,var(--blue),var(--panel2) 80%) !important;
+  border-top:2px solid color-mix(in srgb,var(--blue),var(--line) 55%);
+  font-size:15px;
+  padding-top:11px;
+  padding-bottom:11px;
+}
+.projection-period-summary.perf-good td{
+  background:color-mix(in srgb,var(--green),var(--thead) 32%) !important;
+  border-top:2px solid var(--green);
+}
+.projection-period-summary.perf-bad td{
+  background:color-mix(in srgb,var(--red),var(--thead) 32%) !important;
+  border-top:2px solid var(--red);
+}
+.projection-period-summary:hover td{
+  filter:brightness(1.1);
+}
+.projection-period-summary:focus-visible{
+  outline:2px solid var(--blue);
+  outline-offset:-2px;
+}
+.projection-summary-label{
+  text-align:left;
+}
+.projection-summary-label b{
+  font-size:15px;
+  font-weight:900;
+}
+.pace-caret{
+  display:inline-block;
+  width:13px;
+  margin-right:5px;
+  color:var(--muted);
+  transition:transform .15s ease;
+}
+.projection-period-summary.is-expanded .pace-caret{
+  transform:rotate(90deg);
+}
+.pace-period-meta{
+  display:block;
+  font-size:11px;
+  font-weight:400;
+  color:var(--muted);
+  letter-spacing:.02em;
+  margin-top:2px;
+}
+.projection-detail-time{
+  text-align:left !important;
+  padding-left:30px !important;
+  color:var(--muted);
+  font-size:13px;
+}
+.pace-collapse-table .projection-detail td{
+  font-size:13px;
 }
 /* Live clock in topbar */
 .live-clock{
@@ -3203,6 +3282,10 @@ const COPY_BLOCK_KEY = 'ob_prc_vscode_copy_block_min';
 const NOTES_WASH_KEY = 'ob_prc_vscode_notes_wash_min';
 const VIEW_KEY = 'ob_prc_vscode_active_view';
 const PACE_STREAM_KEY = 'ob_prc_vscode_pace_stream';
+const PACE_EXPANDED_KEY = 'ob_prc_vscode_pace_expanded';
+let paceExpandedPeriods = new Set((() => {
+  try { return JSON.parse(localStorage.getItem(PACE_EXPANDED_KEY) || '[]'); } catch { return []; }
+})());
 const FCLM_SOURCE_COLLAPSE_KEY = 'ob_prc_vscode_fclm_source_collapsed';
 const PACE_STATUS_COLLAPSE_KEY = 'ob_prc_vscode_pace_status_collapsed';
 const COPY_BLOCK_EDITED_KEY = 'ob_prc_vscode_copy_block_edited';
@@ -5172,10 +5255,7 @@ function renderHourlyProjection(rows) {
   let elapsedStartedHours = 0;
   let accActual = 0;   // realized actual from completed/in-progress periods
   let accElapsed = 0;  // realized elapsed hours from completed/in-progress periods
-  // Shift Goal spans the entire table body — compute total row count up front
-  const totalShiftRowSpan = rows.reduce((sum, row) => sum + periodHourSegments(row.key).length + 1, 0);
   const tableBody = rows.map((row) => {
-    const isFirstPeriod = row === rows[0];
     const segments = periodTimedSegments(row.key);
     const effectiveHours = effectivePeriodHours(row);
     const periodTarget = stream.should(row);
@@ -5186,15 +5266,15 @@ function renderHourlyProjection(rows) {
     let periodStartedExpected = 0;
     let periodHasActual = false;
     let periodElapsedEffective = 0;
-    const rowSpanCount = segments.length + 1;
+    const expanded = paceExpandedPeriods.has(row.key);
 
-    const segmentRows = segments.map((segment, index) => {
+    // Per-hour detail rows — hidden until the period is expanded
+    const detailRows = segments.map((segment, index) => {
       const actualItem = actualSplit[index];
       const actual = actualItem.actual;
       const hasActual = actual != null;
       const should = obSplit[index];
       const diff = hasActual || should > 0 ? (actual || 0) - should : null;
-      let cumulativeDiff = null;
       let projected = null;
       if ((hasActual || should > 0) && segment.state !== 'future') {
         cumulativeActual += actual || 0;
@@ -5205,7 +5285,7 @@ function renderHourlyProjection(rows) {
         periodElapsedEffective += segmentHours;
         periodStartedExpected += should;
         periodHasActual = true;
-        cumulativeDiff = cumulativeActual - cumulativeStartedExpected;
+        const cumulativeDiff = cumulativeActual - cumulativeStartedExpected;
         // Show projected only on the active segment — extrapolates current period to its end
         if (segment.state === 'current' && periodElapsedEffective > 0 && periodActual > 0) {
           projected = Math.round(periodActual / periodElapsedEffective * effectiveHours);
@@ -5240,14 +5320,9 @@ function renderHourlyProjection(rows) {
         : segment.bypassMinutes
           ? ` <span class="pace-bypass-note">${escapeHtml(tagReason)} - ${formatDowntime(segment.bypassMinutes)}</span>`
           : '';
-      const ovrEntry = opsOverrideEntryFor(row.key);
-      const ovrHours = opsOverrideDowntimeHours(row.key);
-      const bypassTag = [
-        downtimeMinutes(row.key) ? `<span class="pace-bypass">${formatDowntime(downtimeMinutes(row.key))} ${downtimeReasonLabel(row.key)}</span>` : '',
-        ovrEntry && ovrHours > 0 ? `<span class="pace-bypass">${escapeHtml(ovrEntry.reason)} override - ${escapeHtml(ovrEntry.start)} start</span>` : ''
-      ].filter(Boolean).join('');
       const rowClasses = [
         'projection-segment-row',
+        'projection-detail',
         `projection-period-${row.key}`,
         `projection-segment-${index + 1}`,
         segment.state === 'current' ? 'is-current' : '',
@@ -5256,15 +5331,11 @@ function renderHourlyProjection(rows) {
         perfClass
       ].filter(Boolean).join(' ');
       return `
-        <tr class="${rowClasses}">
-          ${index === 0 ? `<td class="projection-period-label" rowspan="${rowSpanCount}"><b>${row.label}</b>${bypassTag}</td>` : ''}
-          <td>${segment.label}${stateLabel}${bypassLabel}</td>
-          ${index === 0 && isFirstPeriod ? `<td class="num shift-goal-cell" rowspan="${totalShiftRowSpan}">${fmt(streamTotals.goal)}</td>` : ''}
-          ${index === 0 ? `<td class="num" rowspan="${rowSpanCount}">${fmt(periodTarget)}</td>` : ''}
-          ${index === 0 ? `<td class="num" rowspan="${rowSpanCount}">${fmt(rate, 0)}/hr</td>` : ''}
-          <td class="num"><b>${should > 0 ? fmt(should) : ''}</b></td>
+        <tr class="${rowClasses}" data-pace-detail="${row.key}"${expanded ? '' : ' hidden'}>
+          <td class="projection-detail-time">${segment.label}${stateLabel}${bypassLabel}</td>
+          <td class="num">${should > 0 ? fmt(should) : ''}</td>
           <td class="num">${projected != null ? fmt(projected) : ''}</td>
-          <td><input id="${actualItem.id}" class="projection-actual ${actualItem.manual ? '' : 'is-auto'}" value="${hasActual ? fmt(actual) : ''}" placeholder="${stream.label} actual" title="Actual from FL Utilization — fills completed hours as the shift progresses; future hours stay blank until elapsed" ${actualItem.manual ? '' : 'data-projection-auto="true"'} /></td>
+          <td class="num"><input id="${actualItem.id}" class="projection-actual ${actualItem.manual ? '' : 'is-auto'}" value="${hasActual ? fmt(actual) : ''}" placeholder="${stream.label} actual" title="Actual from FL Utilization — fills completed hours as the shift progresses; future hours stay blank until elapsed" ${actualItem.manual ? '' : 'data-projection-auto="true"'} /></td>
           <td class="num ${diff == null ? '' : colorClass(diff)}">${diff == null ? '' : signed(diff)}</td>
         </tr>
       `;
@@ -5294,30 +5365,35 @@ function renderHourlyProjection(rows) {
     const elapsedInPeriod = segments.reduce((s, seg) => s + seg.elapsedHours, 0);
     const periodActRate = elapsedInPeriod > 0 && periodActual > 0 ? periodActual / elapsedInPeriod : null;
     const periodPerfClass = periodDiff == null ? '' : periodDiff >= 0 ? 'perf-good' : 'perf-bad';
-    const periodSubtotal = `
-      <tr class="projection-period-total projection-period-${row.key} ${periodPerfClass}">
-        <td><b>Period total</b></td>
-        <td class="num">
-          <b>${fmt(periodStartedExpected)}</b>
-          ${periodReqRate > 0 ? `<br><span class="pace-rate-sub">Req ${fmt(periodReqRate, 0)}/hr</span>` : ''}
+    const ovrEntry = opsOverrideEntryFor(row.key);
+    const ovrHours = opsOverrideDowntimeHours(row.key);
+    const bypassTag = [
+      downtimeMinutes(row.key) ? `<span class="pace-bypass">${formatDowntime(downtimeMinutes(row.key))} ${downtimeReasonLabel(row.key)}</span>` : '',
+      ovrEntry && ovrHours > 0 ? `<span class="pace-bypass">${escapeHtml(ovrEntry.reason)} override - ${escapeHtml(ovrEntry.start)} start</span>` : ''
+    ].filter(Boolean).join('');
+    // Clickable period row — collapses the hourly detail by default, expands on click
+    const periodSummary = `
+      <tr class="projection-period-summary projection-period-${row.key} ${periodPerfClass} ${expanded ? 'is-expanded' : ''}" data-pace-period="${row.key}" tabindex="0" role="button" aria-expanded="${expanded ? 'true' : 'false'}" title="Click to ${expanded ? 'collapse' : 'expand'} the hourly breakdown">
+        <td class="projection-summary-label">
+          <span class="pace-caret" aria-hidden="true">▸</span><b>${row.label}</b>
+          <span class="pace-period-meta">${fmt(periodTarget)} goal · ${fmt(periodReqRate, 0)}/hr planned</span>
+          ${bypassTag}
         </td>
+        <td class="num"><b>${fmt(periodStartedExpected)}</b></td>
         <td class="num">${periodProjected != null ? fmt(periodProjected) : '-'}</td>
-        <td class="num">
-          ${periodHasActual ? `<b>${fmt(periodActual)}</b>` : '-'}
-          ${periodActRate != null ? `<br><span class="pace-rate-sub">Act ${fmt(periodActRate, 0)}/hr</span>` : ''}
-        </td>
+        <td class="num">${periodHasActual ? `<b>${fmt(periodActual)}</b>${periodActRate != null ? `<span class="pace-rate-sub">${fmt(periodActRate, 0)}/hr</span>` : ''}` : '-'}</td>
         <td class="num ${periodDiff == null ? '' : colorClass(periodDiff)}">${periodDiff == null ? '-' : signed(periodDiff)}</td>
       </tr>
     `;
-    return segmentRows + periodSubtotal;
+    return periodSummary + detailRows;
   }).join('');
 
   const grandTotalRow = `
     <tr class="projection-grand-total total-row">
-      <td colspan="2"><b>Total So Far</b></td>
-      <td class="num"><b>${fmt(streamTotals.goal)}</b></td>
-      <td class="num"><b>${fmt(shiftTotal)}</b></td>
-      <td class="num"><b>${totalHours > 0 ? fmt(avgRate, 0) : '0'}/hr</b></td>
+      <td class="projection-summary-label">
+        <b>Total So Far</b>
+        <span class="pace-period-meta">Goal ${fmt(streamTotals.goal)} · ${totalHours > 0 ? fmt(avgRate, 0) : '0'}/hr avg</span>
+      </td>
       <td class="num"><b>${fmt(projectionState.expectedToDate)}</b></td>
       <td class="num"><b>${projectionState.elapsedHours > 0 && projectionState.actualToDate > 0 ? fmt(projectionState.actualToDate / projectionState.elapsedHours * totalHours) : '-'}</b></td>
       <td class="num"><b>${fmt(projectionState.actualToDate)}</b></td>
@@ -5338,14 +5414,10 @@ function renderHourlyProjection(rows) {
           <span>${isMetShift ? `${stream.subtitle}, including the MET extension` : stream.subtitle}</span>
         </div>
         <div class="table-wrap projection-table-wrap">
-          <table class="mini-table pace-merged-table projection-table">
+          <table class="mini-table pace-merged-table projection-table pace-collapse-table">
             <thead>
               <tr>
-                <th>Period</th>
-                <th>Time</th>
-                <th class="num">Shift Goal</th>
-                <th class="num">Goal Per Period<br><span>${stream.shouldLabel}</span></th>
-                <th class="num">Plan Rate</th>
+                <th>Period <span class="pace-head-hint">(click to expand hours)</span></th>
                 <th class="num">Planned</th>
                 <th class="num">Projected</th>
                 <th class="num">Actual</th>
@@ -7712,6 +7784,32 @@ function bind() {
     if (!btn) return;
     localStorage.setItem(PACE_STREAM_KEY, btn.dataset.paceStream);
     renderAll();
+  });
+
+  function togglePacePeriod(row) {
+    const key = row.dataset.pacePeriod;
+    if (!key) return;
+    if (paceExpandedPeriods.has(key)) paceExpandedPeriods.delete(key);
+    else paceExpandedPeriods.add(key);
+    localStorage.setItem(PACE_EXPANDED_KEY, JSON.stringify([...paceExpandedPeriods]));
+    const expanded = paceExpandedPeriods.has(key);
+    row.classList.toggle('is-expanded', expanded);
+    row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    document.querySelectorAll(`[data-pace-detail="${CSS.escape(key)}"]`).forEach((tr) => { tr.hidden = !expanded; });
+  }
+
+  document.addEventListener('click', (event) => {
+    const row = event.target.closest('[data-pace-period]');
+    if (!row) return;
+    togglePacePeriod(row);
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const row = event.target.closest('[data-pace-period]');
+    if (!row) return;
+    event.preventDefault();
+    togglePacePeriod(row);
   });
 
   document.addEventListener('click', (event) => {
