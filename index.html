@@ -2577,15 +2577,16 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
 }
 .workboard-layout .period-pulse{padding:0;border-bottom:0;}
 /* Masonry-style packing so short cards (OB/EOL) don't stretch to the tall ones */
-.workboard-layout .period-pulse-grid{display:block;column-count:2;column-gap:6px;}
+.workboard-layout .period-pulse-grid{display:block;column-count:3;column-gap:6px;}
 .workboard-layout .period-pulse-card{break-inside:avoid;margin:0 0 6px;}
 .workboard-layout .period-pulse-head{padding:4px 8px;}
 .workboard-layout .period-pulse-head b{font-size:12px;}
 .workboard-layout .period-pulse-head span{font-size:11px;}
-.workboard-layout .period-pulse-metrics{padding:5px 8px;gap:2px 7px;}
-.workboard-layout .period-pulse-metrics div{gap:1px;}
+/* Full-width label/value rows so there's no empty space to the right of values */
+.workboard-layout .period-pulse-metrics{grid-template-columns:1fr;padding:4px 8px 5px;gap:1px;}
+.workboard-layout .period-pulse-metrics div{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
 .workboard-layout .period-pulse-metrics span{font-size:10px;}
-.workboard-layout .period-pulse-metrics b{font-size:13px;line-height:1.1;}
+.workboard-layout .period-pulse-metrics b{font-size:13px;line-height:1.2;}
 .workboard-layout .period-stream-breakout{padding:0 8px 5px;gap:2px;}
 .workboard-layout .period-stream-breakout div{padding:2px 7px;}
 .workboard-layout .period-stream-breakout span{font-size:10px;}
@@ -2631,7 +2632,10 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
   .workboard-layout{grid-template-columns:1fr;}
   .workboard-layout .downtime-bypass{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
 }
-@media (max-width:720px){
+@media (max-width:900px){
+  .workboard-layout .period-pulse-grid{column-count:2;}
+}
+@media (max-width:600px){
   .workboard-layout .period-pulse-grid{column-count:1;}
 }
 
