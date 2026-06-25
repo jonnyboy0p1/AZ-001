@@ -168,7 +168,7 @@ h2{margin:0;font-size:17px;line-height:1.1}
   top:104px;
   z-index:25;
   display:grid;
-  grid-template-columns:repeat(6,minmax(0,1fr));
+  grid-template-columns:repeat(7,minmax(0,1fr));
   gap:8px;
   margin:0 0 14px;
   padding:10px;
@@ -2619,6 +2619,7 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
       <button class="view-tab" data-view-tab="goals" type="button">Goals</button>
       <button class="view-tab" data-view-tab="periods" type="button">Periods</button>
       <button class="view-tab" data-view-tab="pace" type="button">Pace</button>
+      <button class="view-tab" data-view-tab="reportcard" type="button">Report Card</button>
       <button class="view-tab" data-view-tab="handoff" type="button">Handoff</button>
       <button class="view-tab" data-view-tab="logs" type="button">Logs</button>
     </nav>
@@ -3022,7 +3023,7 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
         </details>
       </section>
 
-      <section class="periods-shell span-12" data-view="periods">
+      <section class="periods-shell span-12" data-view="periods reportcard">
         <div class="periods-stack">
           <section class="panel workboards-panel">
             <div class="panel-head">
@@ -3084,7 +3085,7 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
         </div>
       </section>
 
-      <section class="panel span-12 projection-panel" data-view="pace">
+      <section class="panel span-12 projection-panel" data-view="pace reportcard">
         <div class="panel-head">
           <div>
             <h2 id="paceTrackerTitle">Pace Tracker</h2>
@@ -3834,7 +3835,7 @@ function normalizeView(view = 'overview') {
   if (view === 'setup' || view === 'tools') return 'goals';
   if (view === 'projection') return 'pace';
   if (view === 'output' || view === 'reports') return 'handoff';
-  const valid = ['overview', 'goals', 'periods', 'pace', 'handoff', 'logs'];
+  const valid = ['overview', 'goals', 'periods', 'pace', 'reportcard', 'handoff', 'logs'];
   return valid.includes(view) ? view : 'overview';
 }
 
