@@ -2473,6 +2473,7 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
   text-align:center;
 }
 .period-open-tab.active{background:var(--blue);color:#fff;border-color:transparent;}
+.period-open-auto.active{background:var(--green);color:#06210f;border-color:transparent;}
 .period-open-tab.now{border-color:rgba(114,240,164,.7);}
 .period-open-tab .now-dot{
   position:absolute;
@@ -6637,10 +6638,12 @@ function renderPeriodOpenTabs() {
   const nowKey = currentShiftPeriodCT();
   const sel = periodOpenSelected();
   const keys = periodOpenKeys();
-  const sig = keys.join(',') + '|' + nowKey + '|' + sel;
+  const autoActive = periodOpenSelection === null;
+  const sig = keys.join(',') + '|' + nowKey + '|' + sel + '|' + (autoActive ? 'auto' : 'man');
   if (sig === lastPeriodOpenSig) return;
   lastPeriodOpenSig = sig;
-  wrap.innerHTML = keys.map((k) =>
+  const autoChip = `<button type="button" class="period-open-tab period-open-auto${autoActive ? ' active' : ''}" data-period-open="auto" title="Follow the live Central-time period">Auto</button>`;
+  wrap.innerHTML = autoChip + keys.map((k) =>
     `<button type="button" class="period-open-tab${k === sel ? ' active' : ''}${k === nowKey ? ' now' : ''}" data-period-open="${k}">${labels[k] || k}${k === nowKey ? '<span class="now-dot"></span>' : ''}</button>`
   ).join('');
   const nowEl = $('periodOpenNow');
@@ -7667,7 +7670,7 @@ function bind() {
   document.addEventListener('click', (e) => {
     const tab = e.target.closest('[data-period-open]');
     if (!tab) return;
-    periodOpenSelection = tab.dataset.periodOpen;
+    periodOpenSelection = tab.dataset.periodOpen === 'auto' ? null : tab.dataset.periodOpen;
     renderPeriodOpenTabs();
   });
   on('pullFclmOnlyBtn', 'click', () => requestBridgeSourcePull('fclm'));

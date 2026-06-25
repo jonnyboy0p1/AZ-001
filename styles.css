@@ -2255,6 +2255,7 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
   text-align:center;
 }
 .period-open-tab.active{background:var(--blue);color:#fff;border-color:transparent;}
+.period-open-auto.active{background:var(--green);color:#06210f;border-color:transparent;}
 .period-open-tab.now{border-color:rgba(114,240,164,.7);}
 .period-open-tab .now-dot{
   position:absolute;
