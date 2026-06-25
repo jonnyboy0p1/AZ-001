@@ -1177,7 +1177,6 @@ body.met-enabled .view-tabs{
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:12px;
 }
-.period-pulse-card.struggle{grid-column:1/-1}
 @media (max-width:720px){
   .period-pulse-grid{grid-template-columns:1fr}
 }
@@ -1190,6 +1189,9 @@ body.met-enabled .view-tabs{
 }
 .period-pulse-card.total{
   border-color:rgba(47,111,234,.55);
+}
+.period-pulse-card.eol{
+  border-color:rgba(251,146,60,.55);
 }
 .period-pulse-card.struggle{
   border-color:rgba(255,143,154,.55);
@@ -4481,6 +4483,13 @@ function renderPeriodPulse(rows, board) {
 
   const data = periodMetrics(rows);
   const spread = periodSpreadAnalysis(rows);
+  // EOL (Dock Pallet Loader) values from the Shift Goals card.
+  const eolPalletsGoal = val('goalPallets');
+  const eolPalletsActual = val('palletsActual');
+  const eolRateGoal = val('palletsRateGoal');
+  const eolRateActual = val('palletsRateActual');
+  const eolPalletsGap = eolPalletsActual - eolPalletsGoal;
+  const eolRateGap = eolRateActual - eolRateGoal;
   // 2x2 workboard layout: FL + RWC on top, MP + OB on the bottom.
   const streamRows = [
     {
@@ -4549,6 +4558,18 @@ function renderPeriodPulse(rows, board) {
           <div><span>Actual</span><b>${fmt(board.eos.capture)}</b></div>
           <div><span>Remain</span><b class="${board.eos.remain <= 0 ? 'good' : 'warn'}">${fmt(board.eos.remain)}</b></div>
           <div><span>Belt</span><b>${fmt(board.eos.belt)}</b></div>
+        </div>
+      </article>
+      <article class="period-pulse-card eol">
+        <div class="period-pulse-head">
+          <b>EOL</b>
+          <span class="${colorClass(eolPalletsGap)}">${signed(eolPalletsGap)}</span>
+        </div>
+        <div class="period-pulse-metrics">
+          <div><span>Pallets Goal</span><b>${fmt(eolPalletsGoal)}</b></div>
+          <div><span>Pallets Actual</span><b class="${eolPalletsGap >= 0 ? 'good' : 'warn'}">${fmt(eolPalletsActual)}</b></div>
+          <div><span>PL Rate Goal</span><b>${fmt(eolRateGoal, 2)}</b></div>
+          <div><span>PL Rate Actual</span><b class="${eolRateGap >= 0 ? 'good' : 'warn'}">${fmt(eolRateActual, 2)}</b></div>
         </div>
       </article>
       <article class="period-pulse-card struggle">
