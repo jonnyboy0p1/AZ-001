@@ -1,7 +1,7 @@
 name: Deploy dashboards to GitHub Pages
 
-# Publishes the OB overview (index.html) and the Fluid Pace view
-# (fluid-pace.html) to GitHub Pages whenever the default branch updates.
+# Publishes the combined ROB dashboard (index.html — OB overview + Fluid
+# Pace, tabbed) to GitHub Pages whenever the default branch updates.
 #
 # One-time setup (repo admin): Settings → Pages → Build and deployment →
 # Source: "GitHub Actions". After that, every push to the default branch
@@ -12,7 +12,6 @@ on:
     branches: [claude/dashboard-html-qfpfm5]
     paths:
       - index.html
-      - fluid-pace.html
       - .github/workflows/deploy-pages.yml
   workflow_dispatch:
 
@@ -33,10 +32,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Assemble site (dashboards only)
+      - name: Assemble site (dashboard only)
         run: |
           mkdir -p _site
-          cp index.html fluid-pace.html _site/
+          cp index.html _site/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
