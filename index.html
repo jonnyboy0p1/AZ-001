@@ -224,22 +224,6 @@
   // ── Cards ──────────────────────────────────────────────────────────────────
   const cards = [];
 
-  // OB — outbound rollup (spans full width)
-  {
-    const d = DATA.ob;
-    const miss = d.actual - d.goal;
-    cards.push(`<section class="card acc-blue span2">
-      <header><h2>OB &middot; Outbound</h2>
-        <span class="miss ${missClass(miss)}">${fmtSigned(miss)} OB</span></header>
-      <div class="stats">
-        <div><span class="lbl">Goal</span><span class="val">${fmt(d.goal)}</span></div>
-        <div><span class="lbl">Actual</span><span class="val">${fmt(d.actual)}</span></div>
-        <div><span class="lbl">Remain</span><span class="val warn">${fmt(d.remain)}</span></div>
-        <div><span class="lbl">Belt</span><span class="val">${fmt(d.belt)}</span></div>
-      </div>
-    </section>`);
-  }
-
   // FL — links through to the Fluid Pace detail view
   {
     const d = DATA.fl;
@@ -272,6 +256,22 @@
           ${subCard("RWC", DATA.rwc)}
           ${subCard("MP", DATA.mp)}
         </div>
+      </div>
+    </section>`);
+  }
+
+  // OB — outbound rollup (bottom-left, beside Biggest Miss)
+  {
+    const d = DATA.ob;
+    const miss = d.actual - d.goal;
+    cards.push(`<section class="card acc-blue">
+      <header><h2>OB &middot; Outbound</h2>
+        <span class="miss ${missClass(miss)}">${fmtSigned(miss)} OB</span></header>
+      <div class="stats">
+        <div><span class="lbl">Goal</span><span class="val">${fmt(d.goal)}</span></div>
+        <div><span class="lbl">Actual</span><span class="val">${fmt(d.actual)}</span></div>
+        <div><span class="lbl">Remain</span><span class="val warn">${fmt(d.remain)}</span></div>
+        <div><span class="lbl">Belt</span><span class="val">${fmt(d.belt)}</span></div>
       </div>
     </section>`);
   }
