@@ -2920,11 +2920,16 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
         <div class="btnstack">
           <button id="openNeoBtn">Open NEO Planning</button>
           <button id="openFluidRosterBtn">Open Fluid Roster</button>
-          <button id="openFclmFullBtn">Open FCLM Full</button>
-          <button id="openFclmP1Btn">Open FCLM P1</button>
-          <button id="openFclmP2Btn">Open FCLM P2</button>
-          <button id="openFclmP3Btn">Open FCLM P3</button>
-          <button id="openFclmMetBtn" data-met-only hidden>Open FCLM MET</button>
+          <button id="openFclmFullBtn">Open Fluid Full</button>
+          <button id="openFclmP1Btn">Open Fluid P1</button>
+          <button id="openFclmP2Btn">Open Fluid P2</button>
+          <button id="openFclmP3Btn">Open Fluid P3</button>
+          <button id="openFclmMetBtn" data-met-only hidden>Open Fluid MET</button>
+          <button id="openEolFullBtn">Open EOL Full</button>
+          <button id="openEolP1Btn">Open EOL P1</button>
+          <button id="openEolP2Btn">Open EOL P2</button>
+          <button id="openEolP3Btn">Open EOL P3</button>
+          <button id="openEolMetBtn" data-met-only hidden>Open EOL MET</button>
           <button id="pullFclmOnlyBtn">Pull FCLM</button>
           <button id="pullFlUtilBtn">Pull FL Utilization</button>
           <button id="pullBattleBeltBtn">Pull Battle of the Belt</button>
@@ -6514,6 +6519,11 @@ function openFclmPeriod(period) {
   if (url) window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+function openEolPeriod(period) {
+  const url = buildFclmUrl(period, '1003022');
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 function openNeoPlanning() {
   window.open('https://neo.meta.amazon.dev/planning', '_blank', 'noopener,noreferrer');
 }
@@ -7389,7 +7399,7 @@ function renderFclmSourceLinks() {
   const dockUrl = buildFclmUrl('full', '1003022');
   const dockCard = `
       <div class="source-link-card">
-        <div class="source-link-name">Dock Pallet Loader</div>
+        <div class="source-link-name">EOL — Dock Pallet Loader</div>
         <div class="source-link-url" title="${escapeHtml(dockUrl)}">${escapeHtml(dockUrl)}</div>
         <button class="soft" data-dock-source-open>Open</button>
         <button class="soft" data-dock-source-copy>Copy</button>
@@ -7534,6 +7544,11 @@ function bind() {
   on('openFclmP2Btn', 'click', () => openFclmPeriod('p2'));
   on('openFclmP3Btn', 'click', () => openFclmPeriod('p3'));
   on('openFclmMetBtn', 'click', () => openFclmPeriod('met'));
+  on('openEolFullBtn', 'click', () => openEolPeriod('full'));
+  on('openEolP1Btn', 'click', () => openEolPeriod('p1'));
+  on('openEolP2Btn', 'click', () => openEolPeriod('p2'));
+  on('openEolP3Btn', 'click', () => openEolPeriod('p3'));
+  on('openEolMetBtn', 'click', () => openEolPeriod('met'));
   on('pullFclmOnlyBtn', 'click', () => requestBridgeSourcePull('fclm'));
   on('pullFlUtilBtn', 'click', () => { requestBridgeSourcePull('flUtil'); runLiveMetricsPull('manual'); });
   on('pullBattleBeltBtn', 'click', () => { requestBridgeSourcePull('belt'); runLiveMetricsPull('manual'); });
