@@ -2569,7 +2569,7 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
 /* ── Period workboards: smaller squares, bypass rail on the side ──── */
 .workboard-layout{
   display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(240px,300px);
+  grid-template-columns:1fr;
   gap:12px;
   align-items:start;
   padding:12px;
@@ -2592,24 +2592,22 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
 .workboard-layout .period-stream-breakout span{font-size:10px;}
 .workboard-layout .period-stream-breakout b{font-size:11px;}
 .workboard-layout .period-struggle-note{margin:0 11px 9px;padding:7px 9px;font-size:11px;line-height:1.35;}
+/* Bypass forms sit in one horizontal row under the workboards */
 .workboard-layout .downtime-bypass{
-  grid-template-columns:1fr;
+  grid-template-columns:repeat(3,minmax(0,1fr));
   align-content:start;
-  gap:6px;
+  gap:9px;
   padding:0;
   border-bottom:0;
 }
-.workboard-layout .downtime-card{padding:7px 9px;gap:5px;}
+.workboard-layout .downtime-card{padding:7px 11px 9px;gap:5px;}
 .workboard-layout .downtime-card h3{font-size:13px;}
 .workboard-layout .downtime-card label{margin-bottom:3px;}
 .workboard-layout .downtime-card input,
 .workboard-layout .downtime-card select{min-height:32px;padding:6px 9px;}
 .workboard-layout .downtime-row{
-  grid-template-columns:1fr 1fr;
-  grid-template-areas:
-    "reason reason"
-    "time unit"
-    "submit submit";
+  grid-template-columns:1.5fr .7fr .7fr auto;
+  grid-template-areas:"reason time unit submit";
   gap:6px;
   align-items:end;
 }
@@ -2617,7 +2615,7 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
 .workboard-layout .downtime-row > div:nth-child(2){grid-area:time;}
 .workboard-layout .downtime-row > div:nth-child(3){grid-area:unit;}
 .workboard-layout .downtime-row > div:nth-child(4){grid-area:submit;}
-.workboard-layout .downtime-submit{width:100%;min-height:32px;padding:7px 11px;}
+.workboard-layout .downtime-submit{width:100%;min-height:32px;padding:7px 14px;}
 /* Tighten the Periods-view chrome */
 .workboards-panel .panel-head,
 .ops-override-panel .panel-head{padding:10px 14px;}
@@ -2631,6 +2629,13 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
 @media (max-width:1100px){
   .workboard-layout{grid-template-columns:1fr;}
   .workboard-layout .downtime-bypass{grid-template-columns:repeat(auto-fit,minmax(230px,1fr));}
+  .workboard-layout .downtime-row{
+    grid-template-columns:1fr 1fr;
+    grid-template-areas:
+      "reason reason"
+      "time unit"
+      "submit submit";
+  }
 }
 @media (max-width:900px){
   .workboard-layout .period-pulse-grid{column-count:2;}
@@ -6323,16 +6328,32 @@ function renderOperationsInsights(board, full) {
       : 'Protect current pace and keep saved log updated';
 
   if ($('insightCards')) {
-    $('insightCards').innerHTML = [
-      insightCard('Current Shift', currentDate, savedForDate ? `saved ${ageText(savedForDate.savedAt)}` : 'not saved to log yet', savedForDate ? 'good' : 'warn'),
-      insightCard('Last Saved Log', lastSaved?.date || 'None', lastSaved ? ageText(lastSaved.savedAt) : 'use Save Shift Results', lastSaved ? '' : 'warn'),
-      insightCard('Week Saved', `${fmt(weekEntries.length)} / 4`, `${week.start} to ${week.end}`, weekEntries.length >= 4 ? 'good' : 'warn'),
-      insightCard('Week OB Gap', signed(weekGap), `${fmt(num(totals.obCaptured))} / ${fmt(num(totals.obGoal))}`, weekGap >= 0 ? 'good' : 'bad'),
-      insightCard('Best Day', bestDay ? bestDay.date : 'None', bestDay ? `OB gap ${signed(bestDay.obGap)}` : 'save shifts to build trend'),
-      insightCard('Biggest Miss', worstDay ? worstDay.date : 'None', worstDay ? `OB gap ${signed(worstDay.obGap)}` : 'no saved misses yet', worstDay && num(worstDay.obGap) < 0 ? 'bad' : ''),
-      insightCard('Missing Week Days', missingDays.length ? missingDays.join(', ') : 'None', 'Sun-Wed saved-log coverage', missingDays.length ? 'warn' : 'good'),
-      insightCard('Suggested Focus', focus, 'auto-picked from current exceptions and week trend', exceptions.length || weekGap < 0 ? 'warn' : 'good')
-    ].join('');
+    // Only render cards that carry signal — empty-state "None" cards are noise
+    const shortDay = (date) => String(date).slice(5);
+    const cards = [
+      insightCard(
+        'Shift Log',
+        currentDate,
+        savedForDate
+          ? `saved ${ageText(savedForDate.savedAt)}`
+          : `not saved yet${lastSaved ? ` · last log ${lastSaved.date}` : ' · no logs saved'}`,
+        savedForDate ? 'good' : 'warn'
+      ),
+      insightCard(
+        'Week Saved',
+        `${fmt(weekEntries.length)} / 4`,
+        `${week.start} to ${week.end}${missingDays.length ? ` · missing ${missingDays.map(shortDay).join(', ')}` : ''}`,
+        weekEntries.length >= 4 ? 'good' : 'warn'
+      )
+    ];
+    if (weekEntries.length) {
+      cards.push(insightCard('Week OB Gap', signed(weekGap), `${fmt(num(totals.obCaptured))} / ${fmt(num(totals.obGoal))}`, weekGap >= 0 ? 'good' : 'bad'));
+    }
+    if (bestDay) cards.push(insightCard('Best Day', bestDay.date, `OB gap ${signed(bestDay.obGap)}`, 'good'));
+    if (worstDay && num(worstDay.obGap) < 0) cards.push(insightCard('Biggest Miss', worstDay.date, `OB gap ${signed(worstDay.obGap)}`, 'bad'));
+    // Suggested Focus repeats the first alert verbatim — only show it when it adds something
+    if (!exceptions.length) cards.push(insightCard('Suggested Focus', focus, 'auto-picked from week trend', weekGap < 0 ? 'warn' : 'good'));
+    $('insightCards').innerHTML = cards.join('');
   }
 }
 
