@@ -2263,6 +2263,7 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
 @media(max-width:760px){
   .setup-panel > .grid-4,
   .goal-card-grid,
+  .goal-primary,
   .jplh-source-body,
   .grid-2,.grid-4,.kpi-grid,.metric-row,.chart-grid,.link-grid,.embed-controls,.jplh-hero,.periods-shell,.handoff-shell{grid-template-columns:1fr}
   .goal-details-card{grid-column:auto}
@@ -2490,6 +2491,28 @@ button.copy-success{
 .quick-tools-panel .panel-head{padding:9px 16px;}
 .shift-goals-panel .panel-head h2,
 .quick-tools-panel .panel-head h2{font-size:15px;}
+/* Streamlined Goals: primary FL/MP/RWC entry row */
+.goal-primary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:11px 16px 9px;}
+.goal-field{display:flex;flex-direction:column;gap:4px;}
+.goal-field label{font-size:11px;color:var(--muted);font-weight:900;}
+.goal-field input{padding:8px 10px;font-size:15px;font-weight:800;}
+.shift-goals-panel .goal-pallets-card{margin:0 16px 10px;}
+.goal-more{margin:0 16px 10px;}
+.goal-more-body{display:grid;gap:9px;padding:9px;}
+/* Grouped Quick Tools actions */
+.tools-stack{display:grid;gap:11px;padding:11px 16px;}
+.tools-primary{width:100%;min-height:40px;font-size:14px;}
+.tools-group{display:grid;gap:7px;}
+.tools-group-label{font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+.tools-row{display:flex;flex-wrap:wrap;gap:7px;}
+.tools-row button{flex:1 1 auto;min-width:118px;padding:8px 11px;}
+/* Tighten the MonitorPortal section on the Goals tab */
+.monitor-panel .panel-head{padding:9px 16px;}
+.monitor-panel .panel-head h2{font-size:15px;}
+.monitor-panel .embed-controls{padding:11px 16px 0;}
+.monitor-panel .live-metrics-bar{margin:10px 16px 0;padding:10px;gap:8px;}
+.monitor-panel .collapse-grid{gap:10px;padding:12px 16px;}
+.monitor-panel .collapse-card summary{padding:10px 12px;}
 .shift-goals-panel .goal-card-grid{gap:8px;padding:10px 16px;}
 .shift-goals-panel .goal-input-card{padding:9px 11px;}
 .shift-goals-panel .goal-input-card h3{margin:0 0 5px;font-size:13px;}
@@ -2984,79 +3007,63 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
             <p class="panel-sub">NEO Start of Shift goals or manual</p>
           </div>
         </div>
-        <div class="goal-card-grid">
-          <div class="goal-input-card">
-            <h3>Fluid Load</h3>
+        <div class="goal-primary">
+          <div class="goal-field">
             <label>FL Jobs Goal</label>
             <input id="goalFluid" value="0" />
           </div>
-          <div class="goal-input-card">
-            <h3>MP / DP</h3>
-            <label>MP Jobs Goal</label>
+          <div class="goal-field">
+            <label>MP / DP Jobs Goal</label>
             <input id="goalMp" value="0" />
           </div>
-          <div class="goal-input-card">
-            <h3>RWC</h3>
+          <div class="goal-field">
             <label>RWC Jobs Goal</label>
             <input id="goalRwc" value="0" />
           </div>
-          <div class="goal-input-card goal-roster-card">
-            <h3>Fluid Roster</h3>
-            <label>Roster Fluid HC</label>
-            <input id="rosterFluidHC" value="0" />
-            <div id="fluidRosterBreakdown" class="goal-card-status">ZoneRA HC breakdown pending.</div>
-            <div id="fluidRosterRecommendation" class="goal-card-status" style="display:none;"></div>
-            <div id="fluidRosterStatus" class="goal-card-status warn">Open roster and enter Fluid HC to compare.</div>
-            <div id="fluidHcDifference" class="goal-card-status warn">HC difference vs NEO pending.</div>
-            <button id="openFluidRosterGoalBtn" class="soft" type="button">Open Fluid Roster</button>
-          </div>
-          <details class="inline-collapse goal-details-card" open>
-            <summary>Supporting goal details</summary>
-            <div class="grid-2">
-              <div><label>Ship Sort Diverts</label><input id="shipSortGoal" value="0" /></div>
-              <div><label>Fluid Rate</label><input id="fluidRate" value="0" /></div>
-              <div><label>Fluid HC</label><input id="fluidHC" value="0" /></div>
-            </div>
-          </details>
-          <div class="goal-input-card goal-pallets-card">
-            <h3>Pallets Loaded <span class="label-hint">Dock &middot; Transfer Out Dock</span></h3>
-            <div class="pallets-goal-grid">
-              <div>
-                <label>Pallets Loaded Goal <span class="label-hint">NEO</span></label>
-                <input id="goalPallets" value="0" />
-              </div>
-              <div>
-                <label>PL Rate Goal <span class="label-hint">NEO</span></label>
-                <input id="palletsRateGoal" value="0" />
-              </div>
-              <div>
-                <label>Dock PL HC <span class="label-hint">NEO</span></label>
-                <input id="palletsHcGoal" value="0" />
-              </div>
-            </div>
-            <div class="pallets-goal-grid">
-              <div>
-                <label>Pallets Actual <span class="label-hint">Dock</span></label>
-                <input id="palletsActual" value="0" />
-              </div>
-              <div>
-                <label>PL Rate Actual <span class="label-hint">Dock</span></label>
-                <input id="palletsRateActual" value="0" />
-              </div>
-              <div>
-                <label>PL HC Actual <span class="label-hint">Dock</span></label>
-                <input id="palletsHcActual" value="0" />
-              </div>
-            </div>
-            <div id="palletsStatus" class="goal-card-status warn">Auto-pull NEO + Dock Pallet Loader to compare.</div>
-          </div>
         </div>
-        <div class="note compact">
-          <div><b>OB Diverts Calc:</b> <span id="obCalc">0</span></div>
-          <div><b>Divert Gap vs Ship Sort:</b> <span id="divertGap">0</span></div>
-          <div><b>Avg Required Capture / Hr:</b> <span id="avgCaptureRate">0.00</span></div>
-          <div><b>Avg Required JPLH:</b> <span id="avgRequiredJplh">0.00</span></div>
+        <div class="goal-input-card goal-pallets-card">
+          <h3>Pallets Loaded <span class="label-hint">Dock &middot; Transfer Out Dock</span></h3>
+          <div class="pallets-goal-grid">
+            <div><label>Pallets Goal <span class="label-hint">NEO</span></label><input id="goalPallets" value="0" /></div>
+            <div><label>PL Rate Goal <span class="label-hint">NEO</span></label><input id="palletsRateGoal" value="0" /></div>
+            <div><label>Dock PL HC <span class="label-hint">NEO</span></label><input id="palletsHcGoal" value="0" /></div>
+          </div>
+          <div class="pallets-goal-grid">
+            <div><label>Pallets Actual <span class="label-hint">Dock</span></label><input id="palletsActual" value="0" /></div>
+            <div><label>PL Rate Actual <span class="label-hint">Dock</span></label><input id="palletsRateActual" value="0" /></div>
+            <div><label>PL HC Actual <span class="label-hint">Dock</span></label><input id="palletsHcActual" value="0" /></div>
+          </div>
+          <div id="palletsStatus" class="goal-card-status warn">Auto-pull NEO + Dock Pallet Loader to compare.</div>
         </div>
+        <details class="inline-collapse goal-more">
+          <summary>Roster &amp; supporting detail</summary>
+          <div class="goal-more-body">
+            <div class="goal-input-card goal-roster-card">
+              <h3>Fluid Roster</h3>
+              <label>Roster Fluid HC</label>
+              <input id="rosterFluidHC" value="0" />
+              <div id="fluidRosterBreakdown" class="goal-card-status">ZoneRA HC breakdown pending.</div>
+              <div id="fluidRosterRecommendation" class="goal-card-status" style="display:none;"></div>
+              <div id="fluidRosterStatus" class="goal-card-status warn">Open roster and enter Fluid HC to compare.</div>
+              <div id="fluidHcDifference" class="goal-card-status warn">HC difference vs NEO pending.</div>
+              <button id="openFluidRosterGoalBtn" class="soft" type="button">Open Fluid Roster</button>
+            </div>
+            <div class="goal-input-card">
+              <h3>Supporting Goal Details</h3>
+              <div class="pallets-goal-grid">
+                <div><label>Ship Sort Diverts</label><input id="shipSortGoal" value="0" /></div>
+                <div><label>Fluid Rate</label><input id="fluidRate" value="0" /></div>
+                <div><label>Fluid HC</label><input id="fluidHC" value="0" /></div>
+              </div>
+            </div>
+            <div class="note compact">
+              <div><b>OB Diverts Calc:</b> <span id="obCalc">0</span></div>
+              <div><b>Divert Gap vs Ship Sort:</b> <span id="divertGap">0</span></div>
+              <div><b>Avg Required Capture / Hr:</b> <span id="avgCaptureRate">0.00</span></div>
+              <div><b>Avg Required JPLH:</b> <span id="avgRequiredJplh">0.00</span></div>
+            </div>
+          </div>
+        </details>
         <div class="override-controls">
           <label class="checkline"><input id="protectManualOverrides" type="checkbox" checked /> Protect numbers I type from bridge/FCLM auto-pulls</label>
           <button id="clearManualOverridesBtn" class="soft" type="button">Clear Manual Locks</button>
@@ -3071,23 +3078,38 @@ body[data-view="goals"] .quick-tools-panel .source-panel{flex:1 1 auto;margin-bo
             <p class="panel-sub">Useful stuff for the shift</p>
           </div>
         </div>
-        <div class="btnstack">
-          <button id="openNeoBtn">Open NEO Planning</button>
-          <button id="openFluidRosterBtn">Open Fluid Roster</button>
-          <div class="period-open-control">
-            <div class="period-open-head">Open report — live period: <span id="periodOpenNow">--</span> <span class="label-hint">(Central time)</span></div>
-            <div class="period-open-tabs" id="periodOpenTabs"></div>
-            <div class="period-open-actions">
-              <button id="openFluidSelBtn" class="primary">Open Fluid</button>
-              <button id="openEolSelBtn" class="primary">Open EOL</button>
+        <div class="tools-stack">
+          <button id="pullFclmPeriodsBtn" class="primary tools-primary">&#8635; Pull All Sources</button>
+          <div class="tools-group">
+            <div class="tools-group-label">Open</div>
+            <div class="tools-row">
+              <button id="openNeoBtn">NEO Planning</button>
+              <button id="openFluidRosterBtn">Fluid Roster</button>
+            </div>
+            <div class="period-open-control">
+              <div class="period-open-head">Open report — live period: <span id="periodOpenNow">--</span> <span class="label-hint">(Central time)</span></div>
+              <div class="period-open-tabs" id="periodOpenTabs"></div>
+              <div class="period-open-actions">
+                <button id="openFluidSelBtn" class="primary">Open Fluid</button>
+                <button id="openEolSelBtn" class="primary">Open EOL</button>
+              </div>
             </div>
           </div>
-          <button id="pullFclmOnlyBtn">Pull FCLM</button>
-          <button id="pullFlUtilBtn">Pull FL Utilization</button>
-          <button id="pullBattleBeltBtn">Pull Battle of the Belt</button>
-          <button id="pullFclmPeriodsBtn" class="primary">Pull All Sources</button>
-          <button id="copyPeriodSummaryBtn" class="primary">Copy Period Summary</button>
-          <button id="copyEOSBtn" class="primary">Copy EOS Wash</button>
+          <div class="tools-group">
+            <div class="tools-group-label">Pull</div>
+            <div class="tools-row">
+              <button id="pullFclmOnlyBtn">FCLM</button>
+              <button id="pullFlUtilBtn">FL Utilization</button>
+              <button id="pullBattleBeltBtn">Battle of the Belt</button>
+            </div>
+          </div>
+          <div class="tools-group">
+            <div class="tools-group-label">Copy</div>
+            <div class="tools-row">
+              <button id="copyPeriodSummaryBtn" class="primary">Period Summary</button>
+              <button id="copyEOSBtn" class="primary">EOS Wash</button>
+            </div>
+          </div>
         </div>
         <div id="bridgeSourceAges" class="bridge-source-ages"></div>
         <details class="source-panel source-panel-collapse" id="fclmSourcePanel" open>
