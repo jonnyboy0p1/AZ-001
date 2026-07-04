@@ -754,7 +754,36 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
     var h = '';
 
     h += sourceCard('Piles (ont-base)', d.piles, function (p) {
-      var b = '<div class="kpis">';
+      var b;
+      if (p.report) {
+        // v2 userscript: parsed Area Breakdown from /piles/report
+        b = '<div class="kpis">';
+        if (p.auditDate) {
+          b += kpiHtml('Audit', p.auditDate + (p.auditShift ? ' ' + p.auditShift : '') +
+                       (p.auditNumber ? ' #' + p.auditNumber : ''));
+        }
+        if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Piles total (page)', fmt(p.totalPiles));
+        if (p.adjustedTotal !== null && p.adjustedTotal !== undefined) b += kpiHtml('Adjusted total (page)', fmt(p.adjustedTotal));
+        if (p.computedSum !== null && p.computedSum !== undefined) {
+          b += kpiHtml('Sum of areas', fmt(p.computedSum) +
+                       (p.sumMatchesReported === false ? ' ⚠' : (p.sumMatchesReported ? ' ✓' : '')));
+        }
+        b += '</div>';
+        if (p.sumMatchesReported === false) {
+          b += '<p class="note" style="color:var(--bad-ink)">⚠ The per-area sum does not match the page total — ' +
+               'a column may be misdetected. Check the diagnostics in Raw JSON below.</p>';
+        }
+        var areaNames = Object.keys(p.areaTotals || {});
+        if (areaNames.length) {
+          b += scrapeTableHtml({ headers: ['Area', 'Total', 'Adjusted'], rows: areaNames.map(function (a) {
+            return [a, fmt(p.areaTotals[a]),
+                    (p.areaAdjusted && p.areaAdjusted[a] !== null && p.areaAdjusted[a] !== undefined)
+                      ? fmt(p.areaAdjusted[a]) : ''];
+          }) });
+        }
+        return b;
+      }
+      b = '<div class="kpis">';
       if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Total piles', fmt(p.totalPiles));
       if (p.pilesOver48h !== null && p.pilesOver48h !== undefined) b += kpiHtml('Over 48h', fmt(p.pilesOver48h));
       if (p.pilesOver24h !== null && p.pilesOver24h !== undefined) b += kpiHtml('Over 24h', fmt(p.pilesOver24h));
@@ -823,6 +852,16 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
       else unmatched.push(String(rawName).trim());
     }
 
+    // Preferred: v2 report scrape — clean per-area totals (adjusted wins when present)
+    if (p.areaTotals && Object.keys(p.areaTotals).length) {
+      Object.keys(p.areaTotals).forEach(function (k) {
+        var v = (p.areaAdjusted && p.areaAdjusted[k] !== null && p.areaAdjusted[k] !== undefined)
+          ? p.areaAdjusted[k] : p.areaTotals[k];
+        tryMatch(k, v);
+      });
+      return { matches: matches, unmatched: unmatched };
+    }
+
     (p.tableRows || []).forEach(function (row) {
       var keys = Object.keys(row);
       // area name: first cell whose value is not numeric
@@ -874,6 +913,14 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
       });
       var msg = 'Filled ' + slot + ' for ' + names.length + ' area' + (names.length === 1 ? '' : 's') +
                 ' (scraped ' + ageStr(d.piles.timestamp) + ')';
+      var pd = d.piles.data || {};
+      if (pd.report) {
+        if (pd.sumMatchesReported === false) {
+          msg += ' — ⚠ page total ' + fmt(pd.totalPiles) + ' ≠ area sum ' + fmt(pd.computedSum) + ', see Live Bridge tab';
+        } else if (pd.totalPiles !== null && pd.totalPiles !== undefined) {
+          msg += ' — adds up to page total ' + fmt(pd.totalPiles) + ' ✓';
+        }
+      }
       if (res.unmatched.length) {
         msg += ' — unmatched: ' + res.unmatched.slice(0, 4).join(', ') +
                (res.unmatched.length > 4 ? '…' : '') + ' (use “+ Add area” to track them)';

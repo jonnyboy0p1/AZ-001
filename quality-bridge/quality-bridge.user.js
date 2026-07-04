@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Quality Metrics Bridge (RFD2)
 // @namespace    rfd2-quality
-// @version      1.0.0
-// @description  Scrapes Piles, EPP Compliance, PPA Compliance and bridges to local server
+// @version      2.0.0
+// @description  Scrapes Piles report (Area Breakdown), EPP Compliance, PPA Compliance and bridges to local server
 // @match        https://ont-base.corp.amazon.com/RFD2/icqa/piles*
 // @match        https://us-east-1.quicksight.aws.amazon.com/sn/account/amazonbi/dashboards/0243f5c0-7de1-4ee2-ba5e-de2948e0802f*
 // @match        https://us-east-1.quicksight.aws.amazon.com/sn/account/amazonbi/dashboards/839b4877-6557-4e6b-a9d5-d3df4e36ff9f*
@@ -26,7 +26,18 @@
     console.log(`[QualityBridge] ${msg}`);
   }
 
+  function num(s) {
+    if (s === null || s === undefined) return null;
+    const m = String(s).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : null;
+  }
+
+  function normName(s) {
+    return String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
   function detectSource() {
+    if (window.__QB_FORCE_SOURCE) return window.__QB_FORCE_SOURCE; // test hook
     const url = location.href;
     if (url.includes('ont-base.corp.amazon.com') && url.includes('piles')) return 'piles';
     if (url.includes('0243f5c0-7de1-4ee2-ba5e-de2948e0802f')) return 'epp';
@@ -34,14 +45,20 @@
     return 'unknown';
   }
 
+  function isPilesReport() {
+    if (location.href.includes('/piles/report')) return true;
+    // Fallback: the report page has an "Area Breakdown" heading
+    return Array.from(document.querySelectorAll('h1,h2,h3,h4'))
+      .some(h => /area\s*breakdown/i.test(h.textContent));
+  }
+
   function getCurrentShift() {
     // RFD2 night shift schedule (Central Time)
     // Sun-Wed = Front Half (FH), Wed-Sat = Back Half (BH)
     // Wed night counts as BH start
     const now = new Date();
-    // Convert to Central Time
     const ct = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-    const day = ct.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    const day = ct.getDay(); // 0=Sun ... 6=Sat
     const hour = ct.getHours();
 
     // Night shift: 19:00 - 06:30 CT
@@ -51,9 +68,6 @@
       shiftDay = (day + 6) % 7; // previous day
     }
 
-    // FH = Sun(0), Mon(1), Tue(2), Wed(3) nights
-    // BH = Wed(3), Thu(4), Fri(5), Sat(6) nights
-    // Wed is overlap — night shift starting Wed evening is BH
     if (shiftDay >= 0 && shiftDay <= 2) return 'FH';
     if (shiftDay >= 3 && shiftDay <= 6) return 'BH';
     return 'FH';
@@ -109,10 +123,178 @@
   }
 
   // ============================================================
-  // PILES SCRAPER (ont-base)
+  // TABLE GRID EXPANSION (handles rowspan/colspan merged cells)
   // ============================================================
-  function scrapePiles() {
-    log('Scraping piles...');
+  function expandTable(table) {
+    const grid = [];
+    const rows = table.querySelectorAll('tr');
+    rows.forEach((tr, r) => {
+      grid[r] = grid[r] || [];
+      let c = 0;
+      Array.from(tr.children).forEach(cell => {
+        if (cell.tagName !== 'TD' && cell.tagName !== 'TH') return;
+        while (grid[r][c] !== undefined) c++;
+        const rs = parseInt(cell.getAttribute('rowspan') || '1', 10) || 1;
+        const cs = parseInt(cell.getAttribute('colspan') || '1', 10) || 1;
+        const text = cell.textContent.replace(/\s+/g, ' ').trim();
+        for (let i = 0; i < rs; i++) {
+          for (let j = 0; j < cs; j++) {
+            grid[r + i] = grid[r + i] || [];
+            grid[r + i][c + j] = text;
+          }
+        }
+        c += cs;
+      });
+    });
+    return grid;
+  }
+
+  // ============================================================
+  // PILES REPORT SCRAPER (ont-base /piles/report — Area Breakdown)
+  // ============================================================
+  function scrapePilesReport() {
+    log('Scraping piles report (Area Breakdown)...');
+
+    const data = {
+      report: true,
+      auditDate: null, auditShift: null, auditNumber: null,
+      totalPiles: null,           // "Piles Total: NNNN" from the page header
+      adjustedTotal: null,        // "Adjusted Total: NNNN"
+      areaTotals: {},             // { 'Fluid Load': 450, ... } from Total column
+      areaAdjusted: {},           // same, from Adjusted Total column
+      areaRows: [],               // per-location detail rows
+      departmentOverview: [],
+      computedSum: null,          // sum of areaTotals
+      computedAdjustedSum: null,
+      sumMatchesReported: null,   // computedSum === totalPiles
+      diagnostics: []
+    };
+
+    // Audit params from URL
+    const q = new URLSearchParams(location.search);
+    data.auditDate = q.get('audit_date');
+    data.auditShift = q.get('audit_shift');
+    data.auditNumber = q.get('audit_number');
+
+    // Header totals
+    const bodyText = document.body.innerText;
+    let m = bodyText.match(/Piles\s*Total\s*:?\s*([\d,]+)/i);
+    if (m) data.totalPiles = num(m[1]);
+    m = bodyText.match(/Adjusted\s*Total\s*:?\s*([\d,]+)/i);
+    if (m) data.adjustedTotal = num(m[1]);
+
+    // Walk every table; Area Breakdown tables have "Physical Area"/"Physical Location" headers
+    document.querySelectorAll('table').forEach((table, ti) => {
+      const grid = expandTable(table);
+      if (!grid.length) return;
+
+      // Locate the header row (may not be row 0)
+      let hr = -1;
+      for (let r = 0; r < Math.min(grid.length, 5); r++) {
+        const low = (grid[r] || []).map(x => String(x || '').toLowerCase());
+        if (low.some(x => x.includes('physical area')) || low.some(x => x.includes('physical location'))) {
+          hr = r;
+          break;
+        }
+      }
+
+      if (hr === -1) {
+        // Department Overview table (left panel)
+        const low0 = (grid[0] || []).map(x => String(x || '').toLowerCase());
+        if (low0.some(x => x.includes('department'))) {
+          for (let r = 1; r < grid.length; r++) {
+            const row = grid[r];
+            if (!row || !row[0] || !String(row[0]).trim()) continue;
+            const values = row.slice(1).map(num).filter(v => v !== null);
+            if (values.length) {
+              data.departmentOverview.push({ department: String(row[0]).trim(), values: values.slice(0, 4) });
+            }
+          }
+        }
+        return;
+      }
+
+      const head = grid[hr].map(x => String(x || '').toLowerCase());
+      const idxArea = head.findIndex(x => x.includes('physical area'));
+      const idxLoc = head.findIndex(x => x.includes('physical location'));
+      const idxAdj = head.findIndex(x => x.includes('adjusted'));
+      let idxTotal = -1;
+      head.forEach((x, i) => {
+        if (x.includes('total') && !x.includes('adjusted')) idxTotal = i;
+      });
+
+      data.diagnostics.push({
+        table: ti,
+        headers: grid[hr].slice(0, 20),
+        dataRows: grid.length - hr - 1,
+        cols: { area: idxArea, loc: idxLoc, total: idxTotal, adjusted: idxAdj }
+      });
+
+      if (idxArea === -1 || (idxTotal === -1 && idxAdj === -1)) return;
+
+      for (let r = hr + 1; r < grid.length; r++) {
+        const row = grid[r];
+        if (!row) continue;
+        const areaRaw = row[idxArea];
+        if (!areaRaw || !String(areaRaw).trim()) continue;
+        const area = String(areaRaw).trim();
+        // skip repeated header rows inside the same table
+        if (/physical\s*(area|location)/i.test(area)) continue;
+
+        data.areaRows.push({
+          area,
+          location: idxLoc !== -1 ? String(row[idxLoc] || '').trim() : '',
+          total: idxTotal !== -1 ? num(row[idxTotal]) : null,
+          adjusted: idxAdj !== -1 ? num(row[idxAdj]) : null
+        });
+      }
+    });
+
+    // Aggregate per area.
+    // Prefer an explicit subtotal row (location empty, or location == area name);
+    // otherwise sum the individual location rows.
+    const byArea = {};
+    data.areaRows.forEach(r => {
+      (byArea[r.area] = byArea[r.area] || []).push(r);
+    });
+
+    Object.keys(byArea).forEach(area => {
+      const rows = byArea[area];
+      const subtotal = rows.find(r => !r.location || normName(r.location) === normName(area));
+      const locRows = rows.filter(r => r.location && normName(r.location) !== normName(area));
+
+      let tot = null, adj = null;
+      if (subtotal && subtotal.total !== null) tot = subtotal.total;
+      else if (locRows.length) tot = locRows.reduce((s, r) => s + (r.total || 0), 0);
+      else if (rows.length && rows[0].total !== null) tot = rows[0].total;
+
+      if (subtotal && subtotal.adjusted !== null) adj = subtotal.adjusted;
+      else if (locRows.length) adj = locRows.reduce((s, r) => s + (r.adjusted || 0), 0);
+      else if (rows.length && rows[0].adjusted !== null) adj = rows[0].adjusted;
+
+      if (tot !== null) data.areaTotals[area] = tot;
+      if (adj !== null) data.areaAdjusted[area] = adj;
+    });
+
+    // Cross-check against the page's own reported totals
+    data.computedSum = Object.values(data.areaTotals).reduce((s, v) => s + v, 0);
+    data.computedAdjustedSum = Object.values(data.areaAdjusted).reduce((s, v) => s + v, 0);
+    if (data.totalPiles !== null) {
+      data.sumMatchesReported = data.computedSum === data.totalPiles;
+    }
+
+    log(`Piles report: ${Object.keys(data.areaTotals).length} areas, ` +
+        `sum=${data.computedSum} vs reported=${data.totalPiles} ` +
+        `(${data.sumMatchesReported === false ? 'MISMATCH!' : 'ok'})`);
+
+    return data;
+  }
+
+  // ============================================================
+  // LEGACY PILES SCRAPER (non-report piles pages, generic)
+  // ============================================================
+  function scrapePilesGeneric() {
+    log('Scraping piles (generic)...');
 
     const data = {
       totalPiles: null,
@@ -123,8 +305,6 @@
       summary: {}
     };
 
-    // ont-base typically renders a table with pile info
-    // Look for summary/stats first
     const statCards = document.querySelectorAll('.stat-card, .metric-card, .card, .summary-item, [class*="stat"], [class*="metric"]');
     statCards.forEach(card => {
       const text = card.textContent.trim();
@@ -137,7 +317,6 @@
       }
     });
 
-    // Grab the main data table
     const tables = document.querySelectorAll('table');
     tables.forEach(table => {
       const headers = Array.from(table.querySelectorAll('thead th, tr:first-child th'))
@@ -156,29 +335,19 @@
       }
     });
 
-    // Fallback: look for any prominent numbers on the page
     if (data.totalPiles === null) {
-      // Try looking for h1/h2/h3 with numbers, or specific selectors
       const headings = document.querySelectorAll('h1, h2, h3, .count, .total, [class*="count"], [class*="total"]');
       headings.forEach(el => {
-        const num = el.textContent.trim().match(/^(\d[\d,]*)$/);
-        if (num) {
-          data.summary[el.className || el.tagName] = parseInt(num[1].replace(/,/g, ''));
+        const n = el.textContent.trim().match(/^(\d[\d,]*)$/);
+        if (n) {
+          data.summary[el.className || el.tagName] = parseInt(n[1].replace(/,/g, ''));
         }
       });
     }
 
-    // Also grab any aging breakdown if visible
-    const agingElements = document.querySelectorAll('[class*="aging"], [class*="age"], .pile-age');
-    agingElements.forEach(el => {
-      data.summary[el.className] = el.textContent.trim();
-    });
-
-    // Broad fallback: grab all visible text blocks that look like key-value pairs
     if (data.tableRows.length === 0 && data.totalPiles === null) {
       const allText = document.body.innerText;
       const lines = allText.split('\n').filter(l => l.trim());
-      // Look for "Label: Value" or "Label\tValue" patterns
       lines.forEach(line => {
         const kv = line.match(/^(.+?)[\s:]+(\d[\d,]*)\s*$/);
         if (kv) {
@@ -189,6 +358,10 @@
 
     log(`Piles: ${data.tableRows.length} rows, total=${data.totalPiles}`);
     return data;
+  }
+
+  function scrapePiles() {
+    return isPilesReport() ? scrapePilesReport() : scrapePilesGeneric();
   }
 
   // ============================================================
@@ -205,18 +378,6 @@
       visuals: []
     };
 
-    // QuickSight renders visuals in containers
-    // Strategy: find all visual containers and extract their content
-
-    // 1. KPI / single-number visuals (large prominent numbers)
-    const kpiSelectors = [
-      '[class*="kpi"]', '[class*="KPI"]',
-      '[class*="metric-value"]', '[class*="MetricValue"]',
-      '[class*="insight"]', '[class*="Insight"]',
-      '.visual-container', '[data-testid*="visual"]'
-    ];
-
-    // Look for visual titles + their associated values
     const visuals = document.querySelectorAll(
       '.quicksight-visual, [class*="VisualContainer"], [class*="visual-container"], ' +
       '[class*="sheetVisual"], [data-testid*="visual"]'
@@ -228,25 +389,19 @@
       );
       const title = titleEl ? titleEl.textContent.trim() : `Visual_${idx}`;
       const content = visual.textContent.trim().substring(0, 500);
-
-      // Extract numbers from the visual
       const numbers = content.match(/[\d,]+\.?\d*%?/g) || [];
-
       data.visuals.push({ title, numbers: numbers.slice(0, 20), raw: content.substring(0, 200) });
     });
 
-    // 2. Tables inside QuickSight
     const tables = document.querySelectorAll('table, [role="table"], [class*="Table"]');
     tables.forEach(table => {
       const headers = [];
       const rows = [];
 
-      // Try standard table structure
       table.querySelectorAll('thead th, [role="columnheader"], [class*="header-cell"]').forEach(th => {
         headers.push(th.textContent.trim());
       });
 
-      // If no thead, try first row
       if (headers.length === 0) {
         const firstRow = table.querySelector('tr, [role="row"]');
         if (firstRow) {
@@ -256,10 +411,9 @@
         }
       }
 
-      // Get data rows
       const dataRows = table.querySelectorAll('tbody tr, [role="row"]');
       dataRows.forEach((row, ri) => {
-        if (ri === 0 && headers.length === 0) return; // skip if we used first row as headers
+        if (ri === 0 && headers.length === 0) return;
         const cells = Array.from(row.querySelectorAll('td, [role="cell"], [role="gridcell"]'))
           .map(c => c.textContent.trim());
         if (cells.length > 0 && cells.some(c => c !== '')) {
@@ -272,21 +426,17 @@
       }
     });
 
-    // 3. Look for percentage/compliance values specifically
     const allText = document.body.innerText;
 
     if (dashboardType === 'epp') {
-      // EPP Compliance - look for compliance percentage
       const complianceMatch = allText.match(/(?:compliance|EPP)[:\s]*(\d+\.?\d*)\s*%/i);
       if (complianceMatch) data.kpis.eppCompliance = complianceMatch[1] + '%';
 
-      // Look for any percentage that seems like the main KPI
       const pctMatches = allText.match(/(\d{1,3}\.\d{1,2})%/g);
       if (pctMatches) data.kpis.allPercentages = pctMatches.slice(0, 10);
     }
 
     if (dashboardType === 'ppa') {
-      // PPA Compliance - shift-aware
       const shift = getCurrentShift();
       data.kpis.targetShift = shift;
 
@@ -297,10 +447,8 @@
       if (pctMatches) data.kpis.allPercentages = pctMatches.slice(0, 10);
     }
 
-    // 4. SVG chart data (QuickSight renders charts as SVG)
     const svgs = document.querySelectorAll('svg');
     svgs.forEach((svg, i) => {
-      // Look for text elements in charts that might contain values
       const texts = Array.from(svg.querySelectorAll('text'))
         .map(t => t.textContent.trim())
         .filter(t => t && t.match(/\d/));
@@ -339,7 +487,18 @@
 
       scrapeCount++;
       writeBridge(source, data);
-      updateBadge(`Quality Bridge: ${source.toUpperCase()} ✓ (#${scrapeCount})`, true);
+
+      let badgeMsg = `Quality Bridge: ${source.toUpperCase()} ✓ (#${scrapeCount})`;
+      let badgeOk = true;
+      if (data && data.report) {
+        if (data.sumMatchesReported === false) {
+          badgeMsg = `Quality Bridge: PILES ⚠ sum ${data.computedSum} ≠ ${data.totalPiles} (#${scrapeCount})`;
+          badgeOk = false;
+        } else if (data.totalPiles !== null) {
+          badgeMsg = `Quality Bridge: PILES ✓ ${data.totalPiles} (#${scrapeCount})`;
+        }
+      }
+      updateBadge(badgeMsg, badgeOk);
     } catch (err) {
       log(`Scrape error: ${err.message}`);
       updateBadge(`Quality Bridge: ${source.toUpperCase()} ✗ ${err.message}`, false);

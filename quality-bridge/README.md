@@ -49,6 +49,29 @@ The script auto-detects the current shift based on Central Time.
 Night shift = 19:00–06:30 CT. If it's before 06:30, the shift "day" is the
 previous calendar day.
 
+## Piles report scraper (v2)
+
+For the audit report page
+(`/RFD2/icqa/piles/report?audit_date=...&audit_number=...&audit_shift=...`)
+the userscript uses a dedicated parser instead of the generic one:
+
+- Expands rowspan/colspan merged cells, then reads the **Area Breakdown**
+  tables via their `Physical Area` / `Physical Location` / `Total` /
+  `Adjusted Total` headers.
+- Prefers an area's subtotal row when present; otherwise sums its location
+  rows (so nothing is double-counted).
+- Reads the page's own "Piles Total" / "Adjusted Total" and cross-checks the
+  per-area sum against it. The badge shows `PILES ✓ 5625` when they match and
+  a red `⚠ sum X ≠ Y` when they don't; the mismatch flag also travels in the
+  payload (`sumMatchesReported`) and is surfaced in fhns-quality.html.
+- Payload gains `areaTotals` / `areaAdjusted` maps, `areaRows` detail,
+  `departmentOverview`, audit params from the URL, and per-table `diagnostics`
+  (detected headers and column indexes) for troubleshooting.
+
+The "Pull piles into slot" button in fhns-quality.html uses `areaTotals`
+(adjusted value preferred) when present, and only falls back to the old
+generic `tableRows` heuristics for non-report pages.
+
 ## Tuning
 
 The QuickSight scraper uses generic selectors since QS DOM is dynamic.
