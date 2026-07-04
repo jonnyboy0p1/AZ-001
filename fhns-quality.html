@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FHNs Quality — All Sheets</title>
+<title>RFD2 — FHNs Quality</title>
 <style>
 :root {
   --bg: #f6f7f9; --card: #ffffff; --ink: #1a222d; --muted: #5b6675;
@@ -141,8 +141,9 @@ code { background: var(--head-bg); border-radius: 4px; padding: 1px 5px; font-si
 </head>
 <body>
 <header>
-  <h1>FHNs Quality</h1>
-  <p class="sub">Daily pile tracker + live Quality Bridge + all sheets from FHNs_Qualtiy.xlsx</p>
+  <h1>RFD2 — FHNs Quality</h1>
+  <p class="sub">Daily pile tracker + live Quality Bridge + all sheets from FHNs_Qualtiy.xlsx
+    · <span id="hdrShift"></span></p>
   <nav id="tabs"><button data-tab="byday" type="button">By Day</button>
 <button data-tab="live" type="button">Live Bridge <span class="dot off" id="navDot"></span></button>
 <button data-tab="piles" type="button">Piles</button>
@@ -157,7 +158,9 @@ code { background: var(--head-bg); border-radius: 4px; padding: 1px 5px; font-si
 <section id="byday" class="panel">
   <h2>Piles &mdash; By Day</h2>
   <p class="note">Daily pile tracker. Pick a date and type counts &mdash; totals, change and rank
-  compute automatically. Entries save in this browser per date, so every new day starts blank.</p>
+  compute automatically. Entries save in this browser per date, so every new day starts blank.
+  Dates follow the <b>night-shift day</b> (Central Time): before 7:00&nbsp;AM the shift still counts
+  as the previous day. Pulling from the bridge auto-adds any new areas found on the report.</p>
   <div class="dayctl">
     <label>Date <input type="date" id="dayDate"></label>
     <select id="savedDays" title="Jump to a day that already has entries"></select>
@@ -459,6 +462,13 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  function shiftDayISO() {
+    // Night-shift day (matches the userscript): before 07:00 Central Time,
+    // the shift still belongs to the previous calendar day.
+    var ct = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    if (ct.getHours() < 7) ct.setDate(ct.getDate() - 1);
+    return ct.getFullYear() + '-' + String(ct.getMonth() + 1).padStart(2, '0') + '-' + String(ct.getDate()).padStart(2, '0');
+  }
   function lsGet(k, fallback) {
     try { var v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); }
     catch (e) { return fallback; }
@@ -641,7 +651,7 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
     buildTable();
   });
 
-  setDate(todayISO());
+  setDate(shiftDayISO());
 
   /* ==========================================================
    * Quality Bridge integration (Tampermonkey -> server.js :4800)
@@ -676,6 +686,13 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
     var sd = day; if (hour < 7) sd = (day + 6) % 7;
     return sd <= 2 ? 'FH' : 'BH';
   }
+
+  var hdrShiftEl = document.getElementById('hdrShift');
+  function updateHeaderShift() {
+    if (hdrShiftEl) hdrShiftEl.textContent = 'Shift: ' + currentShift() + ' · shift day ' + shiftDayISO();
+  }
+  updateHeaderShift();
+  setInterval(updateHeaderShift, 60000);
 
   function ageStr(iso) {
     if (!iso) return 'never';
@@ -894,11 +911,31 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
       if (!d) { pullStatusEl.textContent = 'Bridge offline — is server.js running on ' + bridgeUrl() + '?'; return; }
       if (!d.piles) { pullStatusEl.textContent = 'Server is up but has no piles data yet — open the ont-base piles page with Tampermonkey.'; return; }
 
-      var res = pilesRowsToCounts(d.piles.data || {});
+      var pdata = d.piles.data || {};
+      var res = pilesRowsToCounts(pdata);
+
+      // Tailor the tracker to the building: on report scrapes, any Area Breakdown
+      // area we don't track yet gets added automatically, then re-matched.
+      var added = [];
+      if (pdata.report && res.unmatched.length) {
+        var cur = customAreas();
+        res.unmatched.forEach(function (n) {
+          n = String(n).trim();
+          if (n && n.length <= 40 && allAreas().indexOf(n) === -1) {
+            cur = cur.concat([n]);
+            added.push(n);
+          }
+        });
+        if (added.length) {
+          lsSet('fhns-custom-areas', cur);
+          res = pilesRowsToCounts(pdata);
+        }
+      }
+
       var names = Object.keys(res.matches);
       if (!names.length) {
         pullStatusEl.textContent = 'No area rows matched the scrape (' +
-          ((d.piles.data || {}).tableRows || []).length + ' rows scraped). Check the Live Bridge tab to see the raw shape.';
+          (pdata.tableRows || []).length + ' rows scraped). Check the Live Bridge tab to see the raw shape.';
         return;
       }
       names.forEach(function (a) {
@@ -913,15 +950,18 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
       });
       var msg = 'Filled ' + slot + ' for ' + names.length + ' area' + (names.length === 1 ? '' : 's') +
                 ' (scraped ' + ageStr(d.piles.timestamp) + ')';
-      var pd = d.piles.data || {};
-      if (pd.report) {
-        if (pd.sumMatchesReported === false) {
-          msg += ' — ⚠ page total ' + fmt(pd.totalPiles) + ' ≠ area sum ' + fmt(pd.computedSum) + ', see Live Bridge tab';
-        } else if (pd.totalPiles !== null && pd.totalPiles !== undefined) {
-          msg += ' — adds up to page total ' + fmt(pd.totalPiles) + ' ✓';
+      if (added.length) {
+        msg += ' — added ' + added.length + ' new area' + (added.length === 1 ? '' : 's') +
+               ' from the report: ' + added.slice(0, 5).join(', ') + (added.length > 5 ? '…' : '');
+      }
+      if (pdata.report) {
+        if (pdata.sumMatchesReported === false) {
+          msg += ' — ⚠ page total ' + fmt(pdata.totalPiles) + ' ≠ area sum ' + fmt(pdata.computedSum) + ', see Live Bridge tab';
+        } else if (pdata.totalPiles !== null && pdata.totalPiles !== undefined) {
+          msg += ' — adds up to page total ' + fmt(pdata.totalPiles) + ' ✓';
         }
       }
-      if (res.unmatched.length) {
+      if (res.unmatched.length && !added.length) {
         msg += ' — unmatched: ' + res.unmatched.slice(0, 4).join(', ') +
                (res.unmatched.length > 4 ? '…' : '') + ' (use “+ Add area” to track them)';
       }

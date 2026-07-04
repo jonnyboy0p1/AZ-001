@@ -222,15 +222,18 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && url === '/quality-report') return handleGetReport(req, res);
   if (req.method === 'GET' && (url === '/' || url === '/index.html')) return handleIndex(req, res);
 
-  // Serve the FHNs Quality page if fhns-quality.html sits next to server.js
-  if (req.method === 'GET' && (url === '/fhns' || url === '/fhns-quality.html')) {
-    const f = path.join(__dirname, 'fhns-quality.html');
-    if (fs.existsSync(f)) {
+  // Serve the FHNs Quality page if it sits next to server.js
+  // (accepts either filename: fhnsquality.html or fhns-quality.html)
+  if (req.method === 'GET' && (url === '/fhns' || url === '/fhns-quality.html' || url === '/fhnsquality.html')) {
+    const f = ['fhnsquality.html', 'fhns-quality.html']
+      .map(n => path.join(__dirname, n))
+      .find(p => fs.existsSync(p));
+    if (f) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end(fs.readFileSync(f));
     } else {
       res.writeHead(404);
-      res.end('fhns-quality.html not found next to server.js');
+      res.end('fhnsquality.html not found next to server.js');
     }
     return;
   }

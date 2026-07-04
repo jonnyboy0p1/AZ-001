@@ -11,6 +11,27 @@ and aggregates them into a single dashboard.
 | **EPP Compliance** | QuickSight `0243f5c0-...` | Compliance %, breakdown |
 | **PPA Compliance** | QuickSight `839b4877-...` | Compliance % (shift-aware: FH/BH) |
 
+## Your setup (RFD2 nights)
+
+Everything lives in `C:\Users\jonavroa\Desktop\Quality`:
+
+```
+Quality/
++-- server.js             - bridge server (node server.js)
++-- fhnsquality.html      - FHNs Quality page (tabs, By Day tracker, Live Bridge)
++-- start-quality.bat     - double-click: starts the server + opens the page
++-- quality-log/          - daily JSONL history (auto-created)
+```
+
+Start of shift: double-click `start-quality.bat` (or `node server.js`, then open
+`http://127.0.0.1:4800/fhns#byday` - opening `fhnsquality.html` directly also works).
+Keep the ont-base report + QuickSight tabs open with Tampermonkey running.
+
+The By Day date defaults to the **shift day** (Central Time): before 7:00 AM it
+still counts as the previous day, same rule the userscript uses for FH/BH.
+Pulling piles from the bridge auto-adds any Area Breakdown areas the tracker
+doesn't have yet, so the area list tailors itself to the building.
+
 ## Setup
 
 ### 1. Start the server
