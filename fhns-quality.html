@@ -74,13 +74,15 @@ tr.spacer td { border: none; height: 14px; background: transparent; }
 .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0 28px; }
 
-/* By Day tab */
+/* controls */
 .dayctl { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 4px 0 16px; }
-.dayctl label { font-size: 13.5px; font-weight: 600; color: var(--muted); }
-.dayctl input[type=date], .dayctl select {
+.dayctl label, .ctl-label { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.dayctl input, .dayctl select {
   padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px;
 }
+.dayctl .note { margin: 0; }
+.bridgerow { border-top: 1px dashed var(--line); padding-top: 12px; }
 .btn {
   padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--head-bg); color: var(--ink); cursor: pointer;
@@ -88,6 +90,11 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
 }
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn.danger:hover { border-color: #cc3333; color: #cc3333; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #9aa5b2; vertical-align: 1px; }
+.dot.on  { background: #34a853; }
+.dot.off { background: #d93025; }
+
+/* By Day table */
 #dayTable td.cellin { padding: 0; }
 #dayTable input {
   width: 96px; border: 1px solid transparent; background: transparent; color: inherit;
@@ -107,6 +114,24 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
   font-size: 15px; padding: 2px 6px; border-radius: 5px;
 }
 .rmbtn:hover { color: #cc3333; background: var(--head-bg); }
+td.pulled { animation: pulledFlash 1.6s ease-out; }
+@keyframes pulledFlash { 0% { background: var(--good-bg); } 100% { background: transparent; } }
+
+/* Live tab */
+.srccard { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 0 0 14px; }
+.srccard h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.srccard .meta { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+.srccard .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.kpi { background: var(--head-bg); border-radius: 8px; padding: 8px 14px; }
+.kpi b { display: block; font-size: 18px; }
+.kpi span { color: var(--muted); font-size: 12px; }
+.srccard details { margin-top: 8px; }
+.srccard summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; }
+.srccard pre {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font-size: 12px; overflow-x: auto; max-height: 260px;
+}
+code { background: var(--head-bg); border-radius: 4px; padding: 1px 5px; font-size: 0.92em; }
 @media print {
   header { position: static; }
   nav, .dayctl { display: none; }
@@ -117,8 +142,9 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
 <body>
 <header>
   <h1>FHNs Quality</h1>
-  <p class="sub">Daily pile tracker + all sheets from FHNs_Qualtiy.xlsx</p>
+  <p class="sub">Daily pile tracker + live Quality Bridge + all sheets from FHNs_Qualtiy.xlsx</p>
   <nav id="tabs"><button data-tab="byday" type="button">By Day</button>
+<button data-tab="live" type="button">Live Bridge <span class="dot off" id="navDot"></span></button>
 <button data-tab="piles" type="button">Piles</button>
 <button data-tab="bymonth" type="button">By Month</button>
 <button data-tab="epp" type="button">EPP Coverage</button>
@@ -139,9 +165,30 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
     <button type="button" class="btn danger" id="resetDay">Reset this day</button>
     <span class="note" id="dayStatus"></span>
   </div>
+  <div class="dayctl bridgerow">
+    <span class="ctl-label"><span class="dot off" id="bydayDot"></span> Quality Bridge:</span>
+    <select id="pullSlot">
+      <option>SOS</option><option>2nd</option><option>3rd</option><option>4th</option><option>EOS</option>
+    </select>
+    <button type="button" class="btn" id="pullBtn">Pull piles into slot</button>
+    <span class="note" id="pullStatus">Needs server.js running + the ont-base piles page open with Tampermonkey.</span>
+  </div>
   <div class="tablewrap"><table id="dayTable"></table></div>
   <h3>Start vs End of Shift</h3>
   <div class="tablewrap"><table id="dayChange"></table></div>
+</section>
+
+<section id="live" class="panel">
+  <h2>Live Bridge</h2>
+  <p class="note">Live view of the RFD2 Quality Metrics Bridge (Tampermonkey userscript &rarr; local
+  <code>server.js</code>). Start the server, open the source pages with the userscript active, and
+  the latest scrape from each source appears here. Auto-refreshes every 15&nbsp;seconds.</p>
+  <div class="dayctl">
+    <label>Server <input type="text" id="bridgeUrl" size="28" spellcheck="false"></label>
+    <button type="button" class="btn" id="bridgeRefresh">Refresh now</button>
+    <span class="note" id="bridgeStatus">Not connected yet.</span>
+  </div>
+  <div id="liveContent"><p class="note">Waiting for first poll&hellip;</p></div>
 </section>
 
 <section id="piles" class="panel">
@@ -382,7 +429,8 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
   </table></div>
 </section>
 </main>
-<footer>Generated from FHNs_Qualtiy.xlsx &mdash; By Day entries live only in this browser (localStorage).</footer>
+<footer>Generated from FHNs_Qualtiy.xlsx &mdash; By Day entries live only in this browser (localStorage).
+Live Bridge talks to the local Quality Bridge server (default <code>http://127.0.0.1:4800</code>).</footer>
 <script>
 (function () {
   /* ---------- tabs ---------- */
@@ -402,11 +450,7 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
   }
   showTab(initial);
 
-  /* ---------- By Day tracker ---------- */
-  var SLOTS = ['SOS', '2nd', '3rd', '4th', 'EOS'];
-  var DEFAULT_AREAS = ['Fluid Load', 'Inbound Dock', 'Jackpot', 'Amnesty Pallets', 'RPND', 'Sort', 'Transfer Out Dock'];
-  var PREFIX = 'fhns-piles-';
-
+  /* ---------- shared utils ---------- */
   function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -420,6 +464,17 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
     catch (e) { return fallback; }
   }
   function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function normName(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+  function parseNum(s) {
+    if (typeof s === 'number') return s;
+    var m = String(s).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : null;
+  }
+
+  /* ---------- By Day tracker ---------- */
+  var SLOTS = ['SOS', '2nd', '3rd', '4th', 'EOS'];
+  var DEFAULT_AREAS = ['Fluid Load', 'Inbound Dock', 'Jackpot', 'Amnesty Pallets', 'RPND', 'Sort', 'Transfer Out Dock'];
+  var PREFIX = 'fhns-piles-';
 
   var curDate = todayISO();
   var dayData = {};   // { area: { slot: number } }
@@ -504,7 +559,6 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
       var ch = (sos === null && eos === null) ? null : (eos || 0) - (sos || 0);
       return { a: a, sos: sos, eos: eos, ch: ch };
     });
-    /* Rank matches the source sheet: areas ordered by net change, closest-to-zero/highest first. */
     var ranked = rows.filter(function (r) { return r.ch !== null; })
                      .sort(function (x, y) { return y.ch - x.ch; });
     var rank = {};
@@ -588,6 +642,249 @@ td.rmcell { border-left: none; width: 30px; text-align: center; }
   });
 
   setDate(todayISO());
+
+  /* ==========================================================
+   * Quality Bridge integration (Tampermonkey -> server.js :4800)
+   * ========================================================== */
+  var bridgeUrlInput = document.getElementById('bridgeUrl');
+  var bridgeStatusEl = document.getElementById('bridgeStatus');
+  var liveContent = document.getElementById('liveContent');
+  var lastBridge = null;   // last successful /quality-data payload
+
+  function bridgeUrl() {
+    var u = lsGet('fhns-bridge-url', 'http://127.0.0.1:4800');
+    return String(u).replace(/\/+$/, '');
+  }
+  bridgeUrlInput.value = bridgeUrl();
+  bridgeUrlInput.addEventListener('change', function () {
+    lsSet('fhns-bridge-url', bridgeUrlInput.value.trim() || 'http://127.0.0.1:4800');
+    bridgeUrlInput.value = bridgeUrl();
+    pollBridge();
+  });
+
+  function setDots(on) {
+    ['navDot', 'bydayDot'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.toggle('on', on); el.classList.toggle('off', !on); }
+    });
+  }
+
+  function currentShift() {
+    // Mirrors the userscript: night shift 19:00-06:30 CT; before 07:00 counts as previous day.
+    var ct = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    var day = ct.getDay(), hour = ct.getHours();
+    var sd = day; if (hour < 7) sd = (day + 6) % 7;
+    return sd <= 2 ? 'FH' : 'BH';
+  }
+
+  function ageStr(iso) {
+    if (!iso) return 'never';
+    var s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+    if (s < 90) return s + 's ago';
+    if (s < 5400) return Math.round(s / 60) + 'm ago';
+    return Math.round(s / 3600) + 'h ago';
+  }
+
+  function pollBridge(done) {
+    var ctl = new AbortController();
+    var t = setTimeout(function () { ctl.abort(); }, 4000);
+    fetch(bridgeUrl() + '/quality-data', { cache: 'no-store', signal: ctl.signal })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        clearTimeout(t);
+        lastBridge = d;
+        setDots(true);
+        bridgeStatusEl.textContent = 'Connected ✓ (' + bridgeUrl() + ') — shift ' + currentShift();
+        renderLive(d, null);
+        if (done) done(d, null);
+      })
+      .catch(function (err) {
+        clearTimeout(t);
+        setDots(false);
+        bridgeStatusEl.textContent = 'Not reachable — start server.js (node server.js), then Refresh.';
+        renderLive(null, err);
+        if (done) done(null, err);
+      });
+  }
+
+  function kpiHtml(label, value) {
+    return '<div class="kpi"><b>' + esc(value) + '</b><span>' + esc(label) + '</span></div>';
+  }
+
+  function scrapeTableHtml(t) {
+    var h = '<div class="tablewrap"><table>';
+    if (t.headers && t.headers.length) {
+      h += '<tr class="head">' + t.headers.map(function (x) { return '<th>' + esc(x) + '</th>'; }).join('') + '</tr>';
+    }
+    (t.rows || []).slice(0, 15).forEach(function (r) {
+      var cells = Array.isArray(r) ? r : Object.keys(r).map(function (k) { return r[k]; });
+      h += '<tr>' + cells.map(function (c) { return '<td class="text">' + esc(c) + '</td>'; }).join('') + '</tr>';
+    });
+    h += '</table></div>';
+    return h;
+  }
+
+  function sourceCard(name, entry, bodyFn) {
+    var on = !!entry;
+    var h = '<div class="srccard"><h3><span class="dot ' + (on ? 'on' : 'off') + '"></span>' + esc(name) + '</h3>';
+    if (!on) {
+      h += '<p class="meta">No data yet — open the source page with the Tampermonkey userscript active.</p></div>';
+      return h;
+    }
+    h += '<p class="meta">Scraped ' + ageStr(entry.timestamp) + ' · received ' + ageStr(entry.receivedAt) +
+         (entry.shift ? ' · shift ' + esc(entry.shift) : '') + '</p>';
+    h += bodyFn(entry.data || {});
+    h += '<details><summary>Raw JSON</summary><pre>' +
+         esc(JSON.stringify(entry.data, null, 2).substring(0, 4000)) + '</pre></details></div>';
+    return h;
+  }
+
+  function renderLive(d, err) {
+    if (!document.getElementById('live')) return;
+    if (!d) {
+      liveContent.innerHTML =
+        '<div class="srccard"><h3><span class="dot off"></span>Bridge server offline</h3>' +
+        '<p class="meta">Could not reach <code>' + esc(bridgeUrl()) + '/quality-data</code>' +
+        (err && err.name === 'AbortError' ? ' (timed out)' : '') + '.</p>' +
+        '<p class="note">1. <code>node server.js</code> in the Quality folder&ensp;2. keep the ont-base / QuickSight ' +
+        'tabs open with Tampermonkey&ensp;3. hit Refresh.</p></div>';
+      return;
+    }
+
+    var h = '';
+
+    h += sourceCard('Piles (ont-base)', d.piles, function (p) {
+      var b = '<div class="kpis">';
+      if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Total piles', fmt(p.totalPiles));
+      if (p.pilesOver48h !== null && p.pilesOver48h !== undefined) b += kpiHtml('Over 48h', fmt(p.pilesOver48h));
+      if (p.pilesOver24h !== null && p.pilesOver24h !== undefined) b += kpiHtml('Over 24h', fmt(p.pilesOver24h));
+      b += kpiHtml('Table rows', (p.tableRows || []).length);
+      b += '</div>';
+      if ((p.tableRows || []).length) {
+        var headers = Object.keys(p.tableRows[0]);
+        b += scrapeTableHtml({ headers: headers, rows: p.tableRows.map(function (r) {
+          return headers.map(function (k) { return r[k]; });
+        }) });
+      } else if (p.summary && Object.keys(p.summary).length) {
+        b += scrapeTableHtml({ headers: ['Label', 'Value'], rows: Object.keys(p.summary).map(function (k) {
+          return [k, p.summary[k]];
+        }) });
+      }
+      return b;
+    });
+
+    h += sourceCard('EPP Compliance (QuickSight)', d.epp, function (e) {
+      var b = '<div class="kpis">';
+      if (e.kpis && e.kpis.eppCompliance) b += kpiHtml('EPP Compliance', e.kpis.eppCompliance);
+      if (e.kpis && e.kpis.allPercentages) b += kpiHtml('Percentages seen', e.kpis.allPercentages.slice(0, 4).join('  '));
+      b += '</div>';
+      (e.tables || []).slice(0, 2).forEach(function (t) { b += scrapeTableHtml(t); });
+      return b;
+    });
+
+    h += sourceCard('PPA Compliance (QuickSight)', d.ppa, function (a) {
+      var b = '<div class="kpis">';
+      if (a.kpis && a.kpis.targetShift) b += kpiHtml('Target shift', a.kpis.targetShift);
+      if (a.kpis && a.kpis.ppaCompliance) b += kpiHtml('PPA Compliance', a.kpis.ppaCompliance);
+      if (a.kpis && a.kpis.allPercentages) b += kpiHtml('Percentages seen', a.kpis.allPercentages.slice(0, 4).join('  '));
+      b += '</div>';
+      (a.tables || []).slice(0, 2).forEach(function (t) { b += scrapeTableHtml(t); });
+      return b;
+    });
+
+    liveContent.innerHTML = h;
+  }
+
+  /* ----- Pull piles scrape into a By Day slot ----- */
+  var pullStatusEl = document.getElementById('pullStatus');
+
+  function pilesRowsToCounts(p) {
+    // Returns { matches: {area: count}, unmatched: [names] } by fuzzy-matching
+    // scraped rows/summary against the By Day area list.
+    var areas = allAreas();
+    var normed = {};
+    areas.forEach(function (a) { normed[normName(a)] = a; });
+
+    var matches = {}, unmatched = [];
+
+    function tryMatch(rawName, rawCount) {
+      var n = normName(rawName);
+      if (!n) return;
+      var count = parseNum(rawCount);
+      if (count === null) return;
+      var hit = normed[n];
+      if (!hit) {
+        // substring match either direction
+        for (var key in normed) {
+          if (n.indexOf(key) !== -1 || key.indexOf(n) !== -1) { hit = normed[key]; break; }
+        }
+      }
+      if (hit) matches[hit] = count;
+      else unmatched.push(String(rawName).trim());
+    }
+
+    (p.tableRows || []).forEach(function (row) {
+      var keys = Object.keys(row);
+      // area name: first cell whose value is not numeric
+      var nameKey = null, countKey = null;
+      keys.forEach(function (k) {
+        if (nameKey === null && parseNum(row[k]) === null && String(row[k]).trim() !== '') nameKey = k;
+      });
+      // count: prefer a column whose header mentions count/pile/total/qty/units
+      keys.forEach(function (k) {
+        if (countKey === null && /count|pile|total|qty|quantity|units/i.test(k) && parseNum(row[k]) !== null) countKey = k;
+      });
+      if (countKey === null) {
+        keys.forEach(function (k) {
+          if (countKey === null && k !== nameKey && parseNum(row[k]) !== null) countKey = k;
+        });
+      }
+      if (nameKey !== null && countKey !== null) tryMatch(row[nameKey], row[countKey]);
+    });
+
+    if (Object.keys(matches).length === 0 && p.summary) {
+      Object.keys(p.summary).forEach(function (k) { tryMatch(k, p.summary[k]); });
+    }
+    return { matches: matches, unmatched: unmatched };
+  }
+
+  document.getElementById('pullBtn').addEventListener('click', function () {
+    var slot = document.getElementById('pullSlot').value;
+    pullStatusEl.textContent = 'Contacting bridge…';
+    pollBridge(function (d, err) {
+      if (!d) { pullStatusEl.textContent = 'Bridge offline — is server.js running on ' + bridgeUrl() + '?'; return; }
+      if (!d.piles) { pullStatusEl.textContent = 'Server is up but has no piles data yet — open the ont-base piles page with Tampermonkey.'; return; }
+
+      var res = pilesRowsToCounts(d.piles.data || {});
+      var names = Object.keys(res.matches);
+      if (!names.length) {
+        pullStatusEl.textContent = 'No area rows matched the scrape (' +
+          ((d.piles.data || {}).tableRows || []).length + ' rows scraped). Check the Live Bridge tab to see the raw shape.';
+        return;
+      }
+      names.forEach(function (a) {
+        if (!dayData[a]) dayData[a] = {};
+        dayData[a][slot] = res.matches[a];
+      });
+      saveDay();
+      buildTable();
+      names.forEach(function (a) {
+        var inp = tbl.querySelector('input[data-area="' + a.replace(/"/g, '\\"') + '"][data-slot="' + slot + '"]');
+        if (inp) inp.parentElement.classList.add('pulled');
+      });
+      var msg = 'Filled ' + slot + ' for ' + names.length + ' area' + (names.length === 1 ? '' : 's') +
+                ' (scraped ' + ageStr(d.piles.timestamp) + ')';
+      if (res.unmatched.length) {
+        msg += ' — unmatched: ' + res.unmatched.slice(0, 4).join(', ') +
+               (res.unmatched.length > 4 ? '…' : '') + ' (use “+ Add area” to track them)';
+      }
+      pullStatusEl.textContent = msg;
+    });
+  });
+
+  document.getElementById('bridgeRefresh').addEventListener('click', function () { pollBridge(); });
+  pollBridge();
+  setInterval(pollBridge, 15000);
 })();
 </script>
 </body>
