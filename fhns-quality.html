@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FHNs Quality — All Sheets</title>
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --ink: #1a222d; --muted: #5b6675;
+  --line: #e3e7ec; --head-bg: #eef1f5; --accent: #2563eb;
+  --good-bg: #e3f4e8; --good-ink: #14652f;
+  --ok-bg: #fff5db;  --ok-ink: #7a5a00;
+  --warn-bg: #ffe9d6; --warn-ink: #8a4200;
+  --bad-bg: #fde5e5;  --bad-ink: #971f1f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c; --card: #1a2029; --ink: #e6eaf0; --muted: #9aa5b2;
+    --line: #2b323d; --head-bg: #232a35; --accent: #7aa5f8;
+    --good-bg: #17321f; --good-ink: #8fd9a5;
+    --ok-bg: #3a3013;  --ok-ink: #e8c96a;
+    --warn-bg: #3d2712; --warn-ink: #f0a868;
+    --bad-bg: #3d1a1a;  --bad-ink: #f09a9a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+header {
+  position: sticky; top: 0; z-index: 5; background: var(--card);
+  border-bottom: 1px solid var(--line); padding: 14px 24px 0;
+}
+header h1 { margin: 0 0 2px; font-size: 20px; }
+header .sub { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; padding-bottom: 0; }
+nav a {
+  color: var(--muted); text-decoration: none; font-size: 13.5px; font-weight: 600;
+  padding: 8px 12px; border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent;
+}
+nav a:hover { color: var(--accent); background: var(--head-bg); }
+main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+section {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px 20px 20px; margin-bottom: 26px; scroll-margin-top: 110px;
+}
+section h2 { margin: 0 0 2px; font-size: 17px; }
+.note { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: right; white-space: nowrap; }
+th { background: var(--head-bg); font-weight: 700; }
+tr.head th:first-child, td.text, td:first-child { text-align: left; }
+th[colspan], td[colspan] { text-align: center; }
+th.empty, td.empty { background: transparent; border-color: var(--line); }
+td.num { font-variant-numeric: tabular-nums; }
+td.pct { font-variant-numeric: tabular-nums; font-weight: 600; }
+td.err { color: var(--muted); text-align: center; }
+td.date, th.date { color: var(--muted); }
+tr.spacer td { border: none; height: 14px; background: transparent; }
+.p-good { background: var(--good-bg); color: var(--good-ink); }
+.p-ok   { background: var(--ok-bg);   color: var(--ok-ink); }
+.p-warn { background: var(--warn-bg); color: var(--warn-ink); }
+.p-bad  { background: var(--bad-bg);  color: var(--bad-ink); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+  color: var(--muted); font-size: 12.5px; margin: -8px 0 18px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0 28px; }
+@media print {
+  header { position: static; }
+  section { break-inside: avoid; border: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>FHNs Quality</h1>
+  <p class="sub">All sheets from FHNs_Qualtiy.xlsx merged into one page</p>
+  <nav><a href="#s0">Piles</a>
+<a href="#s1">By Month</a>
+<a href="#s2">EPP Coverage</a>
+<a href="#s3">PPA by shift</a>
+<a href="#s4">DC by Shift</a>
+<a href="#s5">in Network</a></nav>
+</header>
+<main>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
+
+<section id="s0">
+  <h2>Piles</h2>
+  <p class="note">Pile counts by area across the shift (SOS &rarr; EOS), plus start-vs-end change and rank.</p>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="text">Area</th><th class="text">SOS</th><th class="text">2nd</th><th class="text">3rd</th><th class="text">4th</th><th class="text">EOS</th><th class="text">Total</th></tr>
+<tr><td class="text">Fluid Load</td><td class="num">30</td><td class="num">90</td><td class="num">75</td><td class="num">125</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Inbound Dock</td><td class="num">750</td><td class="num">1,950</td><td class="num">1,060</td><td class="num">3,525</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Jackpot</td><td class="num">675</td><td class="num">1,055</td><td class="num">880</td><td class="num">1,500</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Amnesty Pallets</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">150</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">RPND</td><td class="num">300</td><td class="num">220</td><td class="num">300</td><td class="num">360</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Sort</td><td class="num">810</td><td class="num">1,055</td><td class="num">240</td><td class="num">1,965</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Transfer Out Dock</td><td class="num">1,600</td><td class="num">1,810</td><td class="num">1,710</td><td class="num">2,785</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Total</td><td class="num">4,165</td><td class="num">6,180</td><td class="num">4,265</td><td class="num">10,410</td><td class="num">0</td><td class="num">0</td></tr>
+<tr class="spacer"><td colspan="7"></td></tr>
+<tr class="spacer"><td colspan="7"></td></tr>
+<tr class="head"><th class="text">Area</th><th class="text">SOS</th><th class="text">EOS</th><th class="text">Change</th><th class="text">Rank</th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Fluid Load</td><td class="num">30</td><td class="num">0</td><td class="num">-30</td><td class="num">2</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Inbound Dock</td><td class="num">750</td><td class="num">0</td><td class="num">-750</td><td class="num">5</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Jackpot</td><td class="num">675</td><td class="num">0</td><td class="num">-675</td><td class="num">4</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Amnesty Pallets</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">1</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">RPND</td><td class="num">300</td><td class="num">0</td><td class="num">-300</td><td class="num">3</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Sort</td><td class="num">810</td><td class="num">0</td><td class="num">-810</td><td class="num">6</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Transfer Out Dock</td><td class="num">1,600</td><td class="num">0</td><td class="num">-1,600</td><td class="num">7</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Total</td><td class="num">4,165</td><td class="num">0</td><td class="num">-4,165</td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+  </table></div>
+</section>
+
+<section id="s1">
+  <h2>By Month</h2>
+  <p class="note">Weekly IMPT / PPA / Defect Capture with monthly and quarterly averages.</p>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="empty"></th><th class="empty"></th><th class="text" colspan="2">For FHNs</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr class="head"><th class="text">Jan</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 1</td><td class="pct p-good">98.90%</td><td class="pct p-good">99.46%</td><td class="pct p-good">100%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q1 Average</td></tr>
+<tr><td class="text">Week 2</td><td class="pct p-good">99.26%</td><td class="pct p-good">99.91%</td><td class="pct p-warn">71.43%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td></tr>
+<tr><td class="text">Week 3</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.90%</td><td class="pct p-ok">93.33%</td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-warn">89.09%</td><td class="pct p-ok">90.55%</td><td class="pct p-warn">84.94%</td></tr>
+<tr><td class="text">Week 4</td><td class="pct p-good">99.47%</td><td class="pct p-good">99.24%</td><td class="pct p-ok">92.86%</td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q2 Average</td></tr>
+<tr><td class="text">Week 5</td><td class="pct p-ok">91.40%</td><td class="pct p-good">99.23%</td><td class="pct p-ok">96%</td><td class="pct p-ok">97.80%</td><td class="pct p-good">99.55%</td><td class="pct p-ok">90.72%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td></tr>
+<tr class="head"><th class="text">Feb</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 6</td><td class="pct p-ok">90.91%</td><td class="pct p-ok">97.97%</td><td class="pct p-warn">83.33%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q3 Average</td></tr>
+<tr><td class="text">Week 7</td><td class="pct p-good">98.75%</td><td class="pct p-ok">97.89%</td><td class="pct p-good">100.00%</td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td></tr>
+<tr><td class="text">Week 8</td><td class="pct p-ok">97.95%</td><td class="pct p-good">98.75%</td><td class="pct p-ok">92.86%</td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 9</td><td class="pct p-good">99.25%</td><td class="pct p-good">99.59%</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">96.71%</td><td class="pct p-good">98.55%</td><td class="pct p-ok">92.38%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q4 Average</td></tr>
+<tr class="head"><th class="text">Mar</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">D.C</th></tr>
+<tr><td class="text">Week 10</td><td class="pct p-good">99.95%</td><td class="pct p-good">99.39%</td><td class="pct p-ok">95.24%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 11</td><td class="pct p-ok">96.91%</td><td class="pct p-ok">97.28%</td><td class="pct p-ok">91.67%</td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 12</td><td class="pct p-ok">94.17%</td><td class="pct p-ok">97.58%</td><td class="pct p-good">100.00%</td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 13</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-warn">72.76%</td><td class="pct p-warn">73.56%</td><td class="pct p-warn">71.73%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Apr</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 14</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 15</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 16</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 17</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">May</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 18</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 19</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 20</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 21</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Jun</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 22</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 23</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 24</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 25</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Jul</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 26</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 27</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 28</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 29</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Aug</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 30</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 31</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 32</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 33</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Sep</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 34</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 35</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 36</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 37</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Oct</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 38</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 39</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 40</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 41</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Nov</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 42</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 43</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 44</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 45</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Dec</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 46</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 47</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 48</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 49</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+  </table></div>
+</section>
+
+<section id="s2">
+  <h2>EPP Coverage</h2>
+  <p class="note">Daily EPP coverage for FHNs by week, with weekly average.</p>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="empty"></th><th class="text" colspan="4">EPP Coverage FHNs</th><th class="empty"></th></tr>
+<tr><td class="text">Wk1</td><td class="date">Jan&nbsp;4</td><td class="date">Jan&nbsp;5</td><td class="date">Jan&nbsp;6</td><td class="date">Jan&nbsp;7</td><td class="text">Avg</td></tr>
+<tr><td class="empty"></td><td class="pct p-good">98.83%</td><td class="pct p-ok">97.56%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.20%</td><td class="pct p-good">98.90%</td></tr>
+<tr><td class="text">Wk2</td><td class="date">Jan&nbsp;11</td><td class="date">Jan&nbsp;12</td><td class="date">Jan&nbsp;13</td><td class="date">Jan&nbsp;14</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">100.00%</td><td class="pct p-good">99.05%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">97.97%</td><td class="pct p-good">99.26%</td></tr>
+<tr><td class="text">Wk3</td><td class="date">Jan&nbsp;18</td><td class="date">Jan&nbsp;19</td><td class="date">Jan&nbsp;20</td><td class="date">Jan&nbsp;21</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td></tr>
+<tr><td class="text">Wk4</td><td class="date">Jan&nbsp;25</td><td class="date">Jan&nbsp;26</td><td class="date">Jan&nbsp;27</td><td class="date">Jan&nbsp;28</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">99.56%</td><td class="pct p-good">99.68%</td><td class="pct p-good">99.28%</td><td class="pct p-good">99.35%</td><td class="pct p-good">99.47%</td></tr>
+<tr><td class="text">Wk5</td><td class="date">Feb&nbsp;1</td><td class="date">Feb&nbsp;2</td><td class="date">Feb&nbsp;3</td><td class="date">Feb&nbsp;4</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-warn">77.26%</td><td class="pct p-ok">95.56%</td><td class="pct p-ok">93.32%</td><td class="pct p-good">99.45%</td><td class="pct p-ok">91.40%</td></tr>
+<tr><td class="text">Wk6</td><td class="date">Feb&nbsp;8</td><td class="date">Feb&nbsp;9</td><td class="date">Feb&nbsp;10</td><td class="date">Feb&nbsp;11</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-bad">66.38%</td><td class="pct p-good">99.69%</td><td class="pct p-good">99.36%</td><td class="pct p-good">98.21%</td><td class="pct p-ok">90.91%</td></tr>
+<tr><td class="text">Wk7</td><td class="date">Feb&nbsp;15</td><td class="date">Feb&nbsp;16</td><td class="date">Feb&nbsp;17</td><td class="date">Feb&nbsp;18</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">98.75%</td><td class="pct p-good">98.51%</td><td class="pct p-ok">97.74%</td><td class="pct p-good">100.00%</td><td class="pct p-good">98.75%</td></tr>
+<tr><td class="text">Wk8</td><td class="date">Feb&nbsp;22</td><td class="date">Feb&nbsp;23</td><td class="date">Feb&nbsp;24</td><td class="date">Feb&nbsp;25</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">99.68%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">92.77%</td><td class="pct p-good">99.35%</td><td class="pct p-ok">97.95%</td></tr>
+<tr><td class="text">Wk9</td><td class="date">Mar&nbsp;1</td><td class="date">Mar&nbsp;2</td><td class="date">Mar&nbsp;3</td><td class="date">Mar&nbsp;4</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">99.59%</td><td class="pct p-good">99.73%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">97.67%</td><td class="pct p-good">99.25%</td></tr>
+<tr><td class="text">Wk10</td><td class="date">Mar&nbsp;8</td><td class="date">Mar&nbsp;9</td><td class="date">Mar&nbsp;10</td><td class="date">Mar&nbsp;11</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.79%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.95%</td></tr>
+<tr><td class="text">Wk11</td><td class="date">Mar&nbsp;15</td><td class="date">Mar&nbsp;16</td><td class="date">Mar&nbsp;17</td><td class="date">Mar&nbsp;18</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-ok">97.48%</td><td class="pct p-ok">94.77%</td><td class="pct p-ok">95.80%</td><td class="pct p-good">99.59%</td><td class="pct p-ok">96.91%</td></tr>
+<tr><td class="text">Wk12</td><td class="date">Mar&nbsp;22</td><td class="date">Mar&nbsp;23</td><td class="date">Mar&nbsp;24</td><td class="date">Mar&nbsp;25</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-ok">93.07%</td><td class="pct p-warn">87.00%</td><td class="pct p-ok">97.53%</td><td class="pct p-good">99.09%</td><td class="pct p-ok">94.17%</td></tr>
+<tr><td class="text">Wk13</td><td class="date">Mar&nbsp;29</td><td class="date">Mar&nbsp;30</td><td class="date">Mar&nbsp;31</td><td class="date">Apr&nbsp;1</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td></tr>
+<tr><td class="text">Wk14</td><td class="date">Apr&nbsp;5</td><td class="date">Apr&nbsp;6</td><td class="date">Apr&nbsp;7</td><td class="date">Apr&nbsp;8</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td></tr>
+<tr><td class="text">Wk15</td><td class="date">Apr&nbsp;12</td><td class="date">Apr&nbsp;13</td><td class="date">Apr&nbsp;14</td><td class="date">Apr&nbsp;15</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td></tr>
+<tr><td class="text">Wk16</td><td class="date">Apr&nbsp;19</td><td class="date">Apr&nbsp;20</td><td class="date">Apr&nbsp;21</td><td class="date">Apr&nbsp;22</td><td class="empty"></td></tr>
+  </table></div>
+</section>
+
+<section id="s3">
+  <h2>PPA by shift</h2>
+  <p class="note">Weekly PPA compliance by shift (FHD / FHN / BHD / BHN).</p>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="text">PPA Compliance</th><th class="text">FHD</th><th class="text">FHN</th><th class="text">BHD</th><th class="text">BHN</th><th class="text">AVG</th></tr>
+<tr><td class="text">01/04 - 01/10</td><td class="pct p-good">99.87%</td><td class="pct p-good">99.46%</td><td class="pct p-good">99.37%</td><td class="pct p-good">98.57%</td><td class="pct p-good">99.32%</td></tr>
+<tr><td class="text">01/11 - 01/17</td><td class="pct p-good">99.65%</td><td class="pct p-good">99.91%</td><td class="pct p-good">99.02%</td><td class="pct p-good">99.81%</td><td class="pct p-good">99.60%</td></tr>
+<tr><td class="text">01/18 - 01/24</td><td class="pct p-good">99.89%</td><td class="pct p-good">99.90%</td><td class="pct p-good">99.37%</td><td class="pct p-good">99.48%</td><td class="pct p-good">99.66%</td></tr>
+<tr><td class="text">01/25 - 01/31</td><td class="pct p-good">99.48%</td><td class="pct p-good">99.24%</td><td class="pct p-good">99.47%</td><td class="pct p-good">99.79%</td><td class="pct p-good">99.50%</td></tr>
+<tr><td class="text">02/01 - 02/07</td><td class="pct p-good">99.57%</td><td class="pct p-good">99.23%</td><td class="pct p-good">99.88%</td><td class="pct p-good">99.28%</td><td class="pct p-good">99.49%</td></tr>
+<tr><td class="text">02/08 - 02/14</td><td class="pct p-good">98.90%</td><td class="pct p-ok">97.97%</td><td class="pct p-good">99.19%</td><td class="pct p-good">99.41%</td><td class="pct p-good">98.87%</td></tr>
+<tr><td class="text">02/15 - 02/21</td><td class="pct p-ok">96.26%</td><td class="pct p-ok">97.89%</td><td class="pct p-ok">97.19%</td><td class="pct p-good">98.98%</td><td class="pct p-ok">97.58%</td></tr>
+<tr><td class="text">02/22 - 02/28</td><td class="pct p-good">99.70%</td><td class="pct p-good">98.75%</td><td class="pct p-good">98.85%</td><td class="pct p-good">99.16%</td><td class="pct p-good">99.12%</td></tr>
+<tr><td class="text">03/01 - 03/07</td><td class="pct p-good">98.19%</td><td class="pct p-good">99.59%</td><td class="pct p-good">99.01%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.20%</td></tr>
+<tr><td class="text">03/08 - 03/14</td><td class="pct p-good">99.42%</td><td class="pct p-good">99.39%</td><td class="pct p-good">99.81%</td><td class="pct p-good">99.86%</td><td class="pct p-good">99.62%</td></tr>
+<tr><td class="text">03/15 - 03/21</td><td class="pct p-ok">97.82%</td><td class="pct p-ok">97.28%</td><td class="pct p-good">98.86%</td><td class="pct p-good">98.79%</td><td class="pct p-good">98.19%</td></tr>
+<tr><td class="text">03/22 - 03/28</td><td class="pct p-good">98.62%</td><td class="pct p-ok">97.58%</td><td class="pct p-good">98.98%</td><td class="pct p-ok">97.68%</td><td class="pct p-good">98.22%</td></tr>
+<tr><td class="text">03/29 - 04/04</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td></tr>
+  </table></div>
+</section>
+
+<section id="s4">
+  <h2>DC by Shift</h2>
+  <p class="note">Weekly Defect Capture by shift (FHD / FHN / BHD / BHN).</p>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="text">Defect Capture</th><th class="text">FHD</th><th class="text">FHN</th><th class="text">BHD</th><th class="text">BHN</th><th class="text">AVG</th></tr>
+<tr><td class="text">01/04 - 01/10</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-warn">80.00%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">95.00%</td></tr>
+<tr><td class="text">01/11 - 01/17</td><td class="pct p-warn">71.43%</td><td class="pct p-warn">71.43%</td><td class="pct p-warn">70.00%</td><td class="pct p-bad">62.50%</td><td class="pct p-bad">68.84%</td></tr>
+<tr><td class="text">01/18 - 01/24</td><td class="pct p-good">100.00%</td><td class="pct p-ok">93.33%</td><td class="pct p-warn">78.57%</td><td class="pct p-warn">82.35%</td><td class="pct p-warn">88.56%</td></tr>
+<tr><td class="text">01/25 - 01/31</td><td class="pct p-warn">82.35%</td><td class="pct p-ok">92.86%</td><td class="pct p-warn">70.59%</td><td class="pct p-warn">75.00%</td><td class="pct p-warn">80.20%</td></tr>
+<tr><td class="text">02/01 - 02/07</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">96.00%</td><td class="pct p-warn">89.29%</td><td class="pct p-warn">76.46%</td><td class="pct p-warn">88.77%</td></tr>
+<tr><td class="text">02/08 - 02/14</td><td class="pct p-warn">80.00%</td><td class="pct p-warn">83.33%</td><td class="pct p-good">100.00%</td><td class="pct p-warn">88.89%</td><td class="pct p-warn">88.06%</td></tr>
+<tr><td class="text">02/15 - 02/21</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-warn">89.47%</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">95.70%</td></tr>
+<tr><td class="text">02/22 - 02/28</td><td class="pct p-good">100.00%</td><td class="pct p-ok">92.86%</td><td class="pct p-warn">88.89%</td><td class="pct p-ok">95.45%</td><td class="pct p-ok">94.30%</td></tr>
+<tr><td class="text">03/01 - 03/07</td><td class="pct p-good">100.00%</td><td class="pct p-ok">93.33%</td><td class="pct p-warn">80.00%</td><td class="pct p-ok">91.67%</td><td class="pct p-ok">91.25%</td></tr>
+<tr><td class="text">03/08 - 03/14</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">95.24%</td><td class="pct p-warn">73.33%</td><td class="pct p-ok">90.91%</td><td class="pct p-warn">88.20%</td></tr>
+<tr><td class="text">03/15 - 03/21</td><td class="pct p-good">100.00%</td><td class="pct p-ok">91.67%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">97.92%</td></tr>
+<tr><td class="text">03/22 - 03/28</td><td class="pct p-warn">85.71%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-bad">54.55%</td><td class="pct p-warn">85.06%</td></tr>
+<tr><td class="text">03/29 - 04/04</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td></tr>
+  </table></div>
+</section>
+
+<section id="s5">
+  <h2>in Network</h2>
+  <p class="note">PPA compliance and Defect Capture vs. network sites (RFD2, MQJ1, ORF2, SCK4, SWF2).</p>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="empty"></th><th class="text">RFD2</th><th class="text">MQJ1</th><th class="text">ORF2</th><th class="text">SCK4</th><th class="text">SWF2</th><th class="empty"></th><th class="text">RFD2</th><th class="text">MQJ1</th><th class="text">ORF2</th><th class="text">SCK4</th><th class="text">SWF2</th></tr>
+<tr class="head"><th class="empty"></th><th class="text" colspan="5">PPA COMPLIANCE</th><th class="empty"></th><th class="text" colspan="5">Defect Capture</th></tr>
+<tr><td class="text">JAN AVG</td><td class="pct p-good">99.55%</td><td class="pct p-ok">94.32%</td><td class="pct p-ok">92.01%</td><td class="pct p-good">98.23%</td><td class="pct p-ok">95.96%</td><td class="empty"></td><td class="pct p-warn">84.04%</td><td class="pct p-bad">10.58%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">50.72%</td><td class="pct p-bad">45.79%</td></tr>
+<tr><td class="text">Wk1</td><td class="pct p-good">99.37%</td><td class="pct p-ok">96.39%</td><td class="pct p-ok">91.55%</td><td class="pct p-good">98.12%</td><td class="pct p-ok">96.45%</td><td class="empty"></td><td class="pct p-ok">93.94%</td><td class="pct p-bad">3.70%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">23.57%</td><td class="pct p-bad">57.78%</td></tr>
+<tr><td class="text">Wk2</td><td class="pct p-good">99.65%</td><td class="pct p-ok">93.58%</td><td class="pct p-ok">94.26%</td><td class="pct p-good">98.88%</td><td class="pct p-ok">95.94%</td><td class="empty"></td><td class="pct p-warn">74.65%</td><td class="pct p-bad">26.12%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">60.00%</td><td class="pct p-bad">42.31%</td></tr>
+<tr><td class="text">Wk3</td><td class="pct p-good">99.61%</td><td class="pct p-ok">94.57%</td><td class="pct p-warn">89.94%</td><td class="pct p-good">98.48%</td><td class="pct p-ok">96.40%</td><td class="empty"></td><td class="pct p-warn">84.85%</td><td class="pct p-bad">9.42%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">56.82%</td><td class="pct p-bad">33.87%</td></tr>
+<tr><td class="text">Wk4</td><td class="pct p-good">99.57%</td><td class="pct p-ok">92.73%</td><td class="pct p-ok">92.28%</td><td class="pct p-ok">97.44%</td><td class="pct p-ok">95.05%</td><td class="empty"></td><td class="pct p-warn">82.72%</td><td class="pct p-bad">3.08%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">62.50%</td><td class="pct p-bad">49.21%</td></tr>
+<tr class="head"><th class="text">Wk5</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">FEB AVG</td><td class="pct p-good">98.80%</td><td class="pct p-ok">93.37%</td><td class="pct p-ok">94.72%</td><td class="pct p-ok">97.92%</td><td class="pct p-ok">93.37%</td><td class="empty"></td><td class="pct p-warn">88.52%</td><td class="pct p-bad">4.92%</td><td class="pct p-bad">3.46%</td><td class="pct p-bad">40.45%</td><td class="pct p-bad">32.58%</td></tr>
+<tr><td class="text">Wk6</td><td class="pct p-good">98.67%</td><td class="pct p-ok">91.89%</td><td class="pct p-ok">93.47%</td><td class="pct p-ok">97.92%</td><td class="pct p-ok">93.90%</td><td class="empty"></td><td class="pct p-warn">88.30%</td><td class="pct p-bad">1.89%</td><td class="pct p-bad">4.76%</td><td class="pct p-bad">41.67%</td><td class="pct p-bad">29.09%</td></tr>
+<tr><td class="text">Wk7</td><td class="pct p-good">98.92%</td><td class="pct p-ok">94.85%</td><td class="pct p-ok">95.97%</td><td class="pct p-ok">97.93%</td><td class="pct p-ok">92.84%</td><td class="empty"></td><td class="pct p-warn">88.73%</td><td class="pct p-bad">7.95%</td><td class="pct p-bad">2.17%</td><td class="pct p-bad">39.22%</td><td class="pct p-bad">36.08%</td></tr>
+<tr class="head"><th class="text">Wk8</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr class="head"><th class="text">Wk9</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr class="head"><th class="text">MAR AVG</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+  </table></div>
+</section>
+</main>
+<footer>Generated from FHNs_Qualtiy.xlsx &mdash; 6 sheets: Piles &middot; By Month &middot; EPP Coverage &middot; PPA by shift &middot; DC by Shift &middot; in Network</footer>
+</body>
+</html>
