@@ -34,18 +34,23 @@ header {
 }
 header h1 { margin: 0 0 2px; font-size: 20px; }
 header .sub { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
-nav { display: flex; gap: 4px; flex-wrap: wrap; padding-bottom: 0; }
-nav a {
-  color: var(--muted); text-decoration: none; font-size: 13.5px; font-weight: 600;
-  padding: 8px 12px; border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent;
+nav { display: flex; gap: 2px; flex-wrap: wrap; }
+nav button {
+  appearance: none; background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 13.5px; font-weight: 600; font-family: inherit;
+  padding: 9px 14px; border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent;
 }
-nav a:hover { color: var(--accent); background: var(--head-bg); }
+nav button:hover { color: var(--accent); background: var(--head-bg); }
+nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
 main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+.panel { display: none; }
+.panel.active { display: block; }
 section {
   background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-  padding: 18px 20px 20px; margin-bottom: 26px; scroll-margin-top: 110px;
+  padding: 18px 20px 20px; margin-bottom: 26px;
 }
 section h2 { margin: 0 0 2px; font-size: 17px; }
+section h3 { margin: 22px 0 8px; font-size: 15px; }
 .note { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
 .tablewrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
@@ -64,12 +69,47 @@ tr.spacer td { border: none; height: 14px; background: transparent; }
 .p-warn { background: var(--warn-bg); color: var(--warn-ink); }
 .p-bad  { background: var(--bad-bg);  color: var(--bad-ink); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
-  color: var(--muted); font-size: 12.5px; margin: -8px 0 18px; }
+  color: var(--muted); font-size: 12.5px; margin: 0 0 14px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0 28px; }
+
+/* By Day tab */
+.dayctl { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 4px 0 16px; }
+.dayctl label { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.dayctl input[type=date], .dayctl select {
+  padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px;
+}
+.btn {
+  padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--head-bg); color: var(--ink); cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 600;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.danger:hover { border-color: #cc3333; color: #cc3333; }
+#dayTable td.cellin { padding: 0; }
+#dayTable input {
+  width: 96px; border: 1px solid transparent; background: transparent; color: inherit;
+  text-align: right; font: inherit; font-size: 13.5px; padding: 5px 8px; border-radius: 6px;
+}
+#dayTable input:hover { border-color: var(--line); }
+#dayTable input:focus { outline: none; border-color: var(--accent); background: var(--bg); }
+#dayTable input::-webkit-outer-spin-button, #dayTable input::-webkit-inner-spin-button
+  { -webkit-appearance: none; margin: 0; }
+#dayTable input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+tr.totals td { background: var(--head-bg); font-weight: 700; }
+td.up   { color: var(--bad-ink);  font-weight: 600; }
+td.down { color: var(--good-ink); font-weight: 600; }
+td.rmcell { border-left: none; width: 30px; text-align: center; }
+.rmbtn {
+  border: none; background: none; color: var(--muted); cursor: pointer;
+  font-size: 15px; padding: 2px 6px; border-radius: 5px;
+}
+.rmbtn:hover { color: #cc3333; background: var(--head-bg); }
 @media print {
   header { position: static; }
+  nav, .dayctl { display: none; }
   section { break-inside: avoid; border: none; }
 }
 </style>
@@ -77,27 +117,36 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
 <body>
 <header>
   <h1>FHNs Quality</h1>
-  <p class="sub">All sheets from FHNs_Qualtiy.xlsx merged into one page</p>
-  <nav><a href="#s0">Piles</a>
-<a href="#s1">By Month</a>
-<a href="#s2">EPP Coverage</a>
-<a href="#s3">PPA by shift</a>
-<a href="#s4">DC by Shift</a>
-<a href="#s5">in Network</a></nav>
+  <p class="sub">Daily pile tracker + all sheets from FHNs_Qualtiy.xlsx</p>
+  <nav id="tabs"><button data-tab="byday" type="button">By Day</button>
+<button data-tab="piles" type="button">Piles</button>
+<button data-tab="bymonth" type="button">By Month</button>
+<button data-tab="epp" type="button">EPP Coverage</button>
+<button data-tab="ppa" type="button">PPA by shift</button>
+<button data-tab="dcshift" type="button">DC by Shift</button>
+<button data-tab="network" type="button">in Network</button></nav>
 </header>
 <main>
-  <div class="legend">
-    Percentage heat:
-    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
-    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
-    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
-    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
-    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
-  </div>
 
-<section id="s0">
+<section id="byday" class="panel">
+  <h2>Piles &mdash; By Day</h2>
+  <p class="note">Daily pile tracker. Pick a date and type counts &mdash; totals, change and rank
+  compute automatically. Entries save in this browser per date, so every new day starts blank.</p>
+  <div class="dayctl">
+    <label>Date <input type="date" id="dayDate"></label>
+    <select id="savedDays" title="Jump to a day that already has entries"></select>
+    <button type="button" class="btn" id="addArea">+ Add area</button>
+    <button type="button" class="btn danger" id="resetDay">Reset this day</button>
+    <span class="note" id="dayStatus"></span>
+  </div>
+  <div class="tablewrap"><table id="dayTable"></table></div>
+  <h3>Start vs End of Shift</h3>
+  <div class="tablewrap"><table id="dayChange"></table></div>
+</section>
+
+<section id="piles" class="panel">
   <h2>Piles</h2>
-  <p class="note">Pile counts by area across the shift (SOS &rarr; EOS), plus start-vs-end change and rank.</p>
+  <p class="note">Imported snapshot from the workbook &mdash; pile counts by area across the shift (SOS &rarr; EOS), plus start-vs-end change and rank. For daily entry use the <b>By Day</b> tab.</p>
   <div class="tablewrap"><table>
 <tr class="head"><th class="text">Area</th><th class="text">SOS</th><th class="text">2nd</th><th class="text">3rd</th><th class="text">4th</th><th class="text">EOS</th><th class="text">Total</th></tr>
 <tr><td class="text">Fluid Load</td><td class="num">30</td><td class="num">90</td><td class="num">75</td><td class="num">125</td><td class="empty"></td><td class="empty"></td></tr>
@@ -122,9 +171,17 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
   </table></div>
 </section>
 
-<section id="s1">
+<section id="bymonth" class="panel">
   <h2>By Month</h2>
   <p class="note">Weekly IMPT / PPA / Defect Capture with monthly and quarterly averages.</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
   <div class="tablewrap"><table>
 <tr class="head"><th class="empty"></th><th class="empty"></th><th class="text" colspan="2">For FHNs</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
 <tr class="head"><th class="text">Jan</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
@@ -191,9 +248,17 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
   </table></div>
 </section>
 
-<section id="s2">
+<section id="epp" class="panel">
   <h2>EPP Coverage</h2>
   <p class="note">Daily EPP coverage for FHNs by week, with weekly average.</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
   <div class="tablewrap"><table>
 <tr class="head"><th class="empty"></th><th class="text" colspan="4">EPP Coverage FHNs</th><th class="empty"></th></tr>
 <tr><td class="text">Wk1</td><td class="date">Jan&nbsp;4</td><td class="date">Jan&nbsp;5</td><td class="date">Jan&nbsp;6</td><td class="date">Jan&nbsp;7</td><td class="text">Avg</td></tr>
@@ -230,9 +295,17 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
   </table></div>
 </section>
 
-<section id="s3">
+<section id="ppa" class="panel">
   <h2>PPA by shift</h2>
   <p class="note">Weekly PPA compliance by shift (FHD / FHN / BHD / BHN).</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
   <div class="tablewrap"><table>
 <tr class="head"><th class="text">PPA Compliance</th><th class="text">FHD</th><th class="text">FHN</th><th class="text">BHD</th><th class="text">BHN</th><th class="text">AVG</th></tr>
 <tr><td class="text">01/04 - 01/10</td><td class="pct p-good">99.87%</td><td class="pct p-good">99.46%</td><td class="pct p-good">99.37%</td><td class="pct p-good">98.57%</td><td class="pct p-good">99.32%</td></tr>
@@ -251,9 +324,17 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
   </table></div>
 </section>
 
-<section id="s4">
+<section id="dcshift" class="panel">
   <h2>DC by Shift</h2>
   <p class="note">Weekly Defect Capture by shift (FHD / FHN / BHD / BHN).</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
   <div class="tablewrap"><table>
 <tr class="head"><th class="text">Defect Capture</th><th class="text">FHD</th><th class="text">FHN</th><th class="text">BHD</th><th class="text">BHN</th><th class="text">AVG</th></tr>
 <tr><td class="text">01/04 - 01/10</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-warn">80.00%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">95.00%</td></tr>
@@ -272,9 +353,17 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
   </table></div>
 </section>
 
-<section id="s5">
+<section id="network" class="panel">
   <h2>in Network</h2>
   <p class="note">PPA compliance and Defect Capture vs. network sites (RFD2, MQJ1, ORF2, SCK4, SWF2).</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
   <div class="tablewrap"><table>
 <tr class="head"><th class="empty"></th><th class="text">RFD2</th><th class="text">MQJ1</th><th class="text">ORF2</th><th class="text">SCK4</th><th class="text">SWF2</th><th class="empty"></th><th class="text">RFD2</th><th class="text">MQJ1</th><th class="text">ORF2</th><th class="text">SCK4</th><th class="text">SWF2</th></tr>
 <tr class="head"><th class="empty"></th><th class="text" colspan="5">PPA COMPLIANCE</th><th class="empty"></th><th class="text" colspan="5">Defect Capture</th></tr>
@@ -293,6 +382,213 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
   </table></div>
 </section>
 </main>
-<footer>Generated from FHNs_Qualtiy.xlsx &mdash; 6 sheets: Piles &middot; By Month &middot; EPP Coverage &middot; PPA by shift &middot; DC by Shift &middot; in Network</footer>
+<footer>Generated from FHNs_Qualtiy.xlsx &mdash; By Day entries live only in this browser (localStorage).</footer>
+<script>
+(function () {
+  /* ---------- tabs ---------- */
+  var tabBtns = document.querySelectorAll('#tabs button');
+  function showTab(id) {
+    tabBtns.forEach(function (b) { b.classList.toggle('active', b.dataset.tab === id); });
+    document.querySelectorAll('.panel').forEach(function (p) { p.classList.toggle('active', p.id === id); });
+    try { localStorage.setItem('fhns-tab', id); } catch (e) {}
+    history.replaceState(null, '', '#' + id);
+  }
+  tabBtns.forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
+  var initial = (location.hash || '').slice(1);
+  if (!document.getElementById(initial)) {
+    initial = null;
+    try { initial = localStorage.getItem('fhns-tab'); } catch (e) {}
+    if (!initial || !document.getElementById(initial)) initial = 'byday';
+  }
+  showTab(initial);
+
+  /* ---------- By Day tracker ---------- */
+  var SLOTS = ['SOS', '2nd', '3rd', '4th', 'EOS'];
+  var DEFAULT_AREAS = ['Fluid Load', 'Inbound Dock', 'Jackpot', 'Amnesty Pallets', 'RPND', 'Sort', 'Transfer Out Dock'];
+  var PREFIX = 'fhns-piles-';
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmt(n) { return Number(n).toLocaleString('en-US'); }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function lsGet(k, fallback) {
+    try { var v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); }
+    catch (e) { return fallback; }
+  }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  var curDate = todayISO();
+  var dayData = {};   // { area: { slot: number } }
+
+  function customAreas() { return lsGet('fhns-custom-areas', []); }
+  function allAreas() { return DEFAULT_AREAS.concat(customAreas()); }
+  function loadDay() { dayData = lsGet(PREFIX + curDate, {}); }
+  function saveDay() { lsSet(PREFIX + curDate, dayData); refreshSavedDays(); updateStatus(); }
+  function val(a, s) {
+    var row = dayData[a];
+    if (!row || row[s] === undefined || row[s] === null || row[s] === '') return null;
+    var n = Number(row[s]);
+    return isNaN(n) ? null : n;
+  }
+
+  var tbl = document.getElementById('dayTable');
+  var chg = document.getElementById('dayChange');
+  var dateInput = document.getElementById('dayDate');
+  var savedSel = document.getElementById('savedDays');
+  var statusEl = document.getElementById('dayStatus');
+
+  function buildTable() {
+    var custom = customAreas();
+    var h = '<tr class="head"><th>Area</th>';
+    SLOTS.forEach(function (s) { h += '<th>' + s + '</th>'; });
+    h += '<th>Total</th><th></th></tr>';
+    allAreas().forEach(function (a) {
+      h += '<tr data-area="' + esc(a) + '"><td class="text">' + esc(a) + '</td>';
+      SLOTS.forEach(function (s) {
+        var v = val(a, s);
+        h += '<td class="cellin"><input type="number" min="0" step="1" inputmode="numeric"' +
+             ' data-area="' + esc(a) + '" data-slot="' + s + '" value="' + (v === null ? '' : v) + '"></td>';
+      });
+      h += '<td class="num rowtotal"></td>';
+      h += '<td class="rmcell">' + (custom.indexOf(a) !== -1
+            ? '<button type="button" class="rmbtn" data-area="' + esc(a) + '" title="Remove area">&times;</button>'
+            : '') + '</td></tr>';
+    });
+    h += '<tr class="totals"><td class="text">Total</td>';
+    SLOTS.forEach(function (s) { h += '<td class="num coltotal" data-slot="' + s + '"></td>'; });
+    h += '<td class="num grandtotal"></td><td class="rmcell"></td></tr>';
+    tbl.innerHTML = h;
+
+    tbl.querySelectorAll('input').forEach(function (inp) { inp.addEventListener('input', onCell); });
+    tbl.querySelectorAll('.rmbtn').forEach(function (b) {
+      b.addEventListener('click', function () { removeArea(b.dataset.area); });
+    });
+    recompute();
+  }
+
+  function onCell(e) {
+    var a = e.target.dataset.area, s = e.target.dataset.slot, raw = e.target.value;
+    if (!dayData[a]) dayData[a] = {};
+    if (raw === '') { delete dayData[a][s]; if (Object.keys(dayData[a]).length === 0) delete dayData[a]; }
+    else dayData[a][s] = Number(raw);
+    saveDay();
+    recompute();
+  }
+
+  function recompute() {
+    var colT = {}, grand = 0;
+    SLOTS.forEach(function (s) { colT[s] = 0; });
+    tbl.querySelectorAll('tr[data-area]').forEach(function (tr) {
+      var a = tr.dataset.area, rt = 0, any = false;
+      SLOTS.forEach(function (s) {
+        var v = val(a, s);
+        if (v !== null) { rt += v; colT[s] += v; any = true; }
+      });
+      grand += rt;
+      tr.querySelector('.rowtotal').textContent = any ? fmt(rt) : '';
+    });
+    SLOTS.forEach(function (s) {
+      tbl.querySelector('.coltotal[data-slot="' + s + '"]').textContent = fmt(colT[s]);
+    });
+    tbl.querySelector('.grandtotal').textContent = fmt(grand);
+    buildChange();
+  }
+
+  function buildChange() {
+    var rows = allAreas().map(function (a) {
+      var sos = val(a, 'SOS'), eos = val(a, 'EOS');
+      var ch = (sos === null && eos === null) ? null : (eos || 0) - (sos || 0);
+      return { a: a, sos: sos, eos: eos, ch: ch };
+    });
+    /* Rank matches the source sheet: areas ordered by net change, closest-to-zero/highest first. */
+    var ranked = rows.filter(function (r) { return r.ch !== null; })
+                     .sort(function (x, y) { return y.ch - x.ch; });
+    var rank = {};
+    ranked.forEach(function (r, i) {
+      rank[r.a] = (i > 0 && r.ch === ranked[i - 1].ch) ? rank[ranked[i - 1].a] : i + 1;
+    });
+    var h = '<tr class="head"><th>Area</th><th>SOS</th><th>EOS</th><th>Change</th><th>Rank</th></tr>';
+    var tS = 0, tE = 0;
+    rows.forEach(function (r) {
+      tS += r.sos || 0; tE += r.eos || 0;
+      var chCls = r.ch === null ? '' : (r.ch < 0 ? ' down' : (r.ch > 0 ? ' up' : ''));
+      h += '<tr><td class="text">' + esc(r.a) + '</td>' +
+           '<td class="num">' + (r.sos === null ? '' : fmt(r.sos)) + '</td>' +
+           '<td class="num">' + (r.eos === null ? '' : fmt(r.eos)) + '</td>' +
+           '<td class="num' + chCls + '">' + (r.ch === null ? '' : fmt(r.ch)) + '</td>' +
+           '<td class="num">' + (rank[r.a] || '') + '</td></tr>';
+    });
+    h += '<tr class="totals"><td class="text">Total</td><td class="num">' + fmt(tS) +
+         '</td><td class="num">' + fmt(tE) + '</td><td class="num">' + fmt(tE - tS) + '</td><td></td></tr>';
+    chg.innerHTML = h;
+  }
+
+  function savedDates() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(PREFIX) === 0) {
+          var d = k.slice(PREFIX.length);
+          var data = lsGet(k, {});
+          if (Object.keys(data).length) out.push(d);
+        }
+      }
+    } catch (e) {}
+    return out.sort().reverse();
+  }
+
+  function refreshSavedDays() {
+    var days = savedDates();
+    var h = '<option value="">Saved days (' + days.length + ')&hellip;</option>';
+    days.forEach(function (d) { h += '<option value="' + d + '"' + (d === curDate ? ' selected' : '') + '>' + d + '</option>'; });
+    savedSel.innerHTML = h;
+  }
+
+  function updateStatus() {
+    var n = Object.keys(dayData).length;
+    statusEl.textContent = n ? 'Saved ✓ (' + n + ' area' + (n === 1 ? '' : 's') + ' with entries)'
+                             : 'Blank day — entries save automatically as you type.';
+  }
+
+  function setDate(d) {
+    curDate = d;
+    dateInput.value = d;
+    loadDay();
+    buildTable();
+    refreshSavedDays();
+    updateStatus();
+  }
+
+  function removeArea(a) {
+    if (!confirm('Remove area "' + a + '"? Its saved numbers stay attached to their dates but will no longer be shown.')) return;
+    lsSet('fhns-custom-areas', customAreas().filter(function (x) { return x !== a; }));
+    buildTable();
+  }
+
+  dateInput.addEventListener('change', function () { if (dateInput.value) setDate(dateInput.value); });
+  savedSel.addEventListener('change', function () { if (savedSel.value) setDate(savedSel.value); });
+  document.getElementById('resetDay').addEventListener('click', function () {
+    if (!confirm('Clear all entries for ' + curDate + '?')) return;
+    try { localStorage.removeItem(PREFIX + curDate); } catch (e) {}
+    loadDay(); buildTable(); refreshSavedDays(); updateStatus();
+  });
+  document.getElementById('addArea').addEventListener('click', function () {
+    var name = prompt('New area name:');
+    if (!name) return;
+    name = name.trim();
+    if (!name) return;
+    if (allAreas().indexOf(name) !== -1) { alert('"' + name + '" already exists.'); return; }
+    lsSet('fhns-custom-areas', customAreas().concat([name]));
+    buildTable();
+  });
+
+  setDate(todayISO());
+})();
+</script>
 </body>
 </html>
