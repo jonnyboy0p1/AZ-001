@@ -83,6 +83,8 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 
 }
 .dayctl .note { margin: 0; }
 .bridgerow { border-top: 1px dashed var(--line); padding-top: 12px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--muted); font-size: 13px; }
+.chk input { width: auto; }
 .btn {
   padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--head-bg); color: var(--ink); cursor: pointer;
@@ -170,10 +172,12 @@ code { background: var(--head-bg); border-radius: 4px; padding: 1px 5px; font-si
   </div>
   <div class="dayctl bridgerow">
     <span class="ctl-label"><span class="dot off" id="bydayDot"></span> Quality Bridge:</span>
-    <select id="pullSlot">
+    <label>Count <select id="pullCount" title="Which audit count to pull"><option value="latest">Latest</option></select></label>
+    <label>into <select id="pullSlot">
       <option>SOS</option><option>2nd</option><option>3rd</option><option>4th</option><option>EOS</option>
-    </select>
+    </select></label>
     <button type="button" class="btn" id="pullBtn">Pull piles into slot</button>
+    <label class="chk"><input type="checkbox" id="autoAdd" checked> Auto-add areas from report</label>
     <span class="note" id="pullStatus">Needs server.js running + the ont-base piles page open with Tampermonkey.</span>
   </div>
   <div class="tablewrap"><table id="dayTable"></table></div>
@@ -712,6 +716,7 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
         lastBridge = d;
         setDots(true);
         bridgeStatusEl.textContent = 'Connected ✓ (' + bridgeUrl() + ') — shift ' + currentShift();
+        refreshCountOptions(d);
         renderLive(d, null);
         if (done) done(d, null);
       })
@@ -756,6 +761,55 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
     return h;
   }
 
+  function pilesCardBody(p) {
+    var b;
+    if (p.report) {
+      // v2 userscript: parsed Area Breakdown from /piles/report
+      b = '<div class="kpis">';
+      if (p.auditDate) {
+        b += kpiHtml('Audit', p.auditDate + (p.auditShift ? ' ' + p.auditShift : '') +
+                     (p.auditNumber ? ' #' + p.auditNumber : ''));
+      }
+      if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Piles total (page)', fmt(p.totalPiles));
+      if (p.adjustedTotal !== null && p.adjustedTotal !== undefined) b += kpiHtml('Adjusted total (page)', fmt(p.adjustedTotal));
+      if (p.computedSum !== null && p.computedSum !== undefined) {
+        b += kpiHtml('Sum of areas', fmt(p.computedSum) +
+                     (p.sumMatchesReported === false ? ' ⚠' : (p.sumMatchesReported ? ' ✓' : '')));
+      }
+      b += '</div>';
+      if (p.sumMatchesReported === false) {
+        b += '<p class="note" style="color:var(--bad-ink)">⚠ The per-area sum does not match the page total — ' +
+             'a column may be misdetected. Check the diagnostics in Raw JSON below.</p>';
+      }
+      var areaNames = Object.keys(p.areaTotals || {});
+      if (areaNames.length) {
+        b += scrapeTableHtml({ headers: ['Area', 'Total', 'Adjusted'], rows: areaNames.map(function (a) {
+          return [a, fmt(p.areaTotals[a]),
+                  (p.areaAdjusted && p.areaAdjusted[a] !== null && p.areaAdjusted[a] !== undefined)
+                    ? fmt(p.areaAdjusted[a]) : ''];
+        }) });
+      }
+      return b;
+    }
+    b = '<div class="kpis">';
+    if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Total piles', fmt(p.totalPiles));
+    if (p.pilesOver48h !== null && p.pilesOver48h !== undefined) b += kpiHtml('Over 48h', fmt(p.pilesOver48h));
+    if (p.pilesOver24h !== null && p.pilesOver24h !== undefined) b += kpiHtml('Over 24h', fmt(p.pilesOver24h));
+    b += kpiHtml('Table rows', (p.tableRows || []).length);
+    b += '</div>';
+    if ((p.tableRows || []).length) {
+      var headers = Object.keys(p.tableRows[0]);
+      b += scrapeTableHtml({ headers: headers, rows: p.tableRows.map(function (r) {
+        return headers.map(function (k) { return r[k]; });
+      }) });
+    } else if (p.summary && Object.keys(p.summary).length) {
+      b += scrapeTableHtml({ headers: ['Label', 'Value'], rows: Object.keys(p.summary).map(function (k) {
+        return [k, p.summary[k]];
+      }) });
+    }
+    return b;
+  }
+
   function renderLive(d, err) {
     if (!document.getElementById('live')) return;
     if (!d) {
@@ -770,54 +824,20 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
 
     var h = '';
 
-    h += sourceCard('Piles (ont-base)', d.piles, function (p) {
-      var b;
-      if (p.report) {
-        // v2 userscript: parsed Area Breakdown from /piles/report
-        b = '<div class="kpis">';
-        if (p.auditDate) {
-          b += kpiHtml('Audit', p.auditDate + (p.auditShift ? ' ' + p.auditShift : '') +
-                       (p.auditNumber ? ' #' + p.auditNumber : ''));
+    var pcounts = pilesCountsFrom(d);
+    if (pcounts.length) {
+      pcounts.forEach(function (e) {
+        var pp = e.data || {};
+        var label = 'Piles (ont-base)';
+        if (pp.auditNumber !== null && pp.auditNumber !== undefined) {
+          label += ' — Audit #' + pp.auditNumber + (pp.auditShift ? ' ' + pp.auditShift : '') +
+                   (pp.auditDate ? ' ' + pp.auditDate : '');
         }
-        if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Piles total (page)', fmt(p.totalPiles));
-        if (p.adjustedTotal !== null && p.adjustedTotal !== undefined) b += kpiHtml('Adjusted total (page)', fmt(p.adjustedTotal));
-        if (p.computedSum !== null && p.computedSum !== undefined) {
-          b += kpiHtml('Sum of areas', fmt(p.computedSum) +
-                       (p.sumMatchesReported === false ? ' ⚠' : (p.sumMatchesReported ? ' ✓' : '')));
-        }
-        b += '</div>';
-        if (p.sumMatchesReported === false) {
-          b += '<p class="note" style="color:var(--bad-ink)">⚠ The per-area sum does not match the page total — ' +
-               'a column may be misdetected. Check the diagnostics in Raw JSON below.</p>';
-        }
-        var areaNames = Object.keys(p.areaTotals || {});
-        if (areaNames.length) {
-          b += scrapeTableHtml({ headers: ['Area', 'Total', 'Adjusted'], rows: areaNames.map(function (a) {
-            return [a, fmt(p.areaTotals[a]),
-                    (p.areaAdjusted && p.areaAdjusted[a] !== null && p.areaAdjusted[a] !== undefined)
-                      ? fmt(p.areaAdjusted[a]) : ''];
-          }) });
-        }
-        return b;
-      }
-      b = '<div class="kpis">';
-      if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Total piles', fmt(p.totalPiles));
-      if (p.pilesOver48h !== null && p.pilesOver48h !== undefined) b += kpiHtml('Over 48h', fmt(p.pilesOver48h));
-      if (p.pilesOver24h !== null && p.pilesOver24h !== undefined) b += kpiHtml('Over 24h', fmt(p.pilesOver24h));
-      b += kpiHtml('Table rows', (p.tableRows || []).length);
-      b += '</div>';
-      if ((p.tableRows || []).length) {
-        var headers = Object.keys(p.tableRows[0]);
-        b += scrapeTableHtml({ headers: headers, rows: p.tableRows.map(function (r) {
-          return headers.map(function (k) { return r[k]; });
-        }) });
-      } else if (p.summary && Object.keys(p.summary).length) {
-        b += scrapeTableHtml({ headers: ['Label', 'Value'], rows: Object.keys(p.summary).map(function (k) {
-          return [k, p.summary[k]];
-        }) });
-      }
-      return b;
-    });
+        h += sourceCard(label, e, pilesCardBody);
+      });
+    } else {
+      h += sourceCard('Piles (ont-base)', d.piles, pilesCardBody);
+    }
 
     h += sourceCard('EPP Compliance (QuickSight)', d.epp, function (e) {
       var b = '<div class="kpis">';
@@ -841,67 +861,91 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
     liveContent.innerHTML = h;
   }
 
-  /* ----- Pull piles scrape into a By Day slot ----- */
+  /* ----- Piles counts: enumerate, select, and pull accurately ----- */
   var pullStatusEl = document.getElementById('pullStatus');
+  var pullCountSel = document.getElementById('pullCount');
+  var autoAddChk = document.getElementById('autoAdd');
 
-  function pilesRowsToCounts(p) {
-    // Returns { matches: {area: count}, unmatched: [names] } by fuzzy-matching
-    // scraped rows/summary against the By Day area list.
-    var areas = allAreas();
-    var normed = {};
-    areas.forEach(function (a) { normed[normName(a)] = a; });
+  autoAddChk.checked = lsGet('fhns-autoadd', true) !== false;
+  autoAddChk.addEventListener('change', function () { lsSet('fhns-autoadd', autoAddChk.checked); });
 
-    var matches = {}, unmatched = [];
-
-    function tryMatch(rawName, rawCount) {
-      var n = normName(rawName);
-      if (!n) return;
-      var count = parseNum(rawCount);
-      if (count === null) return;
-      var hit = normed[n];
-      if (!hit) {
-        // substring match either direction
-        for (var key in normed) {
-          if (n.indexOf(key) !== -1 || key.indexOf(n) !== -1) { hit = normed[key]; break; }
-        }
-      }
-      if (hit) matches[hit] = count;
-      else unmatched.push(String(rawName).trim());
+  // Every distinct piles audit count in a bridge payload, newest audit first.
+  function pilesCountsFrom(d) {
+    var out = [];
+    if (d && d.pilesCounts) {
+      Object.keys(d.pilesCounts).forEach(function (k) {
+        var e = d.pilesCounts[k];
+        if (e) out.push(Object.assign({ key: k }, e));
+      });
     }
+    // Back-compat: a bridge without pilesCounts still exposes the latest scrape.
+    if (!out.length && d && d.piles) out.push(Object.assign({ key: 'latest' }, d.piles));
+    out.sort(function (a, b) {
+      var pa = a.data || {}, pb = b.data || {};
+      if (String(pa.auditDate) !== String(pb.auditDate)) return String(pb.auditDate) < String(pa.auditDate) ? -1 : 1;
+      return (Number(pb.auditNumber) || 0) - (Number(pa.auditNumber) || 0);
+    });
+    return out;
+  }
 
-    // Preferred: v2 report scrape — clean per-area totals (adjusted wins when present)
-    if (p.areaTotals && Object.keys(p.areaTotals).length) {
+  function countLabel(e) {
+    var p = e.data || {};
+    var t = (p.totalPiles !== null && p.totalPiles !== undefined) ? fmt(p.totalPiles) : '?';
+    var n = (p.auditNumber !== null && p.auditNumber !== undefined) ? ('#' + p.auditNumber) : e.key;
+    return 'Audit ' + n + (p.auditShift ? ' ' + p.auditShift : '') + ' — ' + t + ' piles';
+  }
+
+  // Rebuild the count dropdown, keeping the current pick when it still exists.
+  function refreshCountOptions(d) {
+    if (!pullCountSel) return;
+    var counts = pilesCountsFrom(d).filter(function (e) { return e.key !== 'latest'; });
+    var prev = pullCountSel.value;
+    var html = '<option value="latest">Latest received</option>';
+    counts.forEach(function (e) {
+      html += '<option value="' + esc(e.key) + '">' + esc(countLabel(e)) + '</option>';
+    });
+    pullCountSel.innerHTML = html;
+    var keys = counts.map(function (e) { return e.key; });
+    pullCountSel.value = (prev && (prev === 'latest' || keys.indexOf(prev) !== -1)) ? prev
+                        : (keys.length ? keys[0] : 'latest');
+  }
+
+  // The count entry the user chose to pull (or newest / latest as fallback).
+  function selectedCountEntry(d) {
+    var v = pullCountSel ? pullCountSel.value : 'latest';
+    if (v && v !== 'latest' && d && d.pilesCounts && d.pilesCounts[v]) {
+      return Object.assign({ key: v }, d.pilesCounts[v]);
+    }
+    var counts = pilesCountsFrom(d);
+    return counts.length ? counts[0] : null;
+  }
+
+  // Map a report area name to an existing row. Exact (normalized) match wins;
+  // a substring match is used ONLY when exactly one existing area is involved,
+  // so an ambiguous name can never be mis-assigned (that scrambled counts before).
+  function resolveArea(reportName) {
+    var n = normName(reportName);
+    if (!n) return null;
+    var areas = allAreas();
+    for (var i = 0; i < areas.length; i++) if (normName(areas[i]) === n) return areas[i];
+    var hits = areas.filter(function (a) {
+      var k = normName(a);
+      return k && (n.indexOf(k) !== -1 || k.indexOf(n) !== -1);
+    });
+    return hits.length === 1 ? hits[0] : null;
+  }
+
+  // Exact area -> value map from a report payload (adjusted total preferred).
+  function reportAreaValues(p) {
+    var out = {};
+    if (p.areaTotals) {
       Object.keys(p.areaTotals).forEach(function (k) {
         var v = (p.areaAdjusted && p.areaAdjusted[k] !== null && p.areaAdjusted[k] !== undefined)
           ? p.areaAdjusted[k] : p.areaTotals[k];
-        tryMatch(k, v);
+        if (v !== null && v !== undefined) out[k] = Number(v);
       });
-      return { matches: matches, unmatched: unmatched };
     }
-
-    (p.tableRows || []).forEach(function (row) {
-      var keys = Object.keys(row);
-      // area name: first cell whose value is not numeric
-      var nameKey = null, countKey = null;
-      keys.forEach(function (k) {
-        if (nameKey === null && parseNum(row[k]) === null && String(row[k]).trim() !== '') nameKey = k;
-      });
-      // count: prefer a column whose header mentions count/pile/total/qty/units
-      keys.forEach(function (k) {
-        if (countKey === null && /count|pile|total|qty|quantity|units/i.test(k) && parseNum(row[k]) !== null) countKey = k;
-      });
-      if (countKey === null) {
-        keys.forEach(function (k) {
-          if (countKey === null && k !== nameKey && parseNum(row[k]) !== null) countKey = k;
-        });
-      }
-      if (nameKey !== null && countKey !== null) tryMatch(row[nameKey], row[countKey]);
-    });
-
-    if (Object.keys(matches).length === 0 && p.summary) {
-      Object.keys(p.summary).forEach(function (k) { tryMatch(k, p.summary[k]); });
-    }
-    return { matches: matches, unmatched: unmatched };
+    return out;
   }
 
   document.getElementById('pullBtn').addEventListener('click', function () {
@@ -909,61 +953,70 @@ Live Bridge talks to the local Quality Bridge server (default <code>http://127.0
     pullStatusEl.textContent = 'Contacting bridge…';
     pollBridge(function (d, err) {
       if (!d) { pullStatusEl.textContent = 'Bridge offline — is server.js running on ' + bridgeUrl() + '?'; return; }
-      if (!d.piles) { pullStatusEl.textContent = 'Server is up but has no piles data yet — open the ont-base piles page with Tampermonkey.'; return; }
+      var entry = selectedCountEntry(d);
+      if (!entry) { pullStatusEl.textContent = 'Server is up but has no piles data yet — open the ont-base piles page (or its report) with Tampermonkey.'; return; }
 
-      var pdata = d.piles.data || {};
-      var res = pilesRowsToCounts(pdata);
-
-      // Tailor the tracker to the building: on report scrapes, any Area Breakdown
-      // area we don't track yet gets added automatically, then re-matched.
-      var added = [];
-      if (pdata.report && res.unmatched.length) {
-        var cur = customAreas();
-        res.unmatched.forEach(function (n) {
-          n = String(n).trim();
-          if (n && n.length <= 40 && allAreas().indexOf(n) === -1) {
-            cur = cur.concat([n]);
-            added.push(n);
-          }
-        });
-        if (added.length) {
-          lsSet('fhns-custom-areas', cur);
-          res = pilesRowsToCounts(pdata);
-        }
-      }
-
-      var names = Object.keys(res.matches);
-      if (!names.length) {
-        pullStatusEl.textContent = 'No area rows matched the scrape (' +
-          (pdata.tableRows || []).length + ' rows scraped). Check the Live Bridge tab to see the raw shape.';
+      var p = entry.data || {};
+      if (!p.report || !p.areaTotals || !Object.keys(p.areaTotals).length) {
+        pullStatusEl.textContent = 'That count has no Area Breakdown yet — open its /piles/report page or wait for the watcher. See the Live Bridge tab.';
         return;
       }
-      names.forEach(function (a) {
-        if (!dayData[a]) dayData[a] = {};
-        dayData[a][slot] = res.matches[a];
+
+      var values = reportAreaValues(p);
+      var autoAdd = autoAddChk.checked;
+      var filled = [], added = [], unmatched = [], toAdd = [];
+
+      Object.keys(values).forEach(function (rn) {
+        var hit = resolveArea(rn);
+        if (!hit) {
+          if (autoAdd && allAreas().indexOf(rn) === -1 && String(rn).length <= 60) {
+            toAdd.push(rn); added.push(rn); hit = rn;
+          } else { unmatched.push(rn); return; }
+        }
+        filled.push([hit, values[rn]]);
+      });
+      if (toAdd.length) lsSet('fhns-custom-areas', customAreas().concat(toAdd));
+
+      if (!filled.length) {
+        pullStatusEl.textContent = 'No areas placed from Audit #' + p.auditNumber + ' — turn on “Auto-add areas” or add them with “+ Add area”.';
+        return;
+      }
+
+      // Clear this slot on rows not in the report so a re-pull can't leave stale
+      // values behind (e.g. an area that dropped out of the newer count).
+      var keepKeys = {};
+      filled.forEach(function (pr) { keepKeys[pr[0]] = true; });
+      allAreas().forEach(function (a) {
+        if (!keepKeys[a] && dayData[a] && dayData[a][slot] !== undefined) {
+          delete dayData[a][slot];
+          if (Object.keys(dayData[a]).length === 0) delete dayData[a];
+        }
+      });
+
+      var placedSum = 0;
+      filled.forEach(function (pr) {
+        if (!dayData[pr[0]]) dayData[pr[0]] = {};
+        dayData[pr[0]][slot] = pr[1];
+        placedSum += pr[1];
       });
       saveDay();
       buildTable();
-      names.forEach(function (a) {
-        var inp = tbl.querySelector('input[data-area="' + a.replace(/"/g, '\\"') + '"][data-slot="' + slot + '"]');
+      filled.forEach(function (pr) {
+        var inp = tbl.querySelector('input[data-area="' + String(pr[0]).replace(/"/g, '\\"') + '"][data-slot="' + slot + '"]');
         if (inp) inp.parentElement.classList.add('pulled');
       });
-      var msg = 'Filled ' + slot + ' for ' + names.length + ' area' + (names.length === 1 ? '' : 's') +
-                ' (scraped ' + ageStr(d.piles.timestamp) + ')';
+
+      var cn = (p.auditNumber !== null && p.auditNumber !== undefined) ? ('#' + p.auditNumber) : '';
+      var msg = 'Filled ' + slot + ' from Audit ' + cn + ' — ' + filled.length + ' area' +
+                (filled.length === 1 ? '' : 's') + ', total ' + fmt(placedSum) +
+                ' (scraped ' + ageStr(entry.timestamp) + ')';
       if (added.length) {
-        msg += ' — added ' + added.length + ' new area' + (added.length === 1 ? '' : 's') +
-               ' from the report: ' + added.slice(0, 5).join(', ') + (added.length > 5 ? '…' : '');
+        msg += ' · added ' + added.length + ' new: ' + added.slice(0, 5).join(', ') + (added.length > 5 ? '…' : '');
       }
-      if (pdata.report) {
-        if (pdata.sumMatchesReported === false) {
-          msg += ' — ⚠ page total ' + fmt(pdata.totalPiles) + ' ≠ area sum ' + fmt(pdata.computedSum) + ', see Live Bridge tab';
-        } else if (pdata.totalPiles !== null && pdata.totalPiles !== undefined) {
-          msg += ' — adds up to page total ' + fmt(pdata.totalPiles) + ' ✓';
-        }
-      }
-      if (res.unmatched.length && !added.length) {
-        msg += ' — unmatched: ' + res.unmatched.slice(0, 4).join(', ') +
-               (res.unmatched.length > 4 ? '…' : '') + ' (use “+ Add area” to track them)';
+      if (p.totalPiles !== null && p.totalPiles !== undefined) {
+        msg += (placedSum === p.totalPiles)
+          ? ' · matches page total ✓'
+          : ' · ⚠ page total ' + fmt(p.totalPiles) + (unmatched.length ? ' — unplaced: ' + unmatched.join(', ') : '');
       }
       pullStatusEl.textContent = msg;
     });

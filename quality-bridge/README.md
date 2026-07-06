@@ -93,6 +93,26 @@ The "Pull piles into slot" button in fhns-quality.html uses `areaTotals`
 (adjusted value preferred) when present, and only falls back to the old
 generic `tableRows` heuristics for non-report pages.
 
+## Two nightly counts (#1 and #2)
+
+RFD2 runs more than one piles audit per shift. Each `/piles/report` scrape
+carries its audit identity (`auditDate` / `auditShift` / `auditNumber`), and:
+
+- **server.js** keeps every distinct count in `store.pilesCounts`, keyed by
+  `date|shift|number`, so count #2 no longer overwrites count #1. `/quality-data`
+  exposes both (plus `piles` = most-recent, for back-compat).
+- The **landing-page watcher** in the userscript fetches every completed count
+  and posts each one, so both counts land on the bridge on their own.
+- The dashboard's **By Day** tab has a **Count** selector (Audit #1 / #2 / Latest)
+  next to the slot picker. "Pull piles into slot" fills the chosen slot from the
+  chosen count's exact Area Breakdown totals — so pulling is always accurate and
+  the placed total matches that count's page total. Typical use: pull Audit #1
+  into SOS, pull Audit #2 into 2nd, etc.
+- **Accurate matching:** report areas map to rows by exact name first, then by an
+  *unambiguous* substring (only when exactly one existing row is involved), so a
+  value can never be mis-assigned. With "Auto-add areas from report" on, any new
+  area (e.g. a renamed location) is added as its own row automatically.
+
 ## Tuning
 
 The QuickSight scraper uses generic selectors since QS DOM is dynamic.

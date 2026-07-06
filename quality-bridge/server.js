@@ -13,12 +13,23 @@ const path = require('path');
 
 const PORT = parseInt(process.env.QUALITY_PORT || '4800');
 
-// In-memory store of latest data per source
+// In-memory store of latest data per source.
+// `piles` holds the most-recent piles scrape (back-compat); `pilesCounts`
+// keeps every distinct audit count keyed by "date|shift|number" so the two
+// nightly counts (#1, #2, ...) coexist instead of clobbering each other.
 const store = {
   piles: null,
+  pilesCounts: {},
   epp: null,
-  ppa: null
+  ppa: null,
+  twms: null,
+  diverts: null
 };
+
+function auditKey(data) {
+  if (!data || !data.auditDate || data.auditNumber === null || data.auditNumber === undefined) return null;
+  return [data.auditDate, data.auditShift || '', data.auditNumber].join('|');
+}
 
 // History log
 const LOG_DIR = path.join(__dirname, 'quality-log');
@@ -45,13 +56,25 @@ function handlePost(req, res) {
         return;
       }
 
-      store[source] = { data, shift, timestamp, receivedAt: new Date().toISOString() };
+      const entry = { data, shift, timestamp, receivedAt: new Date().toISOString() };
+      store[source] = entry;
+
+      // Keep each distinct piles audit count addressable by its own key so the
+      // dashboard can pull #1 vs #2 accurately instead of getting whichever
+      // landed last.
+      let key = null;
+      if (source === 'piles') {
+        key = auditKey(data);
+        if (key) store.pilesCounts[key] = Object.assign({ key: key }, entry);
+      }
+
       logEntry(source, payload);
 
-      console.log(`[${new Date().toISOString()}] Received ${source} (shift=${shift})`);
+      console.log(`[${new Date().toISOString()}] Received ${source} (shift=${shift})` +
+        (key ? ` [count ${key}]` : ''));
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, source, shift }));
+      res.end(JSON.stringify({ ok: true, source, shift, key }));
     } catch (err) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: err.message }));

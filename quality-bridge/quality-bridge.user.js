@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Quality Metrics Bridge (RFD2)
 // @namespace    rfd2-quality
-// @version      2.0.0
-// @description  Scrapes Piles report (Area Breakdown), EPP Compliance, PPA Compliance and bridges to local server
+// @version      2.4.0
+// @description  Single consolidated Quality Bridge script. Scrapes Piles report (Area Breakdown), auto-watches the piles landing page for new completed counts, EPP Compliance, PPA Compliance, TWMS Compliance, RoboScout UIS diverts — bridges to local server
 // @match        https://ont-base.corp.amazon.com/RFD2/icqa/piles*
 // @match        https://us-east-1.quicksight.aws.amazon.com/sn/account/amazonbi/dashboards/0243f5c0-7de1-4ee2-ba5e-de2948e0802f*
 // @match        https://us-east-1.quicksight.aws.amazon.com/sn/account/amazonbi/dashboards/839b4877-6557-4e6b-a9d5-d3df4e36ff9f*
+// @match        https://us-east-1.quicksight.aws.amazon.com/sn/account/amazonbi/apps/81460ff9-4d8f-40af-94fa-775cf0fa7140*
+// @match        https://americas.roboscout.rom.robotics.a2z.com/d/uis-cosmos-uis-diverts*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -14,12 +16,18 @@
 // @run-at       document-idle
 // ==/UserScript==
 
+// Consolidated single script — the one file to install in Tampermonkey.
+// Supersedes quality-bridge.user.js (v1.0.0) and the v2.2.0 backup; it is a
+// union of all three. Sources: Piles report + landing-page auto-watcher,
+// EPP / PPA / TWMS Compliance (QuickSight), and RoboScout UIS diverts.
+
 (function () {
   'use strict';
 
   const BRIDGE_URL = 'http://127.0.0.1:4800/quality-bridge';
-  const SCRAPE_INTERVAL = 30000; // 30s between scrapes
-  const QS_LOAD_WAIT = 8000;    // QuickSight needs time to render
+  const SCRAPE_INTERVAL = 30000;      // 30s between scrapes
+  const AUDIT_POLL_INTERVAL = 60000;  // landing page: re-check for new counts every 60s
+  const QS_LOAD_WAIT = 8000;          // QuickSight needs time to render
 
   // --- Utility ---
   function log(msg) {
@@ -42,6 +50,8 @@
     if (url.includes('ont-base.corp.amazon.com') && url.includes('piles')) return 'piles';
     if (url.includes('0243f5c0-7de1-4ee2-ba5e-de2948e0802f')) return 'epp';
     if (url.includes('839b4877-6557-4e6b-a9d5-d3df4e36ff9f')) return 'ppa';
+    if (url.includes('81460ff9-4d8f-40af-94fa-775cf0fa7140')) return 'twms';
+    if (url.includes('roboscout') && url.includes('uis-diverts')) return 'diverts';
     return 'unknown';
   }
 
@@ -53,24 +63,23 @@
   }
 
   function getCurrentShift() {
-    // RFD2 night shift schedule (Central Time)
-    // Sun-Wed = Front Half (FH), Wed-Sat = Back Half (BH)
-    // Wed night counts as BH start
-    const now = new Date();
-    const ct = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
-    const day = ct.getDay(); // 0=Sun ... 6=Sat
+    // RFD2 (Central Time). Two shifts a day, split into week-halves:
+    //   Day   shift: 07:00 - 17:30 (MET extends to 18:30)
+    //   Night shift: 19:00 - 05:30 (MET extends to 06:30 next day)
+    //   Front Half (FH) = Sun/Mon/Tue shift-day · Back Half (BH) = Wed-Sat
+    // Returns a 4-way code: FHD / FHN / BHD / BHN.
+    const ct = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    const day = ct.getDay();   // 0=Sun ... 6=Sat
     const hour = ct.getHours();
 
-    // Night shift: 19:00 - 06:30 CT
-    // If before 06:30, the "shift day" is the previous calendar day
+    // Night = 19:00-06:59; pre-dawn (before 07:00) belongs to the previous
+    // calendar day's night shift.
+    const isNight = hour < 7 || hour >= 19;
     let shiftDay = day;
-    if (hour < 7) {
-      shiftDay = (day + 6) % 7; // previous day
-    }
+    if (isNight && hour < 7) shiftDay = (day + 6) % 7;
 
-    if (shiftDay >= 0 && shiftDay <= 2) return 'FH';
-    if (shiftDay >= 3 && shiftDay <= 6) return 'BH';
-    return 'FH';
+    const half = (shiftDay >= 0 && shiftDay <= 2) ? 'FH' : 'BH';
+    return half + (isNight ? 'N' : 'D');
   }
 
   function writeBridge(source, data) {
@@ -97,7 +106,7 @@
   }
 
   // --- Floating status badge ---
-  function createBadge(source) {
+  function createBadge(source, onClick) {
     const badge = document.createElement('div');
     badge.id = 'quality-bridge-badge';
     badge.style.cssText = `
@@ -109,7 +118,7 @@
     `;
     badge.textContent = `Quality Bridge: ${source.toUpperCase()} ⏳`;
     badge.title = 'Click to force re-scrape';
-    badge.addEventListener('click', () => runScrape());
+    badge.addEventListener('click', () => onClick());
     document.body.appendChild(badge);
     return badge;
   }
@@ -151,8 +160,11 @@
 
   // ============================================================
   // PILES REPORT SCRAPER (ont-base /piles/report — Area Breakdown)
+  // Works on the live page (no args) or on a fetched document
+  // (pass the parsed doc + the report URL for the audit params).
   // ============================================================
-  function scrapePilesReport() {
+  function scrapePilesReport(doc, urlStr) {
+    doc = doc || document;
     log('Scraping piles report (Area Breakdown)...');
 
     const data = {
@@ -171,20 +183,20 @@
     };
 
     // Audit params from URL
-    const q = new URLSearchParams(location.search);
+    const q = new URL(urlStr || location.href, location.origin).searchParams;
     data.auditDate = q.get('audit_date');
     data.auditShift = q.get('audit_shift');
     data.auditNumber = q.get('audit_number');
 
-    // Header totals
-    const bodyText = document.body.innerText;
+    // Header totals (fetched docs have no layout, so innerText may be missing)
+    const bodyText = doc.body ? (doc.body.innerText || doc.body.textContent || '') : '';
     let m = bodyText.match(/Piles\s*Total\s*:?\s*([\d,]+)/i);
     if (m) data.totalPiles = num(m[1]);
     m = bodyText.match(/Adjusted\s*Total\s*:?\s*([\d,]+)/i);
     if (m) data.adjustedTotal = num(m[1]);
 
     // Walk every table; Area Breakdown tables have "Physical Area"/"Physical Location" headers
-    document.querySelectorAll('table').forEach((table, ti) => {
+    doc.querySelectorAll('table').forEach((table, ti) => {
       const grid = expandTable(table);
       if (!grid.length) return;
 
@@ -223,6 +235,12 @@
         if (x.includes('total') && !x.includes('adjusted')) idxTotal = i;
       });
 
+      // The report nests each area table inside an outer wrapper table whose
+      // cells contain the *entire* inner table text, so "Physical Area" and
+      // "Physical Location" land in the same merged column. Those rows are
+      // garbage (all-null totals) — skip the wrapper entirely.
+      if (idxArea !== -1 && idxArea === idxLoc) return;
+
       data.diagnostics.push({
         table: ti,
         headers: grid[hr].slice(0, 20),
@@ -260,7 +278,9 @@
 
     Object.keys(byArea).forEach(area => {
       const rows = byArea[area];
-      const subtotal = rows.find(r => !r.location || normName(r.location) === normName(area));
+      const subtotalRows = rows.filter(r => !r.location || normName(r.location) === normName(area));
+      // Prefer a subtotal row that actually carries a number
+      const subtotal = subtotalRows.find(r => r.total !== null || r.adjusted !== null) || subtotalRows[0];
       const locRows = rows.filter(r => r.location && normName(r.location) !== normName(area));
 
       let tot = null, adj = null;
@@ -344,6 +364,13 @@
         }
       });
     }
+
+    // Aging breakdown fallback (carried over from v1.0.0) — dumps any
+    // aging-tagged blocks into summary if the page exposes them.
+    const agingElements = document.querySelectorAll('[class*="aging"], [class*="age"], .pile-age');
+    agingElements.forEach(el => {
+      data.summary[el.className] = el.textContent.trim();
+    });
 
     if (data.tableRows.length === 0 && data.totalPiles === null) {
       const allText = document.body.innerText;
@@ -447,6 +474,16 @@
       if (pctMatches) data.kpis.allPercentages = pctMatches.slice(0, 10);
     }
 
+    if (dashboardType === 'twms') {
+      data.kpis.targetShift = getCurrentShift();
+
+      const complianceMatch = allText.match(/(?:compliance|TWMS)[:\s]*(\d+\.?\d*)\s*%/i);
+      if (complianceMatch) data.kpis.compliance = complianceMatch[1] + '%';
+
+      const pctMatches = allText.match(/(\d{1,3}\.\d{1,2})%/g);
+      if (pctMatches) data.kpis.allPercentages = pctMatches.slice(0, 10);
+    }
+
     const svgs = document.querySelectorAll('svg');
     svgs.forEach((svg, i) => {
       const texts = Array.from(svg.querySelectorAll('text'))
@@ -459,6 +496,142 @@
 
     log(`QuickSight ${dashboardType}: ${data.visuals.length} visuals, ${data.tables.length} tables`);
     return data;
+  }
+
+  // ============================================================
+  // ROBOSCOUT SCRAPER (Grafana — UIS diverts, RFD2)
+  // Grafana renders stat/table panels in the DOM; time-series are SVG.
+  // Generic panel-oriented harvest (title + numbers + tables), same
+  // tune-later approach as the QuickSight scraper.
+  // ============================================================
+  function scrapeRoboScout() {
+    log('Scraping RoboScout UIS diverts...');
+    const params = new URLSearchParams(location.search);
+    const data = {
+      type: 'diverts',
+      shift: getCurrentShift(),
+      site: params.get('var-site') || 'RFD2',
+      station: params.get('var-station') || 'All',
+      range: { from: params.get('from') || '', to: params.get('to') || '' },
+      kpis: { targetShift: getCurrentShift() },
+      panels: [],
+      tables: []
+    };
+
+    const panelSel =
+      '[data-testid^="data-testid Panel"], .panel-container, ' +
+      '[class*="panel-container"], .react-grid-item';
+    let panels = Array.from(document.querySelectorAll(panelSel));
+    // keep only outermost panels (Grafana nests wrappers)
+    panels = panels.filter(p => !panels.some(o => o !== p && o.contains(p)));
+    if (!panels.length) panels = Array.from(document.querySelectorAll('section'));
+
+    panels.forEach((panel, idx) => {
+      const titleEl = panel.querySelector(
+        '.panel-title, [class*="panel-title"], ' +
+        '[data-testid="data-testid Panel header"], h2, h6'
+      );
+      let title = (titleEl ? titleEl.textContent : '').replace(/\s+/g, ' ').trim();
+      if (!title) title = 'Panel_' + idx;
+      if (title.length > 90) title = title.slice(0, 90);
+      const txt = (panel.innerText || '').replace(/\s+/g, ' ').trim();
+      if (!txt) return;
+      const nums = (txt.match(/-?[\d,]+\.?\d*%?/g) || []).slice(0, 12);
+      data.panels.push({ title, values: nums, raw: txt.slice(0, 160) });
+    });
+
+    // table panels (react-data-grid / role=table / plain tables)
+    document.querySelectorAll('[role="table"], table, [class*="rdg"]').forEach(t => {
+      const headers = Array.from(t.querySelectorAll('[role="columnheader"], thead th'))
+        .map(h => h.textContent.trim()).filter(Boolean);
+      const rows = [];
+      t.querySelectorAll('[role="row"], tbody tr').forEach(r => {
+        const cells = Array.from(r.querySelectorAll('[role="gridcell"], [role="cell"], td'))
+          .map(c => c.textContent.trim());
+        if (cells.length && cells.some(c => c !== '')) rows.push(cells);
+      });
+      if (headers.length || rows.length) data.tables.push({ headers, rows: rows.slice(0, 50) });
+    });
+
+    log(`RoboScout: ${data.panels.length} panels, ${data.tables.length} tables`);
+    return data;
+  }
+
+  // ============================================================
+  // AUDIT WATCHER (piles landing page — "Reporting" screen)
+  // Re-fetches the landing page every AUDIT_POLL_INTERVAL, finds the
+  // completed (green) counts, fetches each report and bridges it.
+  // A new count finishing shows up here without anyone touching the tab.
+  // ============================================================
+  const sentAuditHashes = {}; // key -> hash of last payload sent
+
+  function findAuditLinksIn(doc) {
+    const seen = {};
+    const out = [];
+    doc.querySelectorAll('a[href*="piles/report"]').forEach(a => {
+      let u;
+      try { u = new URL(a.getAttribute('href'), location.origin); } catch (e) { return; }
+      const date = u.searchParams.get('audit_date');
+      const numStr = u.searchParams.get('audit_number');
+      if (!date || !numStr) return;
+      const key = `${date}|${u.searchParams.get('audit_shift') || ''}|${numStr}`;
+      if (seen[key]) return;
+      seen[key] = true;
+      // Bootstrap-style buttons: green = btn-success (completed), red = btn-danger
+      const cls = a.className + ' ' + (a.parentElement ? a.parentElement.className : '');
+      out.push({
+        key,
+        url: u.href,
+        label: a.textContent.trim() || key,
+        completed: /success/i.test(cls) && !/danger/i.test(cls)
+      });
+    });
+    return out;
+  }
+
+  function fetchDoc(url) {
+    return fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(html => new DOMParser().parseFromString(html, 'text/html'));
+  }
+
+  let watchCount = 0;
+  function watchAudits() {
+    watchCount++;
+    fetchDoc(location.href).then(doc => {
+      const links = findAuditLinksIn(doc);
+      if (!links.length) {
+        updateBadge('Quality Bridge: WATCH — no counts listed yet', false);
+        return;
+      }
+      // Only completed counts; if the green/red classes ever change, fall back
+      // to trying them all — empty reports are skipped below anyway.
+      let targets = links.filter(l => l.completed);
+      if (!targets.length) targets = links;
+      updateBadge(`Quality Bridge: WATCH ${targets.length}/${links.length} counts ✓ (#${watchCount})`, true);
+
+      let chain = Promise.resolve();
+      targets.forEach(l => {
+        chain = chain
+          .then(() => fetchDoc(l.url))
+          .then(reportDoc => {
+            const data = scrapePilesReport(reportDoc, l.url);
+            if (!data.areaRows.length && data.totalPiles === null) {
+              log(`${l.label}: no data yet, skipping`);
+              return;
+            }
+            const hash = JSON.stringify([data.totalPiles, data.adjustedTotal, data.areaTotals, data.areaAdjusted]);
+            if (sentAuditHashes[l.key] === hash) return; // unchanged since last send
+            sentAuditHashes[l.key] = hash;
+            log(`New/updated count ${l.label} (${l.key}) — sending to bridge`);
+            writeBridge('piles', data);
+          })
+          .catch(e => log(`${l.label}: ${e.message}`));
+      });
+    }).catch(e => updateBadge('Quality Bridge: WATCH ✗ ' + e.message, false));
   }
 
   // ============================================================
@@ -479,6 +652,12 @@
           break;
         case 'ppa':
           data = scrapeQuickSight('ppa');
+          break;
+        case 'twms':
+          data = scrapeQuickSight('twms');
+          break;
+        case 'diverts':
+          data = scrapeRoboScout();
           break;
         default:
           log('Unknown source, skipping');
@@ -505,15 +684,29 @@
     }
   }
 
-  // Wait for page to fully render before first scrape
-  const initialDelay = source === 'piles' ? 3000 : QS_LOAD_WAIT;
+  // Landing page ("Reporting" screen) gets the audit watcher instead of a scrape:
+  // it re-fetches the page itself, so new counts are picked up automatically
+  // without reloading the tab.
+  const isPilesLanding = source === 'piles' && !isPilesReport();
 
-  log(`Detected source: ${source}, first scrape in ${initialDelay / 1000}s`);
-  createBadge(source);
+  if (isPilesLanding) {
+    log(`Piles landing page detected — watching for completed counts every ${AUDIT_POLL_INTERVAL / 1000}s`);
+    createBadge('piles', watchAudits);
+    setTimeout(() => {
+      watchAudits();
+      setInterval(watchAudits, AUDIT_POLL_INTERVAL);
+    }, 2500);
+  } else {
+    // Wait for page to fully render before first scrape
+    const initialDelay = source === 'piles' ? 3000 : QS_LOAD_WAIT;
 
-  setTimeout(() => {
-    runScrape();
-    setInterval(runScrape, SCRAPE_INTERVAL);
-  }, initialDelay);
+    log(`Detected source: ${source}, first scrape in ${initialDelay / 1000}s`);
+    createBadge(source, runScrape);
+
+    setTimeout(() => {
+      runScrape();
+      setInterval(runScrape, SCRAPE_INTERVAL);
+    }, initialDelay);
+  }
 
 })();
