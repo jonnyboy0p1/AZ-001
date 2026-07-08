@@ -3,14 +3,34 @@ const SHIFT_LOG_KEY = 'ob_prc_vscode_shift_results_log_v1';
 const LEGACY_SHIFT_LOG_KEY = 'OB_PERIOD_REPORT_CARD_SHIFT_LOGS';
 const XBELT_LOG_KEY = 'ob_prc_vscode_xbelt_downtime_log_v1';
 const THEME_KEY = 'ob_prc_vscode_app_theme';
-const VALID_THEMES = ['midnight', 'light', 'darkwhite', 'ice', 'forest'];
-const THEME_LABELS = {
-  midnight: 'Midnight Dark',
-  light: 'Clean Light',
-  darkwhite: 'Dark White',
-  ice: 'Ice Blue',
-  forest: 'Forest Ops'
+const THEME_VARIANTS_KEY = 'ob_prc_vscode_app_theme_variants';
+const THEME_FAMILIES = {
+  midnight: {
+    label: 'Midnight Dark',
+    variants: {
+      default: 'Classic Blue',
+      violet: 'Violet Night',
+      carbon: 'Carbon Steel',
+      rose: 'Deep Rose'
+    }
+  },
+  ice: {
+    label: 'Ice Blue',
+    variants: {
+      default: 'Sky Blue',
+      teal: 'Glacier Teal'
+    }
+  },
+  light: { label: 'Clean Light' },
+  darkwhite: { label: 'Dark White' },
+  ember: { label: 'Ember Copper' }
 };
+const VALID_THEMES = [
+  'midnight', 'midnight-violet', 'midnight-carbon', 'midnight-rose',
+  'ice', 'ice-teal',
+  'light', 'darkwhite', 'ember', 'forest'
+];
+const LEGACY_THEME_MAP = { forest: 'ember' };
 const FOCUS_KEY = 'ob_prc_vscode_app_focus';
 const TOP_KEY = 'ob_prc_vscode_app_top_min';
 const COPY_BLOCK_KEY = 'ob_prc_vscode_copy_block_min';
@@ -457,37 +477,120 @@ function loadState() {
   } catch {}
 }
 
+function readThemeVariants() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(THEME_VARIANTS_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveThemeVariant(family, variant) {
+  const next = { ...readThemeVariants(), [family]: variant || 'default' };
+  try { localStorage.setItem(THEME_VARIANTS_KEY, JSON.stringify(next)); } catch {}
+}
+
+function themeFamily(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  if (mapped.startsWith('midnight-')) return 'midnight';
+  if (mapped.startsWith('ice-')) return 'ice';
+  return mapped;
+}
+
+function themeVariant(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  if (mapped.startsWith('midnight-')) return mapped.slice('midnight-'.length);
+  if (mapped.startsWith('ice-')) return mapped.slice('ice-'.length);
+  return 'default';
+}
+
+function resolveThemeId(family, variant = 'default') {
+  const base = LEGACY_THEME_MAP[family] || family;
+  if (!variant || variant === 'default') return base;
+  return `${base}-${variant}`;
+}
+
+function themeDisplayLabel(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  const family = themeFamily(mapped);
+  const familyMeta = THEME_FAMILIES[family];
+  if (!familyMeta) return mapped;
+  const variant = themeVariant(mapped);
+  const variantLabel = familyMeta.variants?.[variant];
+  return variantLabel ? `${familyMeta.label} · ${variantLabel}` : familyMeta.label;
+}
+
 function readStoredTheme() {
   try {
     const fromKey = localStorage.getItem(THEME_KEY);
-    if (fromKey && VALID_THEMES.includes(fromKey)) return fromKey;
+    if (fromKey) {
+      const mapped = LEGACY_THEME_MAP[fromKey] || fromKey;
+      if (VALID_THEMES.includes(mapped)) return mapped;
+    }
     const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    if (state.themeSelect && VALID_THEMES.includes(state.themeSelect)) return state.themeSelect;
+    const family = LEGACY_THEME_MAP[state.themeSelect] || state.themeSelect;
+    if (family && THEME_FAMILIES[family]) {
+      const variants = readThemeVariants();
+      const resolved = resolveThemeId(family, variants[family] || 'default');
+      if (VALID_THEMES.includes(resolved)) return resolved;
+      return family;
+    }
   } catch {}
   return 'midnight';
 }
 
-function persistThemeChoice(theme) {
-  localStorage.setItem(THEME_KEY, theme);
+function persistThemeChoice(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  localStorage.setItem(THEME_KEY, mapped);
+  saveThemeVariant(themeFamily(mapped), themeVariant(mapped));
   try {
     const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    state.themeSelect = theme;
+    state.themeSelect = themeFamily(mapped);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {}
 }
 
-function applyTheme(theme) {
-  const next = VALID_THEMES.includes(theme) ? theme : readStoredTheme();
+function syncThemeVariantUi(family) {
+  const wrap = $('themeVariantWrap');
+  const select = $('themeVariantSelect');
+  const meta = THEME_FAMILIES[family];
+  if (!wrap || !select) return;
+  const variants = meta?.variants;
+  if (!variants || Object.keys(variants).length <= 1) {
+    wrap.hidden = true;
+    select.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+  const current = themeVariant(readStoredTheme());
+  select.innerHTML = Object.entries(variants).map(([value, label]) =>
+    `<option value="${value}">${label}</option>`
+  ).join('');
+  select.value = variants[current] ? current : 'default';
+}
+
+function applyTheme(themeId) {
+  const fallback = readStoredTheme();
+  let next = themeId || fallback;
+  if (THEME_FAMILIES[next] && !next.includes('-')) {
+    const variants = readThemeVariants();
+    next = resolveThemeId(next, variants[next] || 'default');
+  }
+  next = LEGACY_THEME_MAP[next] || next;
+  if (!VALID_THEMES.includes(next)) next = fallback;
+
   VALID_THEMES.forEach((name) => {
     document.documentElement.classList.remove(`theme-${name}`);
     document.body.classList.remove(`theme-${name}`);
   });
   document.documentElement.classList.add(`theme-${next}`);
   document.body.classList.add(`theme-${next}`);
-  if ($('themeSelect')) $('themeSelect').value = next;
-  if ($('themeChip')) {
-    $('themeChip').textContent = `Theme: ${THEME_LABELS[next] || next}`;
-  }
+
+  const family = themeFamily(next);
+  if ($('themeSelect')) $('themeSelect').value = family;
+  syncThemeVariantUi(family);
+  if ($('themeChip')) $('themeChip').textContent = `Theme: ${themeDisplayLabel(next)}`;
   persistThemeChoice(next);
 }
 
@@ -3548,6 +3651,11 @@ function bind() {
   });
 
   $('themeSelect').addEventListener('change', (e) => applyTheme(e.target.value));
+  $('themeVariantSelect')?.addEventListener('change', (e) => {
+    const family = $('themeSelect')?.value || 'midnight';
+    saveThemeVariant(family, e.target.value);
+    applyTheme(resolveThemeId(family, e.target.value));
+  });
   $('focusMode').addEventListener('change', (e) => applyFocus(e.target.value));
   document.querySelectorAll('[data-view-tab]').forEach((tab) => {
     tab.addEventListener('click', () => applyView(tab.dataset.viewTab));
