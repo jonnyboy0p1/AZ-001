@@ -3,6 +3,14 @@ const SHIFT_LOG_KEY = 'ob_prc_vscode_shift_results_log_v1';
 const LEGACY_SHIFT_LOG_KEY = 'OB_PERIOD_REPORT_CARD_SHIFT_LOGS';
 const XBELT_LOG_KEY = 'ob_prc_vscode_xbelt_downtime_log_v1';
 const THEME_KEY = 'ob_prc_vscode_app_theme';
+const VALID_THEMES = ['midnight', 'light', 'darkwhite', 'ice', 'forest'];
+const THEME_LABELS = {
+  midnight: 'Midnight Dark',
+  light: 'Clean Light',
+  darkwhite: 'Dark White',
+  ice: 'Ice Blue',
+  forest: 'Forest Ops'
+};
 const FOCUS_KEY = 'ob_prc_vscode_app_focus';
 const TOP_KEY = 'ob_prc_vscode_app_top_min';
 const COPY_BLOCK_KEY = 'ob_prc_vscode_copy_block_min';
@@ -449,13 +457,38 @@ function loadState() {
   } catch {}
 }
 
+function readStoredTheme() {
+  try {
+    const fromKey = localStorage.getItem(THEME_KEY);
+    if (fromKey && VALID_THEMES.includes(fromKey)) return fromKey;
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (state.themeSelect && VALID_THEMES.includes(state.themeSelect)) return state.themeSelect;
+  } catch {}
+  return 'midnight';
+}
+
+function persistThemeChoice(theme) {
+  localStorage.setItem(THEME_KEY, theme);
+  try {
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    state.themeSelect = theme;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
 function applyTheme(theme) {
-  const next = theme || localStorage.getItem(THEME_KEY) || 'midnight';
-  document.body.classList.remove('theme-midnight', 'theme-light', 'theme-darkwhite', 'theme-ice', 'theme-forest');
+  const next = VALID_THEMES.includes(theme) ? theme : readStoredTheme();
+  VALID_THEMES.forEach((name) => {
+    document.documentElement.classList.remove(`theme-${name}`);
+    document.body.classList.remove(`theme-${name}`);
+  });
+  document.documentElement.classList.add(`theme-${next}`);
   document.body.classList.add(`theme-${next}`);
-  $('themeSelect').value = next;
-  $('themeChip').textContent = `Theme: ${$('themeSelect').selectedOptions[0].textContent}`;
-  localStorage.setItem(THEME_KEY, next);
+  if ($('themeSelect')) $('themeSelect').value = next;
+  if ($('themeChip')) {
+    $('themeChip').textContent = `Theme: ${THEME_LABELS[next] || next}`;
+  }
+  persistThemeChoice(next);
 }
 
 function applyFocus(value) {
@@ -3017,6 +3050,8 @@ function resetHybridBridgeState(shiftDate, includeMET) {
     localStorage.setItem('OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE', JSON.stringify(payload));
     localStorage.setItem('OB_PERIOD_REPORT_CARD_BRIDGE', JSON.stringify(payload));
   } catch {}
+
+  window.postMessage({ type: 'PRC_V2_HYBRID_RESET', payload }, '*');
 }
 
 function clearWorkingShift(shiftDate, includeMET, statusMessage = '') {
@@ -3287,6 +3322,7 @@ function loadEmbeddedMonitor(type) {
 }
 
 async function requestBridgePull() {
+  window.postMessage({ type: 'PRC_V2_HYBRID_PULL_REQUEST' }, '*');
   try {
     const res = await fetch(SERVER_BRIDGE_URL);
     if (res.ok && res.status !== 204) {
@@ -3318,37 +3354,36 @@ function bridgePullRequestPayload(source) {
   };
 }
 
-async function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
+function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
+  const payload = bridgePullRequestPayload(source);
+  window.postMessage({
+    type: 'PRC_V2_HYBRID_SOURCE_PULL',
+    ...payload
+  }, '*');
   const label = trigger === 'auto'
     ? `Auto ${bridgeSourceLabel(source)} refresh requested.`
     : `${bridgeSourceLabel(source)} pull requested.`;
   updateMiniStatus(label);
   setAutoFclmStatus(label, 'good');
-  try {
-    const res = await fetch(SERVER_BRIDGE_URL);
-    if (res.ok && res.status !== 204) {
-      const json = await res.json();
-      if (json?.payload && hasUsableBridgeData(json.payload)) {
-        lastServerBridgeTs = json.receivedAt || Date.now();
-        importBridgePayload(json.payload, `${bridgeSourceLabel(source)} data imported from server.`);
-        return;
-      }
-    }
-  } catch {}
-  const imported = importStoredBridgePayload(`${bridgeSourceLabel(source)} data imported from storage.`);
-  if (!imported) {
-    updateMiniStatus(`${label} Open the source links above or paste bridge JSON manually.`);
-  }
   startBridgeRefreshPoll(`${bridgeSourceLabel(source)} bridge data refreshed.`);
 }
 
-async function requestFclmPull(source = 'manual') {
+function requestFclmPull(source = 'manual') {
+  const includeMET = $('useMET')?.value === 'true';
+  const periods = pullPeriodsForShift();
+  window.postMessage({
+    type: 'PRC_V2_HYBRID_FCLM_PULL',
+    periods,
+    shiftDate: $('shiftDate')?.value || defaultShiftDateString(),
+    includeMET,
+    includeMonitor: true
+  }, '*');
   const label = source === 'auto'
     ? 'Auto FCLM + flow refresh requested.'
     : 'FCLM, FL Utilization, and Battle of the Belt pull requested.';
   updateMiniStatus(label);
   setAutoFclmStatus(label, 'good');
-  await requestBridgeSourcePull('all', source === 'auto' ? 'auto' : 'manual');
+  startBridgeRefreshPoll('FCLM and flow bridge data refreshed.');
 }
 
 function setAutoFclmStatus(message, cls = '') {
@@ -3678,7 +3713,7 @@ function init() {
   generatedCopyEdited = localStorage.getItem(COPY_BLOCK_EDITED_KEY) === 'true';
   periodSummaryEdited = localStorage.getItem(PERIOD_SUMMARY_EDITED_KEY) === 'true';
   eosSummaryEdited = localStorage.getItem(EOS_SUMMARY_EDITED_KEY) === 'true';
-  applyTheme($('themeSelect').value || localStorage.getItem(THEME_KEY) || 'midnight');
+  applyTheme(readStoredTheme());
   applyFocus($('focusMode').value || localStorage.getItem(FOCUS_KEY) || 'false');
   const requestedView = new URLSearchParams(window.location.search).get('view');
   applyView(requestedView || document.body.dataset.startView || localStorage.getItem(VIEW_KEY) || 'overview');

@@ -15,7 +15,7 @@
   --thead:#0a1424;
   --gradient:radial-gradient(circle at top left,#10203e 0,#07101d 48%,#030814 100%);
 }
-body.theme-light{
+html.theme-light, body.theme-light{
   --bg:#f2f6fb;
   --panel:#ffffff;
   --panel2:#f7fbff;
@@ -31,7 +31,7 @@ body.theme-light{
   --thead:#edf3fa;
   --gradient:linear-gradient(135deg,#f9fbff 0,#eef4ff 52%,#dce9ff 100%);
 }
-body.theme-darkwhite{
+html.theme-darkwhite, body.theme-darkwhite{
   --bg:#121212;
   --panel:#1c1c1c;
   --panel2:#111111;
@@ -47,7 +47,7 @@ body.theme-darkwhite{
   --thead:#090909;
   --gradient:radial-gradient(circle at top left,#2c2c2c 0,#111111 50%,#050505 100%);
 }
-body.theme-ice{
+html.theme-ice, body.theme-ice{
   --bg:#eff7ff;
   --panel:#fbfdff;
   --panel2:#edf7ff;
@@ -63,7 +63,7 @@ body.theme-ice{
   --thead:#e2f1fd;
   --gradient:linear-gradient(135deg,#ffffff 0,#eaf5ff 52%,#d5e9ff 100%);
 }
-body.theme-forest{
+html.theme-forest, body.theme-forest{
   --bg:#07130d;
   --panel:#102019;
   --panel2:#0b1710;
