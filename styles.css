@@ -14,6 +14,11 @@
   --input:#06101f;
   --thead:#0a1424;
   --gradient:radial-gradient(circle at top left,#10203e 0,#07101d 48%,#030814 100%);
+  --accent:#2f6fea;
+  --accent-text:#ffffff;
+  --button:#334155;
+  --button-text:#ffffff;
+  --button-soft:#1e293b;
 }
 html.theme-light, body.theme-light{
   --bg:#f2f6fb;
@@ -30,6 +35,11 @@ html.theme-light, body.theme-light{
   --input:#ffffff;
   --thead:#edf3fa;
   --gradient:linear-gradient(135deg,#f9fbff 0,#eef4ff 52%,#dce9ff 100%);
+  --accent:#2563eb;
+  --accent-text:#ffffff;
+  --button:#475569;
+  --button-text:#ffffff;
+  --button-soft:#e2e8f0;
 }
 html.theme-darkwhite, body.theme-darkwhite{
   --bg:#121212;
@@ -38,7 +48,7 @@ html.theme-darkwhite, body.theme-darkwhite{
   --line:#3c3c3c;
   --text:#f3f3f3;
   --muted:#c8c8c8;
-  --blue:#ffffff;
+  --blue:#d4d4d4;
   --green:#89efb0;
   --yellow:#f4d06f;
   --red:#ff9696;
@@ -46,6 +56,11 @@ html.theme-darkwhite, body.theme-darkwhite{
   --input:#0e0e0e;
   --thead:#090909;
   --gradient:radial-gradient(circle at top left,#2c2c2c 0,#111111 50%,#050505 100%);
+  --accent:#f5f5f5;
+  --accent-text:#141414;
+  --button:#2a2a2a;
+  --button-text:#f3f3f3;
+  --button-soft:#222222;
 }
 html.theme-ice, body.theme-ice{
   --bg:#eff7ff;
@@ -62,6 +77,11 @@ html.theme-ice, body.theme-ice{
   --input:#ffffff;
   --thead:#e2f1fd;
   --gradient:linear-gradient(135deg,#ffffff 0,#eaf5ff 52%,#d5e9ff 100%);
+  --accent:#0284c7;
+  --accent-text:#ffffff;
+  --button:#475569;
+  --button-text:#ffffff;
+  --button-soft:#dbeafe;
 }
 html.theme-forest, body.theme-forest{
   --bg:#07130d;
@@ -78,6 +98,11 @@ html.theme-forest, body.theme-forest{
   --input:#09150d;
   --thead:#08140d;
   --gradient:radial-gradient(circle at top left,#1b5137 0,#07130d 48%,#020805 100%);
+  --accent:#34d399;
+  --accent-text:#04140d;
+  --button:#1f3d31;
+  --button-text:#ecfff2;
+  --button-soft:#132820;
 }
 *{box-sizing:border-box}
 [hidden]{
@@ -175,18 +200,24 @@ h2{margin:0;font-size:17px;line-height:1.1}
   border:1px solid var(--line);
 }
 .view-tab.active{
-  background:var(--blue);
-  color:#fff;
+  background:var(--accent);
+  color:var(--accent-text);
   border-color:transparent;
 }
 button{
   border:0;
   border-radius:12px;
   padding:10px 13px;
-  background:#334155;
-  color:#fff;
+  background:var(--button);
+  color:var(--button-text);
   font-weight:900;
   cursor:pointer;
+}
+html.theme-light button.soft,
+html.theme-light .button-link.soft,
+body.theme-light button.soft,
+body.theme-light .button-link.soft{
+  color:var(--text);
 }
 button:hover{filter:brightness(1.1)}
 button:disabled{
@@ -194,9 +225,15 @@ button:disabled{
   opacity:.55;
   filter:none;
 }
-button.primary{background:var(--blue)}
-button.danger{background:#b91c1c}
-button.soft{background:#1e293b}
+button.primary{
+  background:var(--accent);
+  color:var(--accent-text);
+}
+button.danger{background:#b91c1c;color:#fff}
+button.soft{
+  background:var(--button-soft);
+  color:var(--button-text);
+}
 .button-link{
   display:inline-flex;
   align-items:center;
@@ -205,13 +242,19 @@ button.soft{background:#1e293b}
   padding:10px 13px;
   border:0;
   border-radius:12px;
-  background:#334155;
-  color:#fff;
+  background:var(--button);
+  color:var(--button-text);
   font-weight:900;
   text-decoration:none;
 }
-.button-link.primary{background:var(--blue)}
-.button-link.soft{background:#1e293b}
+.button-link.primary{
+  background:var(--accent);
+  color:var(--accent-text);
+}
+.button-link.soft{
+  background:var(--button-soft);
+  color:var(--button-text);
+}
 .tinybtn{
   padding:7px 9px;
   border-radius:10px;
@@ -1192,15 +1235,21 @@ body.met-enabled .view-tabs{
   min-height:520px;
   height:100%;
 }
+html.theme-light button.soft,
+html.theme-light .button-link.soft,
+body.theme-light button.soft,
+body.theme-light .button-link.soft{
+  color:var(--text);
+}
 .copy-block{
   margin:0;
   min-height:96px;
   resize:vertical;
   padding:16px 18px;
-  border:1px solid #cbd5e1;
+  border:1px solid var(--line);
   border-radius:10px;
-  background:#f8fafc;
-  color:#0f172a;
+  background:var(--input);
+  color:var(--text);
   font:800 14px/1.55 Consolas,Menlo,monospace;
   white-space:pre-wrap;
   word-break:break-word;
@@ -1518,8 +1567,8 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   font-size:15px;
 }
 .pace-stream-tab.active{
-  background:var(--blue);
-  color:#fff;
+  background:var(--accent);
+  color:var(--accent-text);
   border-color:transparent;
 }
 .pace-board{
