@@ -1,8 +1,8 @@
 {
-  "name": "rb21-period-report-card",
+  "name": "rb021-period-report-card",
   "private": true,
   "version": "2.4.0",
-  "description": "RB21 — Outbound Period Report Card with local server proxy on port 5220 (no Tampermonkey required)",
+  "description": "RB021 — Outbound Period Report Card at C:\\Users\\rja09\\OneDrive\\Desktop\\RB021 (local server on port 5220)",
   "scripts": {
     "start": "python server.py",
     "start:node": "node server.js"

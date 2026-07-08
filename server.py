@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""RB21 local dashboard + bridge server (port 5220).
+"""RB021 local dashboard + bridge server (port 5220).
 
-Serves static files, stores bridge payloads at /bridge, and proxies authenticated
-requests to Amazon internal sites using the local Midway session cookie.
+Project folder: C:\\Users\\rja09\\OneDrive\\Desktop\\RB021
 """
 
 from __future__ import annotations
@@ -19,8 +18,15 @@ from pathlib import Path
 from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, unquote, urlparse
 
-PORT = 5220
 ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = ROOT / "config.json"
+if CONFIG_PATH.is_file():
+    with CONFIG_PATH.open(encoding="utf-8") as f:
+        PROJECT_CONFIG = json.load(f)
+else:
+    PROJECT_CONFIG = {}
+
+PORT = int(PROJECT_CONFIG.get("serverPort", 5220))
 COOKIE_FILE = os.path.expanduser("~/.midway/cookie")
 COOKIE_MAX_AGE = 12 * 3600
 
@@ -290,8 +296,10 @@ def main() -> None:
     httpd = ThreadedHTTPServer(("127.0.0.1", PORT), RB21Handler)
     print()
     print("  ╔══════════════════════════════════════════╗")
-    print("  ║   OB Period Report Card — Local Server     ║")
+    print("  ║   OB Period Report Card (RB021) — Local Server  ║")
     print("  ╚══════════════════════════════════════════╝")
+    if PROJECT_CONFIG.get("projectRoot"):
+        print(f"  Project root  {PROJECT_CONFIG['projectRoot']}")
     print(f"  Dashboard   http://127.0.0.1:{PORT}/")
     print(f"  Bridge API  http://127.0.0.1:{PORT}/bridge")
     print(f"  Proxy API   http://127.0.0.1:{PORT}/api/proxy?url=...")
