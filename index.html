@@ -3430,7 +3430,7 @@ button.copy-success{
                   <p>Auto pulls on the quarter hour, or faster during an active pull override.</p>
                 </div>
                 <div class="live-metrics-actions">
-                  <span id="liveMetricsBridgeState">Userscript bridge not detected yet</span>
+                  <span id="liveMetricsBridgeState">Checking server proxy…</span>
                   <button id="pullLiveMetricsBtn" class="primary">Pull Live Metrics Now</button>
                 </div>
               </div>
@@ -7431,8 +7431,6 @@ function resetHybridBridgeState(shiftDate, includeMET) {
     localStorage.setItem('OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE', JSON.stringify(payload));
     localStorage.setItem('OB_PERIOD_REPORT_CARD_BRIDGE', JSON.stringify(payload));
   } catch {}
-
-  window.postMessage({ type: 'PRC_V2_HYBRID_RESET', payload }, '*');
 }
 
 function clearWorkingShift(shiftDate, includeMET, statusMessage = '') {
@@ -7795,7 +7793,8 @@ function copyMonitorUrl(type, windowKey) {
 // endpoint instead of scraping the rendered iGraph page. The iGraph HTML is a
 // JS app shell with no numbers in it, so background pulls must hit the data
 // API. Fetches go through the Tampermonkey fetch bridge when present (CORS),
-// with a direct fetch fallback. All parsing happens here in the dashboard.
+// API. Fetches go through the local server proxy (/api/proxy) using your
+// Midway session cookie. All parsing happens here in the dashboard.
 // Auto pulls are clock-aligned to the quarter hour (:00/:15/:30/:45) so the
 // :00 pull closes out a full wall-clock hour for the hourly tracker.
 const LIVE_METRICS_VARIANT_KEY = 'ob_prc_vscode_live_metrics_variant';
@@ -7803,9 +7802,8 @@ const LIVE_METRICS_BODY_LIMIT = 800000;
 const LIVE_METRIC_TYPE_LABELS = { flUtil: 'FL Utilization', belt: 'Battle of the Belt' };
 let liveMetricsTimer = null;
 let liveMetricsRunning = false;
-let liveMetricsBridgeVersion = '';
+let serverProxyReady = false;
 let nextLiveMetricsPullAt = null;
-const liveFetchWaiters = new Map();
 
 function liveMetricsVariants(graphUrl) {
   const query = String(graphUrl).split('?').slice(1).join('?');
@@ -7958,30 +7956,34 @@ function liveValuesFromSeries(type, series) {
   return found ? { east: Math.round(grouped.east), west: Math.round(grouped.west) } : null;
 }
 
-function liveBridgeFetch(items, timeoutMs = 30000) {
-  return new Promise((resolve) => {
-    const requestId = `lm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const timer = setTimeout(() => {
-      liveFetchWaiters.delete(requestId);
-      resolve(null);
-    }, timeoutMs);
-    liveFetchWaiters.set(requestId, { resolve, timer });
-    window.postMessage({
-      type: 'PRC_V2_LIVE_FETCH_REQUEST',
-      requestId,
-      urls: items.map((item) => ({ id: item.id, url: item.url }))
-    }, '*');
-  });
-}
-
-async function liveDirectFetch(items) {
+async function liveServerFetch(items) {
   return Promise.all(items.map(async (item) => {
     try {
-      const res = await fetch(item.url, { credentials: 'include', signal: AbortSignal.timeout(20000) });
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(item.url)}`;
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(25000) });
+      if (res.headers.get('X-Proxy-Auth-Error') === 'true') {
+        const errJson = await res.json().catch(() => ({}));
+        return {
+          id: item.id,
+          ok: false,
+          status: errJson.code || 401,
+          error: errJson.message || 'auth required - run mwinit and restart the server'
+        };
+      }
       const body = await res.text();
-      return { id: item.id, ok: res.ok, status: res.status, body: body.slice(0, LIVE_METRICS_BODY_LIMIT) };
+      return {
+        id: item.id,
+        ok: res.ok,
+        status: Number(res.headers.get('X-Upstream-Status') || res.status || 0),
+        body: body.slice(0, LIVE_METRICS_BODY_LIMIT)
+      };
     } catch (err) {
-      return { id: item.id, ok: false, status: 0, error: err?.name === 'TimeoutError' ? 'timeout' : 'blocked (CORS) - install the Live Metrics userscript' };
+      return {
+        id: item.id,
+        ok: false,
+        status: 0,
+        error: err?.name === 'TimeoutError' ? 'timeout' : 'server proxy unavailable - run python server.py'
+      };
     }
   }));
 }
@@ -8023,13 +8025,28 @@ function updateLiveMetricsStatus(message, cls = '') {
   if (cls) el.classList.add(cls);
 }
 
-function updateLiveMetricsBridgeState() {
+async function updateLiveMetricsBridgeState() {
   const el = $('liveMetricsBridgeState');
   if (!el) return;
-  el.textContent = liveMetricsBridgeVersion
-    ? `Userscript bridge v${liveMetricsBridgeVersion} connected`
-    : 'Userscript bridge not detected - direct fetch fallback';
-  el.classList.toggle('good', !!liveMetricsBridgeVersion);
+  try {
+    const res = await fetch('/health', { signal: AbortSignal.timeout(3000) });
+    const data = await res.json();
+    serverProxyReady = data.status === 'ok' || data.manualCookie;
+    if (serverProxyReady) {
+      el.textContent = 'Server proxy connected';
+      el.classList.add('good');
+    } else if (data.status === 'stale') {
+      el.textContent = 'Server proxy online - Midway cookie stale (run mwinit)';
+      el.classList.remove('good');
+    } else {
+      el.textContent = 'Server proxy online - Midway cookie missing (run mwinit)';
+      el.classList.remove('good');
+    }
+  } catch {
+    serverProxyReady = false;
+    el.textContent = 'Server proxy offline - run python server.py';
+    el.classList.remove('good');
+  }
 }
 
 function renderLiveMetricsDiag(entries) {
@@ -8413,12 +8430,8 @@ async function runLiveMetricsPull(trigger = 'manual') {
   for (const variantIdx of variantOrder) {
     if (!pending.length) break;
     const batch = pending.map((item) => ({ id: item.id, url: item.variants[variantIdx].url }));
-    let results = await liveBridgeFetch(batch);
-    let channel = 'userscript';
-    if (!results) {
-      results = await liveDirectFetch(batch);
-      channel = 'direct';
-    }
+    const results = await liveServerFetch(batch);
+    const channel = 'server';
     const stillPending = [];
     for (const item of pending) {
       const res = (results || []).find((r) => r && r.id === item.id);
@@ -8479,9 +8492,9 @@ async function runLiveMetricsPull(trigger = 'manual') {
     updateLiveMetricsStatus(`Live metrics updated ${okCount}/${items.length} windows in ${seconds}s. Next auto pull on the quarter hour.`, 'good');
   } else {
     updateLiveMetricsStatus(
-      liveMetricsBridgeVersion
+      serverProxyReady
         ? 'Live metrics pull failed on every endpoint - open the diagnostic below and screenshot it.'
-        : 'Live metrics pull failed - userscript bridge not detected and direct fetch is blocked. Install rb20-bridge.user.js in Tampermonkey.',
+        : 'Live metrics pull failed - start python server.py and run mwinit so the server proxy can reach MonitorPortal.',
       'warn'
     );
   }
@@ -8588,7 +8601,6 @@ function pullMonitorWindow(type, windowKey) {
 }
 
 async function requestBridgePull() {
-  window.postMessage({ type: 'PRC_V2_HYBRID_PULL_REQUEST' }, '*');
   try {
     const res = await fetch(SERVER_BRIDGE_URL);
     if (res.ok && res.status !== 204) {
@@ -8626,36 +8638,38 @@ function bridgePullRequestPayload(source) {
   };
 }
 
-function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
-  const payload = bridgePullRequestPayload(source);
-  window.postMessage({
-    type: 'PRC_V2_HYBRID_SOURCE_PULL',
-    ...payload
-  }, '*');
+async function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
   const label = trigger === 'auto'
     ? `Auto ${bridgeSourceLabel(source)} refresh requested.`
     : `${bridgeSourceLabel(source)} pull requested.`;
   updateMiniStatus(label);
   setAutoFclmStatus(label, 'good');
+  try {
+    const res = await fetch(SERVER_BRIDGE_URL);
+    if (res.ok && res.status !== 204) {
+      const json = await res.json();
+      if (json?.payload && hasUsableBridgeData(json.payload)) {
+        lastServerBridgeTs = json.receivedAt || Date.now();
+        importBridgePayload(json.payload, `${bridgeSourceLabel(source)} data imported from server.`);
+        return;
+      }
+    }
+  } catch {}
+  const imported = importStoredBridgePayload(`${bridgeSourceLabel(source)} data imported from storage.`);
+  if (!imported) {
+    updateMiniStatus(`${label} Open the source links above or paste bridge JSON manually.`);
+  }
   startBridgeRefreshPoll(`${bridgeSourceLabel(source)} bridge data refreshed.`);
 }
 
-function requestFclmPull(source = 'manual') {
-  const includeMET = $('useMET')?.value === 'true';
-  const periods = pullPeriodsForShift();
-  window.postMessage({
-    type: 'PRC_V2_HYBRID_FCLM_PULL',
-    periods,
-    shiftDate: $('shiftDate')?.value || defaultShiftDateString(),
-    includeMET,
-    includeMonitor: true
-  }, '*');
+async function requestFclmPull(source = 'manual') {
   const label = source === 'auto'
     ? 'Auto FCLM + flow refresh requested.'
     : 'FCLM, FL Utilization, and Battle of the Belt pull requested.';
   updateMiniStatus(label);
   setAutoFclmStatus(label, 'good');
-  startBridgeRefreshPoll('FCLM and flow bridge data refreshed.');
+  await requestBridgeSourcePull('all', source === 'auto' ? 'auto' : 'manual');
+  runLiveMetricsPull(source === 'auto' ? 'auto' : 'manual');
 }
 
 function setAutoFclmStatus(message, cls = '') {
@@ -9080,20 +9094,6 @@ function bind() {
   });
 
   window.addEventListener('message', (event) => {
-    if (event.data?.type === 'PRC_V2_LIVE_BRIDGE_READY') {
-      liveMetricsBridgeVersion = event.data.version || '1.0.0';
-      updateLiveMetricsBridgeState();
-      return;
-    }
-    if (event.data?.type === 'PRC_V2_LIVE_FETCH_RESULT') {
-      const waiter = liveFetchWaiters.get(event.data.requestId);
-      if (waiter) {
-        clearTimeout(waiter.timer);
-        liveFetchWaiters.delete(event.data.requestId);
-        waiter.resolve(Array.isArray(event.data.results) ? event.data.results : []);
-      }
-      return;
-    }
     if (event.data?.type === 'PRC_V2_HYBRID_RESET_DASHBOARD') {
       const shift = event.data.payload?.shift || {};
       const targetDate = shift.shiftDate || resetShiftDateTarget($('shiftDate').value);
@@ -9183,6 +9183,7 @@ function init() {
   configureFclmAutoRefresh(true);
   startServerBridgePoll();
   startLiveMetricsAutoRefresh();
+  updateLiveMetricsBridgeState();
   updateLiveClock();
   setInterval(updateLiveClock, 10000);
 }
