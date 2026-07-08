@@ -1,0 +1,10 @@
+{
+  "name": "rb20-period-report-card",
+  "private": true,
+  "version": "2.3.0",
+  "description": "RB20 — Outbound Period Report Card with unified Tampermonkey bridge and local server on port 5220",
+  "scripts": {
+    "start": "python server.py",
+    "start:node": "node server.js"
+  }
+}
