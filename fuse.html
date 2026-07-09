@@ -1,0 +1,1383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FUSE · IXD Operations Hub</title>
+<style>
+:root{--ink:#14213d;--teal:#008891;--gold:#ffb703;--red:#d95d39;--green:#2a9d8f;--line:#d9e2ec;--field:#f0f4fa;--white:#fff;--ob:#9a3412}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5}
+.fuse-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--ink);position:sticky;top:0;z-index:100}
+.brand{font-size:16px;font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;flex-shrink:0}
+.brand em{color:rgba(255,255,255,.3);font-style:normal;font-weight:400;font-size:10px;margin-left:8px;letter-spacing:.12em}
+.pills{display:flex;gap:3px;flex-wrap:wrap}
+.pills a{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-decoration:none;color:rgba(255,255,255,.45);transition:all .15s}
+.pills a:hover{background:rgba(255,255,255,.1);color:#fff}
+.pills a.p-ixd.active{background:var(--teal);color:#fff}
+.pills a.p-ib.active,.pills a.p-anti.active{background:#1d4ed8;color:#fff}
+.pills a.p-ob.active,.pills a.p-cdt.active{background:#b45309;color:#fff}
+.nclock{font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
+.shell{max-width:1600px;margin:0 auto;padding:18px}
+.ph{margin-bottom:16px}.ph h1{font-size:21px;font-weight:900}.ph p{color:#64748b;font-size:12px;margin-top:3px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.mb16{margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(20,33,61,.04)}
+.ct{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:12px}
+.card-ob{border-left:3px solid #c2410c}
+.card-east{border-left:3px solid #1d4ed8}
+.card-west{border-left:3px solid #c2410c}
+/* BANNER */
+.banner{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:600;margin-bottom:16px}
+.banner-sample{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.banner-live{background:#f0fdf4;border:1px solid #86efac;color:#166534}
+/* KPI */
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kl{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748b}
+.kv{font-size:22px;font-weight:900;line-height:1.1;margin-top:4px}
+.ks{font-size:11px;color:#64748b;margin-top:2px}
+/* SIDE GAUGE */
+.gauge-wrap{margin-top:12px}
+.gauge-label-row{display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:4px;font-weight:600}
+.gauge-track{height:24px;border-radius:8px;background:#e2e8f0;position:relative;overflow:hidden}
+.gauge-band{position:absolute;top:0;bottom:0;background:rgba(22,163,74,.18);border-left:2px solid #16a34a;border-right:2px solid #16a34a}
+.gauge-warn{position:absolute;top:0;bottom:0;background:rgba(217,119,6,.12)}
+.gauge-fill{position:absolute;top:0;bottom:0;left:0;border-radius:8px 0 0 8px;transition:width .5s}
+.gauge-pointer{position:absolute;top:-5px;bottom:-5px;width:3px;border-radius:2px;background:#1e3a8a;transition:left .5s;z-index:2}
+.gauge-pointer::after{content:attr(data-val);position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;font-weight:800;color:#1e3a8a;background:#fff;border:1px solid var(--line);padding:1px 5px;border-radius:4px}
+.gauge-ticks{display:flex;justify-content:space-between;font-size:9px;color:#94a3b8;margin-top:3px}
+.side-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+/* DOOR CARD */
+.door-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px}
+.door-card{border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff;transition:box-shadow .15s;position:relative}
+.door-card:hover{box-shadow:0 4px 14px rgba(20,33,61,.12)}
+.door-card.w-under{border-color:#fca5a5;background:#fef2f2}
+.door-card.w-exception{border-color:#fcd34d;background:#fffbeb}
+.door-card.w-over{border-color:#fca5a5;background:#fef2f2}
+.door-card.w-in{border-color:#86efac;background:#f0fdf4}
+.door-card.w-empty{border-color:#e2e8f0;background:#f8fafc;opacity:.7}
+.door-card.w-hold{border-color:#ef4444;background:#fef2f2}
+.dh{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:2px}
+.d-num{font-size:18px;font-weight:900;line-height:1}
+.d-dest{font-size:12px;font-weight:800;letter-spacing:.04em}
+.d-dest.na{color:#94a3b8;font-weight:600}
+.d-trailer{font-size:10px;color:#64748b;font-weight:600;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d-wt{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums}
+.d-wt-sub{font-size:10px;color:#64748b}
+.wbar{height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden;margin:5px 0 4px;position:relative}
+.wbar span{display:block;height:100%;border-radius:999px}
+.wbar .bandmark{position:absolute;top:-1px;bottom:-1px;width:1px;background:rgba(20,33,61,.35)}
+.wbar .bandmark.exc{background:rgba(217,119,6,.55)}
+.d-badge{display:inline-flex;align-items:center;height:17px;padding:0 6px;border-radius:4px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.b-in{background:#dcfce7;color:#166534}.b-under{background:#fee2e2;color:#991b1b}.b-exception{background:#fef9c3;color:#92400e}.b-over{background:#fee2e2;color:#991b1b}.b-empty{background:#f1f5f9;color:#64748b}.b-hold{background:#fee2e2;color:#991b1b}
+.d-proj{display:flex;justify-content:space-between;gap:4px;font-size:10px;color:#64748b;margin-top:5px;border-top:1px dashed var(--line);padding-top:4px}
+.d-proj .risk-late{color:#991b1b;font-weight:800}
+.d-proj .risk-ok{color:#166534;font-weight:800}
+/* FILTERS */
+.filter-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filter-row label{font-size:12px;color:#64748b;font-weight:600}
+.filter-row select,.filter-row input{height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:#fff}
+.filter-row select:focus,.filter-row input:focus{outline:1px solid var(--teal)}
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}
+thead th{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;padding:8px 10px;text-align:left;border-bottom:2px solid var(--line);background:#f8fafc}
+tbody td{padding:8px 10px;border-top:1px solid var(--line);vertical-align:middle}
+tbody tr:hover td{background:#f8fafc}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+/* BTN */
+.btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:7px;background:#fff;font:600 12px inherit;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.btn.primary{background:var(--ob);border-color:var(--ob);color:#fff}
+.btn.primary:hover{opacity:.9;color:#fff}
+.tg{color:#166534}.ta{color:#92400e}.tr{color:#991b1b}.tb{color:#1e3a8a}
+.modal{display:none;position:fixed;inset:0;background:rgba(20,33,61,.5);z-index:200;align-items:center;justify-content:center}
+.modal.show{display:flex}
+.modal-card{background:#fff;border-radius:12px;padding:22px;width:640px;max-width:95vw;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-card h2{font-size:15px;font-weight:800;margin-bottom:6px}
+.modal-card p{font-size:12px;color:#64748b;margin-bottom:10px}
+.modal-card textarea{width:100%;height:200px;font:12px monospace;border:1px solid var(--line);border-radius:6px;padding:8px;resize:vertical;outline:none}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+/* ── CDT·WM integration ── */
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:16px}
+.card-alert{border:2px solid #fca5a5;background:#fff5f5}
+.gauge-warn-lo,.gauge-warn-hi{position:absolute;top:0;bottom:0;background:rgba(217,119,6,.12)}
+.cwm-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cdt-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.cdt-card{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff;position:relative;transition:box-shadow .15s}
+.cdt-card:hover{box-shadow:0 4px 16px rgba(20,33,61,.1)}
+.cdt-card.urgent{border-color:#fca5a5;background:#fef2f2;animation:pulse-border 2s infinite}
+.cdt-card.warn{border-color:#fcd34d;background:#fffbeb}
+.cdt-card.ok{border-color:#86efac;background:#f0fdf4}
+@keyframes pulse-border{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3)}50%{box-shadow:0 0 0 4px rgba(239,68,68,.1)}}
+.cdt-vrid{font-size:14px;font-weight:900;margin-bottom:2px}
+.cdt-meta{font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px}
+.cdt-countdown{font-size:28px;font-weight:900;line-height:1;margin-bottom:2px;font-variant-numeric:tabular-nums}
+.cdt-countdown.urgent{color:#991b1b}.cdt-countdown.warn{color:#92400e}.cdt-countdown.ok{color:#166534}
+.cdt-timelabel{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px}
+.cdt-wt{font-size:12px;margin-bottom:6px}.cdt-wt-val{font-weight:800}
+.cdt-status{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:4px;font-size:10px;font-weight:800;text-transform:uppercase}
+.s-ok{background:#dcfce7;color:#166534}.s-warn{background:#fef9c3;color:#92400e}.s-urgent{background:#fee2e2;color:#991b1b}
+.cdt-gw-badge{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:4px;font-size:10px;font-weight:800;background:#ede9fe;color:#4c1d95;margin-left:4px}
+.flag-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;border:1px solid transparent;font-size:12px;margin-bottom:5px}
+.flag-row.flag-ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+.flag-row.flag-warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}
+.flag-row.flag-alert{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.flag-icon{font-size:16px;flex-shrink:0}
+.spike-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:7px;font-size:12px;margin-bottom:4px;border:1px solid transparent}
+.spike-item.spike-warn{background:#fef9c3;border-color:#fcd34d;color:#92400e}
+.spike-item.spike-alert{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.spike-time{font-variant-numeric:tabular-nums;font-size:11px;color:#94a3b8;min-width:50px;flex-shrink:0}
+.arc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.arc-item{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.arc-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:6px}
+.arc-input{display:flex;align-items:center;gap:6px}
+.arc-input input{height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px;font-weight:700;color:var(--ink);width:80px;text-align:right}
+.arc-input input:focus{outline:1px solid var(--teal)}
+.arc-input span{font-size:12px;color:#64748b}
+.div-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}
+.div-row:last-child{border-bottom:0}
+.div-bar{flex:1;height:5px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.div-bar span{display:block;height:100%;border-radius:999px}
+.btn.danger{border-color:#fca5a5;color:#991b1b}
+.btn.danger:hover{background:#fef2f2}
+.view-panel{display:none}
+.view-panel.active{display:block}
+.pills button{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-decoration:none;color:rgba(255,255,255,.45);transition:all .15s;border:none;background:transparent;cursor:pointer;font-family:inherit}
+.pills button:hover{background:rgba(255,255,255,.1);color:#fff}
+.pills button.p-ixd.active{background:var(--teal);color:#fff}
+.pills button.p-ib.active,.pills button.p-anti.active{background:#1d4ed8;color:#fff}
+.pills button.p-ob.active,.pills button.p-cdt.active{background:#b45309;color:#fff}
+.brand{cursor:pointer}
+</style>
+</head>
+<body>
+
+<nav class="fuse-nav">
+  <a class="brand" href="#" onclick="fuseShowView('obd-east-west');return false">FUSE <em id="nav-sub">v001 · OBD E/W</em></a>
+  <div class="pills">
+    <button type="button" class="p-ob active" data-view="obd-east-west" onclick="fuseShowView('obd-east-west')">OBD E/W</button>
+  </div>
+  <span class="nclock" id="clock">--:--:--</span>
+</nav>
+
+<section class="view-panel shell active" id="view-obd-east-west" data-view="obd-east-west">
+<div class="ph">
+    <h1>FUSE-OBD · East/West Weight &amp; Trailer Map</h1>
+    <p>OB dock split — <strong>East DD104–126</strong> · <strong>West DD334–355</strong>. Predictive door-close: <strong>SSP</strong> current payload + <strong>DockFlow</strong> ARC rate/forecast → projected close time, tested against <strong>SDT</strong> (finish loading) and <strong>CDT</strong> (latest departure). ARC←DockFlow · trailer+VRID←YMS · weight/jobs/SDT/CDT←SSP · band 33–40K (exc 42K). Node RFD2.</p>
+  </div>
+
+  <!-- Data-source banner -->
+  <div id="src-banner"></div>
+
+  <!-- CDT·WM spike alert banner -->
+  <div id="alert-banner" class="mb16" style="display:none"></div>
+
+  <!-- Side summaries -->
+  <div class="g2 mb16">
+    <div class="card card-east" id="east-summary"></div>
+    <div class="card card-west" id="west-summary"></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb16">
+    <div class="ct">Filters</div>
+    <div class="filter-row">
+      <label>Side
+        <select id="f-side" onchange="renderAll()">
+          <option value="">East + West</option>
+          <option value="East">East only</option>
+          <option value="West">West only</option>
+        </select>
+      </label>
+      <label>Weight band
+        <select id="f-band" onchange="renderAll()">
+          <option value="">All</option>
+          <option value="in">In band (33–40K)</option>
+          <option value="under">Under (&lt;33K)</option>
+          <option value="exception">Exception (40–42K)</option>
+          <option value="over">Over (&gt;42K)</option>
+          <option value="hold">Hold / flagged</option>
+          <option value="empty">Empty doors</option>
+        </select>
+      </label>
+      <label>Search dest / trailer
+        <input type="text" id="f-search" placeholder="e.g. MKE, 53'" oninput="renderAll()" style="width:140px">
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="f-hide-empty" onchange="renderAll()"> Hide empty doors
+      </label>
+      <button class="btn" style="margin-left:auto" onclick="clearFilters()">✕ Clear</button>
+    </div>
+  </div>
+
+  <!-- Door grids -->
+  <div class="g2 mb16">
+    <div class="card card-east">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="ct" style="margin-bottom:0">East Side · DD104–126</div>
+        <span id="east-count" style="font-size:11px;color:#64748b"></span>
+      </div>
+      <div class="door-grid" id="east-doors"></div>
+    </div>
+    <div class="card card-west">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="ct" style="margin-bottom:0">West Side · DD334–355</div>
+        <span id="west-count" style="font-size:11px;color:#64748b"></span>
+      </div>
+      <div class="door-grid" id="west-doors"></div>
+    </div>
+  </div>
+
+  <!-- Full table -->
+  <div class="card mb16">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="ct" style="margin-bottom:0">All Doors · Detail</div>
+      <button class="btn" onclick="exportCsv()">⭳ Export CSV</button>
+    </div>
+    <div class="table-wrap" id="detail-table"></div>
+  </div>
+
+  <!-- ════════ CDT·WM — Sorter Weight Monitor & Departure Tracker ════════ -->
+  <div class="ph" style="margin-top:8px">
+    <h1 style="font-size:17px">CDT·WM · Sorter Weight Monitor &amp; Departure Tracker</h1>
+    <p>Live sorter weight (32K–40K band), ARC inputs, spike detection, and the CDT countdown with sweeper flags. This is the sorter-level view; the door grids above are the per-door view.</p>
+  </div>
+
+  <!-- Weight monitor + ARC controls -->
+  <div class="g12 mb16">
+    <div class="card card-ob">
+      <div class="ct">Weight Monitor</div>
+      <div class="gauge-wrap" style="margin-bottom:16px">
+        <div class="gauge-label-row"><span>0</span><span>Target Band</span><span>55K lbs</span></div>
+        <div class="gauge-track" id="gauge-track"></div>
+        <div class="gauge-ticks" id="gauge-ticks"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <div class="kl" style="font-size:10px;margin-bottom:4px">Current Weight (lbs)</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="number" id="weight-input" value="36500" min="0" max="55000" step="100"
+              style="height:40px;padding:0 10px;border:1px solid var(--line);border-radius:8px;font:700 16px inherit;color:var(--ink);width:110px" oninput="updateWeight()">
+            <span style="font-size:12px;color:#64748b">lbs</span>
+          </div>
+        </div>
+        <div>
+          <div class="kl" style="font-size:10px;margin-bottom:4px">Status</div>
+          <div id="weight-status" style="font-size:14px;font-weight:800;padding-top:8px"></div>
+        </div>
+      </div>
+      <div class="cwm-kpis">
+        <div class="kpi" style="padding:10px"><div class="kl" style="font-size:10px">Target Band</div><div class="kv" style="font-size:16px;color:#166534">32–40K</div><div class="ks" style="font-size:11px">Optimal range</div></div>
+        <div class="kpi" style="padding:10px" id="gap-kpi"><div class="kl" style="font-size:10px">Gap to Band</div><div class="kv" style="font-size:16px" id="gap-val">—</div><div class="ks" style="font-size:11px" id="gap-dir">—</div></div>
+        <div class="kpi" style="padding:10px" id="spike-kpi"><div class="kl" style="font-size:10px">Spike Status</div><div class="kv" style="font-size:16px" id="spike-val">Clear</div><div class="ks" style="font-size:11px">No rapid change</div></div>
+      </div>
+    </div>
+
+    <div style="display:grid;gap:16px">
+      <div class="card">
+        <div class="ct">ARC Inputs</div>
+        <div class="arc-grid" id="arc-grid"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="recalcWeight()">↺ Recalculate Weight</button>
+          <button class="btn" style="margin-left:auto" onclick="clearArcs()">✕ Clear ARCs</button>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="ct" style="margin-bottom:0">Divert Breakdown <span id="divert-src" style="font-weight:600;text-transform:none;letter-spacing:0;color:#92400e">· sample</span></div>
+          <button class="btn" style="height:26px;font-size:11px" onclick="pullDivert()">▶ DockFlow Pull</button>
+        </div>
+        <div id="divert-breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CDT Tracker -->
+  <div class="card mb16">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div class="ct" style="margin-bottom:0">CDT Tracker · Upcoming Departures <span id="cdt-src" style="font-weight:600;text-transform:none;letter-spacing:0;color:#92400e">· sample</span></div>
+      <div style="display:flex;gap:6px;font-size:11px;color:#64748b;align-items:center">
+        <button class="btn" style="height:26px;font-size:11px" onclick="pullSSP()">▶ SSP Pull (payload + CDT)</button>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fef2f2;border:1px solid #fca5a5;display:inline-block"></span>Critical (&lt;30 min)</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#fffbeb;border:1px solid #fcd34d;display:inline-block"></span>Watch (30–90 min)</span>
+        <span style="display:inline-flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:#f0fdf4;border:1px solid #86efac;display:inline-block"></span>On track</span>
+      </div>
+    </div>
+    <div class="cdt-grid" id="cdt-cards"></div>
+  </div>
+
+  <!-- Sweeper Flags + Spike Log -->
+  <div class="g2 mb16">
+    <div class="card card-ob">
+      <div class="ct">Sweeper Flags</div>
+      <div id="sweeper-flags"></div>
+    </div>
+    <div class="card">
+      <div class="ct">Spike Detection Log</div>
+      <div id="spike-log"></div>
+    </div>
+  </div>
+
+  <!-- Data controls -->
+  <div class="card">
+    <div class="ct">Data Controls</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button class="btn primary" onclick="collectorSync()" title="Pull whatever the Tampermonkey collector captured from YMS / SSP / DockFlow and merge it">⤓ Collector Sync</button>
+      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px;cursor:pointer" title="Auto-sync the collector every 20s"><input type="checkbox" id="auto-sync" onchange="toggleAutoSync(this.checked)"> auto</label>
+      <span style="width:1px;height:22px;background:var(--line)"></span>
+      <button class="btn" onclick="pullDockFlow()">DockFlow doors</button>
+      <button class="btn" onclick="pullArcs()">DockFlow Arcs</button>
+      <button class="btn" onclick="pullSSP()">SSP</button>
+      <button class="btn" onclick="pullYms()">YMS</button>
+      <button class="btn" onclick="showEndpoints()">⚙ Endpoints</button>
+      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px" title="lbs/hr fallback used only when an ARC has no DockFlow rate/forecast">Fill rate
+        <input type="number" id="fill-rate" min="0" step="500" style="width:64px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12px" onchange="setFillRate(this.value)"> lbs/hr
+      </label>
+      <label style="font-size:11px;color:#64748b;display:flex;align-items:center;gap:4px" title="lbs per DockFlow job — converts forecast jobs to weight (auto per-trailer when SSP gives jobs)">lbs/job
+        <input type="number" id="lbs-per-job" min="1" step="1" style="width:54px;height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px;font:inherit;font-size:12px" onchange="setLbsPerJob(this.value)">
+      </label>
+      <button class="btn" onclick="showPaste()">⌨ Paste CSV</button>
+      <label class="btn" style="cursor:pointer">⭱ Upload CSV<input type="file" accept=".csv" style="display:none" onchange="uploadCsv(this)"></label>
+      <button class="btn" onclick="renderAll();renderCWM()">↺ Refresh</button>
+      <button class="btn danger" onclick="addSpikeTest()">⚡ Simulate Spike</button>
+      <button class="btn" style="margin-left:auto" onclick="resetSample()">↩ Reset to door map</button>
+    </div>
+    <p style="font-size:11px;color:#64748b;margin-top:10px">
+      <strong>Recommended:</strong> install <code>fuse-obd-terminal.user.js</code> in Tampermonkey. Visit YMS / SSP /
+      DockFlow once each (it <em>pulls</em> the data request each page makes — no scraping), then use its
+      <strong>FUSE OBD TERMINAL</strong> panel here → <strong>⟳ Pull All</strong> to fill the board (VRID joins SSP→door,
+      ARC joins DockFlow forecast). The buttons below are a no-userscript fallback via <code>proxy.py</code>: set request
+      URLs under <strong>⚙ Endpoints</strong> (<strong>DockFlow Arcs</strong> = rate + Future forecast = the predictive
+      engine), or <strong>⤓ Collector Sync</strong> to read the proxy <code>/collect</code> store.
+      <strong>lbs/job</strong> converts forecast jobs→weight (auto per-trailer when SSP gives jobs); <strong>Fill rate</strong>
+      is the lbs/hr fallback when an ARC has no DockFlow rate. Last resort: <strong>Paste CSV</strong> — columns
+      <code>side,door,arc,vrid,vehicle_id,trailer_type,weight,jobs_current,sdt,cdt,status</code>.
+    </p>
+  </div>
+</div>
+</section>
+
+<div class="modal" id="ep-modal">
+  <div class="modal-card">
+    <h2>Live data endpoints</h2>
+    <p>Open DockFlow / YMS / SSP in your browser, DevTools → <strong>Network</strong>, find the request that returns the
+       data (filter by Fetch/XHR), and copy the full <strong>Request URL</strong>. Paste it below. The proxy routes
+       it by host (<code>dockflow.robotics.a2z.com</code> → <code>/api/dockflow</code>; <code>trans-logistics.amazon.com</code>
+       — YMS <em>and</em> SSP — → <code>/api/yms</code>). If the request is a POST/GraphQL, set method to POST and paste the request payload.</p>
+
+    <div style="display:grid;gap:6px;margin-bottom:14px">
+      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow — ARC / destination + close projection (fill rate)</div>
+      <input id="ep-df-url" placeholder="https://prod-na.dockflow.robotics.a2z.com/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-df-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body (GraphQL/JSON), if any:</span>
+      </div>
+      <textarea id="ep-df-body" style="height:60px" placeholder='{"query":"..."}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow Arcs — rate (jobs/hr) + Future forecast (predictive engine)</div>
+      <input id="ep-arcs-url" placeholder="https://prod-na.dockflow.robotics.a2z.com/...  (Arcs list Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-arcs-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-arcs-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#1d4ed8">YMS — trailer type + VRID per door (yesterday)</div>
+      <input id="ep-yms-url" placeholder="https://trans-logistics.amazon.com/yms/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-yms-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-yms-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#166534">SSP — payload weight + jobs + SDT/CDT + VRID (door blocks + tracker)</div>
+      <input id="ep-ssp-url" placeholder="https://trans-logistics.amazon.com/ssp/dock/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-ssp-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-ssp-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div style="display:grid;gap:6px;margin-top:14px">
+      <div style="font-weight:800;font-size:12px;color:#c2410c">DockFlow — divert / recirc mix (optional)</div>
+      <input id="ep-divert-url" placeholder="https://prod-na.dockflow.robotics.a2z.com/...  (full Request URL)"
+             style="height:32px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:12px monospace">
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:#64748b">Method
+          <select id="ep-divert-method" style="height:30px;border:1px solid var(--line);border-radius:6px;padding:0 6px">
+            <option>GET</option><option>POST</option>
+          </select>
+        </label>
+        <span style="font-size:11px;color:#94a3b8">POST body, if any:</span>
+      </div>
+      <textarea id="ep-divert-body" style="height:60px" placeholder='{...}'></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="hideEndpoints()">Cancel</button>
+      <button class="btn primary" onclick="saveEndpoints()">Save endpoints</button>
+    </div>
+  </div>
+<div class="modal" id="paste-modal">
+  <div class="modal-card">
+    <h2>Paste door data (CSV or TSV)</h2>
+    <p>Header row required. Columns: <code>side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status</code>.
+       <code>arc</code>←DockFlow; <code>vrid</code>+<code>trailer_type</code>←YMS; <code>weight</code> (lbs), <code>jobs_current</code>,
+       <code>sdt</code> &amp; <code>cdt</code> (HH:MM)←SSP. Tab-separated also works. (DockFlow ARC rate/forecast loads via its own pull.)</p>
+    <textarea id="paste-input" placeholder="side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status&#10;East,104,IND1,11410477,AZNU,33800,1127,02:15,02:30,Loading&#10;..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="hidePaste()">Cancel</button>
+      <button class="btn primary" onclick="savePaste()">Load data</button>
+    </div>
+  </div>
+
+<script>
+"use strict";
+const STORE={get:(k,fb)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const PROXY_BASE="http://localhost:8765";
+
+// ── Bands ──
+// Door PAYLOAD band (per your notes): hard 33K–40K, exception up to 42K. Used by the
+// door blocks. Close-out target = 40K. The CDT·WM sorter monitor below keeps its own
+// 32–40K sorter band (BAND_LO/HI/WARN) — different measurement (belt vs trailer payload).
+const DOOR_LO=33000,DOOR_HI=40000,DOOR_EXC=42000,CLOSE_TARGET=40000;
+const BAND_LO=32000,BAND_HI=40000,WARN_LO=28000,WARN_HI=43000,GAUGE_MAX=48000;
+function fillRateDefault(){return Number(STORE.get('obd.fillRate',7000))||7000;} // lbs/hr fallback when no ARC rate
+function setFillRate(v){STORE.set('obd.fillRate',Number(v)||7000);renderAll();}
+function lbsPerJobDefault(){return Number(STORE.get('obd.lbsPerJob',30))||30;} // lbs per DockFlow job (forecast→weight)
+function setLbsPerJob(v){STORE.set('obd.lbsPerJob',Number(v)||30);renderAll();}
+
+// ── Default door map. ARC←DockFlow assignment, trailer_type+vrid←YMS, weight+jobs_current
+//    +sdt+cdt←SSP. SAMPLE until a live pull or paste replaces it. ──
+const sampleDoorsCsv=`side,door,arc,vrid,trailer_type,weight,jobs_current,sdt,cdt,status
+East,104,IND1,11410477,AZNU,33800,1127,02:15,02:30,Loading
+East,105,MSP1,11410577,BXLU,31200,1040,02:30,02:45,Loading
+East,106,PCW1,11410677,CMQU,36500,1217,02:45,03:00,Loading
+East,107,DSM5,11410777,DLPU,41200,1373,03:00,03:15,Loading
+East,108,QXX6,,,0,0,,,Hold
+East,109,MDW4,11410977,EJTU,38400,1280,03:15,03:30,Loading
+East,110,CMH4,11411077,FRZU,33100,1103,03:30,03:45,Loading
+East,111,CMH1,11411177,GHNU,39600,1320,03:45,04:00,Loading
+East,113,STL8,11411377,HKLU,30500,1017,02:05,02:20,Loading
+East,114,SBN1,11411477,JMPU,35900,1197,04:00,04:15,Staged
+East,115,GRR1,11411577,KQRU,38900,1297,04:15,04:30,Loading
+East,116,MKE1,11411677,LSTU,34200,1140,03:35,03:50,Loading
+East,117,MKE2,11411777,MVWU,42600,1420,01:55,02:10,Loading
+East,118,ORD5,11411877,NXYU,37000,1233,04:30,04:45,Loading
+East,119,DET6,11411977,PZAU,32100,1070,02:50,03:05,Loading
+East,120,LUK2,11412077,QBCU,34800,1160,03:45,04:00,Loading
+East,121,IGQ1,11412177,RDEU,39100,1303,04:45,05:00,Loading
+East,122,FSD1,11412277,SFGU,29800,993,02:20,02:35,Loading
+East,124,N/A,,,0,0,,,Empty
+East,125,N/A,,,0,0,,,Empty
+East,126,N/A,,,0,0,,,Empty
+West,334,N/A,,,0,0,,,Empty
+West,335,N/A,,,0,0,,,Empty
+West,336,N/A,,,0,0,,,Empty
+West,337,N/A,,,0,0,,,Empty
+West,338,MKC6,11433877,TGHU,35200,1173,03:05,03:20,Loading
+West,339,DSM5,11433977,UJKU,38600,1287,03:55,04:10,Loading
+West,341,MDW7,11434177,VLMU,33900,1130,03:25,03:40,Loading
+West,342,FSD1,11434277,WNPU,41800,1393,02:40,02:55,Loading
+West,343,MKE2,11434377,XQRU,36100,1203,04:05,04:20,Loading
+West,344,HMW3,11434477,YSTU,30900,1030,02:55,03:10,Loading
+West,345,KRB6,11434577,ZVWU,34500,1150,04:20,04:35,Loading
+West,346,DTW1,11434677,AXYU,37600,1253,04:50,05:05,Loading
+West,347,CLE2,11434777,BZAU,32800,1093,03:10,03:25,Loading
+West,348,FWA6,11434877,CBDU,39400,1313,04:35,04:50,Loading
+West,349,CLE3,11434977,DEFU,28700,957,02:25,02:40,Loading
+West,350,MLI1,11435077,AWO2A,35900,1197,03:40,03:55,Loading
+West,351,OMA2,11435177,FHIU,33200,1107,03:50,04:05,Loading
+West,352,DET3,11435277,GJKU,43100,1437,02:10,02:25,Loading
+West,353,ORD5,11435377,HLMU,36400,1213,04:25,04:40,Loading
+West,354,IGQ1,11435477,JNPU,31600,1053,03:20,03:35,Loading
+West,355,PCW1,11435577,KQSU,38900,1297,04:55,05:10,Loading`;
+
+function parseCsv(text){
+  if(!text)return[];
+  const lines=text.trim().split(/\r?\n/).filter(Boolean);
+  const delim=lines[0].includes('\t')?'\t':',';
+  const headers=lines[0].split(delim).map(h=>h.trim().toLowerCase());
+  return lines.slice(1).map(line=>{
+    const cols=line.split(delim);
+    return headers.reduce((r,h,i)=>{r[h]=(cols[i]||'').trim();return r},{});
+  });
+}
+
+function doors(){
+  const csv=STORE.get('obd.doorsCsv',null)||sampleDoorsCsv;
+  return parseCsv(csv).map(r=>{
+    const arc=(r.arc||r.destination||r.dest||'').trim();
+    const isEmpty=!arc||arc.toUpperCase()==='N/A'||(r.status||'').toLowerCase()==='empty';
+    return{
+      side:(r.side||'').trim()||'East',
+      door:String(r.door||'').trim(),
+      arc:isEmpty?'N/A':arc,                                    // ← DockFlow
+      trailerType:(r.trailer_type||r.trailertype||'').trim(),   // ← YMS
+      weight:Number(String(r.weight||'0').replace(/[^0-9.]/g,''))||0, // ← SSP payload
+      jobsCurrent:Number(String(r.jobs_current||r.jobs||'0').replace(/[^0-9.]/g,''))||0, // ← SSP current jobs
+      sdt:(r.sdt||'').trim(),                                   // ← SSP scheduled departure time
+      cdt:(r.cdt||r.cpt||'').trim(),                            // ← SSP critical departure time
+      fillRate:Number(String(r.fill_rate||r.fillrate||'0').replace(/[^0-9.]/g,''))||0, // optional per-door override
+      projectedClose:(r.projected_close||r.expected_close||'').trim(), // optional explicit projection
+      vrid:(r.vrid||'').trim(),                                 // ← SSP / YMS correlation key
+      vehicleId:(r.vehicle_id||r.vehicleid||'').trim(),        // ← YMS Vehicle ID
+      status:(r.status||(isEmpty?'Empty':'Loading')).trim(),
+      isEmpty
+    };
+  });
+}
+
+// Door payload band: hard 33–40K, exception 40–42K, over >42K.
+function band(d){
+  const st=(d.status||'').toLowerCase();
+  if(st==='hold'||st==='closed')return'hold';      // flagged takes precedence over zero weight
+  if(d.isEmpty||d.weight<=0)return'empty';
+  if(d.weight<DOOR_LO)return'under';
+  if(d.weight<=DOOR_HI)return'in';
+  if(d.weight<=DOOR_EXC)return'exception';
+  return'over';
+}
+const BAND_LABEL={in:'In band',under:'Under',exception:'Exception',over:'Over',empty:'Empty',hold:'Hold'};
+const BAND_BADGE={in:'b-in',under:'b-under',exception:'b-exception',over:'b-over',empty:'b-empty',hold:'b-hold'};
+const BAND_CARD={in:'w-in',under:'w-under',exception:'w-exception',over:'w-over',empty:'w-empty',hold:'w-hold'};
+const BAND_COLOR={in:'#16a34a',under:'#dc2626',exception:'#d97706',over:'#dc2626',hold:'#dc2626',empty:'#cbd5e1'};
+
+function pctOf(v){return Math.max(0,Math.min(100,(v/GAUGE_MAX)*100));}
+function pad2(n){return String(n).padStart(2,'0');}
+function clockStr(d){return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;}
+// "HH:MM" → minutes from now (next occurrence today/tomorrow), or null.
+function minsToClock(t){
+  if(!t)return null;
+  const m=String(t).match(/(\d{1,2}):(\d{2})/);if(!m)return null;
+  const now=new Date(),d=new Date(now);d.setHours(+m[1],+m[2],0,0);if(d<now)d.setDate(d.getDate()+1);
+  return Math.round((d-now)/60000);
+}
+// ════════ DockFlow ARC forecast layer (predictive engine) ════════
+// DockFlow's "Arcs" view gives, per ARC (e.g. CMH1_TOTE): current Rate (jobs/hr) and a
+// Future forecast curve — cumulative jobs expected by 15m/30m/1h/2h/4h/8h/24h. We use
+// that inflow + the SSP current payload to project WHEN the door fills to the close
+// target, then test it against SDT (finish loading) and CDT (latest legal departure).
+const SAMPLE_ARC_RATES={IND1:520,MSP1:140,PCW1:610,DSM5:0,QXX6:0,MDW4:480,CMH4:560,CMH1:0,STL8:90,SBN1:430,GRR1:500,MKE1:540,MKE2:120,ORD5:580,DET6:300,LUK2:470,IGQ1:510,FSD1:80,MKC6:450,MDW7:520,HMW3:110,KRB6:460,DTW1:540,CLE2:300,FWA6:560,CLE3:70,MLI1:430,OMA2:330,DET3:0};
+function sampleArcData(){
+  const out={};
+  for(const dest in SAMPLE_ARC_RATES){const r=SAMPLE_ARC_RATES[dest];
+    out[dest]={rate:r,process:'SingleDestination',assignment:'RTSorter01',
+      fc:{m15:Math.round(r*0.25),m30:Math.round(r*0.5),h1:r,h2:r*2,h4:r*4,h8:r*8,h24:r*24}};}
+  return out;
+}
+function arcData(){return STORE.get('obd.arcData',null)||sampleArcData();}
+function destOf(arc){return String(arc||'').toUpperCase().split('_')[0];}
+// Find DockFlow forecast for a door's ARC: exact match, else sum CASE+TOTE variants of the destination.
+function arcFor(d){
+  if(!d.arc||d.arc==='N/A')return null;
+  const data=arcData(),key=d.arc.toUpperCase();
+  if(data[key])return data[key];
+  const dest=destOf(key),matches=Object.keys(data).filter(k=>destOf(k)===dest);
+  if(!matches.length)return null;
+  if(matches.length===1)return data[matches[0]];
+  const sum={rate:0,fc:{m15:0,m30:0,h1:0,h2:0,h4:0,h8:0,h24:0},process:'',assignment:''};
+  matches.forEach(k=>{const a=data[k];sum.rate+=a.rate||0;for(const b in sum.fc)sum.fc[b]+=(a.fc&&a.fc[b])||0;sum.assignment=a.assignment||sum.assignment;sum.process=a.process||sum.process;});
+  return sum;
+}
+// If several open doors share a destination, the ARC inflow splits between them.
+function doorsSharingArc(d){const dest=destOf(d.arc);return doors().filter(x=>!x.isEmpty&&band(x)!=='hold'&&destOf(x.arc)===dest).length||1;}
+// Per-trailer avg lbs/job (empirical from SSP weight÷jobs) else the configured default.
+function lbsPerJobFor(d){return(d.jobsCurrent>0&&d.weight>0)?(d.weight/d.jobsCurrent):lbsPerJobDefault();}
+function hasForecast(fc){return fc&&['m15','m30','h1','h2','h4','h8','h24'].some(k=>(Number(fc[k])||0)>0);}
+// Minutes until cumulative forecast jobs ≥ remJobs (interpolated). null = not within 24h.
+function crossTimeJobs(fc,remJobs){
+  if(remJobs<=0)return 0;
+  const pts=[[15,fc.m15],[30,fc.m30],[60,fc.h1],[120,fc.h2],[240,fc.h4],[480,fc.h8],[1440,fc.h24]].map(([m,j])=>[m,Number(j)||0]);
+  let pm=0,pj=0;
+  for(const [m,j] of pts){
+    if(j>=remJobs){const frac=j>pj?(remJobs-pj)/(j-pj):0;return Math.round(pm+frac*(m-pm));}
+    pm=m;pj=j;
+  }
+  return null;
+}
+function meetBy(etaMin,t){const c=minsToClock(t);if(c==null||etaMin==null)return null;return etaMin<=c?'ok':'late';}
+
+// Predictive close projection: SSP current weight + DockFlow ARC forecast inflow → time
+// to reach the 40K close target. Returns projected close clock time, the basis used,
+// the ARC rate, and whether it meets SDT / CDT.
+// Minutes for a door's payload to reach targetW lbs, using DockFlow ARC forecast/rate
+// (this door's share of the ARC), else a fill-rate fallback. Infinity = won't reach it.
+function etaToWeight(d,targetW){
+  const a=arcFor(d),share=doorsSharingArc(d);
+  const remLbs=Math.max(0,targetW-d.weight);
+  if(remLbs<=0)return{etaMin:0,basis:'at target',rate:a?Math.round((a.rate||0)/share):0,share};
+  if(a){
+    if(hasForecast(a.fc)){const remJobs=(remLbs/lbsPerJobFor(d))*share;const t=crossTimeJobs(a.fc,remJobs);return{etaMin:(t==null?Infinity:t),basis:(t==null?'forecast < target':'DockFlow forecast'),rate:Math.round((a.rate||0)/share),share};}
+    if(a.rate>0)return{etaMin:Math.round(remLbs/((a.rate/share)*lbsPerJobFor(d))*60),basis:'DockFlow rate',rate:Math.round(a.rate/share),share};
+    return{etaMin:Infinity,basis:'no inflow',rate:0,share};        // ARC present but no inflow → won't reach
+  }
+  const r=d.fillRate>0?d.fillRate:fillRateDefault();
+  return{etaMin:Math.round(remLbs/r*60),basis:'est rate',rate:0,share}; // no ARC data → fallback
+}
+// Predictive door-close: project time to the 40K close target (for SDT/finish-loading)
+// and separately to the 33K band floor (for CDT/will-it-make-weight).
+function projectClose(d){
+  if(d.isEmpty||band(d)==='hold')return null;
+  if(d.projectedClose){const em=minsToClock(d.projectedClose);return{time:d.projectedClose,etaMin:em,basis:'DockFlow',rate:(arcFor(d)||{}).rate||0,meetsSDT:meetBy(em,d.sdt),meetsCDT:meetBy(em,d.cdt)};}
+  const toTarget=etaToWeight(d,CLOSE_TARGET);   // full (~40K) → finish-loading / SDT
+  const toBand=etaToWeight(d,DOOR_LO);          // in-band floor (33K) → make-weight / CDT
+  const eta=toTarget.etaMin;
+  const time=eta===Infinity?"won't fill":eta>1440?'>24h':clockStr(new Date(Date.now()+eta*60000));
+  return{time,etaMin:eta,basis:toTarget.basis,rate:toTarget.rate,share:toTarget.share,
+    meetsSDT:meetBy(eta,d.sdt),               // full by Scheduled Departure
+    meetsCDT:meetBy(toBand.etaMin,d.cdt)};    // at least in-band by Critical Departure
+}
+
+// ── Side summary card ──
+function sideSummary(side,list){
+  const loaded=list.filter(d=>!d.isEmpty&&band(d)!=='hold');
+  const totalWt=list.reduce((s,d)=>s+d.weight,0);
+  const avgWt=loaded.length?Math.round(loaded.reduce((s,d)=>s+d.weight,0)/loaded.length):0;
+  const inB=list.filter(d=>band(d)==='in').length;
+  const under=list.filter(d=>band(d)==='under').length;
+  const exc=list.filter(d=>band(d)==='exception').length;
+  const over=list.filter(d=>band(d)==='over').length;
+  const hold=list.filter(d=>band(d)==='hold').length;
+  const empty=list.filter(d=>band(d)==='empty').length;
+  const active=list.length-empty;
+  // projected to reach close target after CDT (will depart light / forced out)
+  const late=loaded.filter(d=>{const p=projectClose(d);return p&&p.meetsCDT==='late';}).length;
+  const missSdt=loaded.filter(d=>{const p=projectClose(d);return p&&p.meetsSDT==='late';}).length;
+  const avgColor=avgWt>=DOOR_LO&&avgWt<=DOOR_HI?'#16a34a':(avgWt>=DOOR_LO-3000&&avgWt<=DOOR_EXC)?'#d97706':'#dc2626';
+  const DLO=30000;
+  return`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="ct" style="margin-bottom:0">${side} Side · Weight Monitor</div>
+      <span style="font-size:11px;color:#64748b">${active}/${list.length} doors active</span>
+    </div>
+    <div class="side-stat-row">
+      <div class="kpi"><div class="kl">Avg / door</div><div class="kv" style="font-size:18px;color:${avgColor}">${(avgWt/1000).toFixed(1)}K</div><div class="ks">band 33–40K</div></div>
+      <div class="kpi"><div class="kl">In band</div><div class="kv tg" style="font-size:18px">${inB}</div><div class="ks">${under} under · ${exc} exc · ${over} over</div></div>
+      <div class="kpi"><div class="kl">Miss CDT</div><div class="kv ${late?'tr':'tg'}" style="font-size:18px">${late}</div><div class="ks">${missSdt} miss SDT</div></div>
+      <div class="kpi"><div class="kl">Flags</div><div class="kv ${hold?'tr':''}" style="font-size:18px">${hold}</div><div class="ks">${empty} empty</div></div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge-label-row"><span>0</span><span>Side avg vs 33–40K band (exc 42K)</span><span>${(GAUGE_MAX/1000)}K lbs</span></div>
+      <div class="gauge-track">
+        <div class="gauge-warn" style="left:${pctOf(DLO)}%;width:${pctOf(DOOR_LO)-pctOf(DLO)}%"></div>
+        <div class="gauge-band" style="left:${pctOf(DOOR_LO)}%;width:${pctOf(DOOR_HI)-pctOf(DOOR_LO)}%"></div>
+        <div class="gauge-warn" style="left:${pctOf(DOOR_HI)}%;width:${pctOf(DOOR_EXC)-pctOf(DOOR_HI)}%"></div>
+        <div class="gauge-fill" style="width:${pctOf(avgWt)}%;background:${avgColor};opacity:.25"></div>
+        <div class="gauge-pointer" data-val="${(avgWt/1000).toFixed(1)}K" style="left:calc(${pctOf(avgWt)}% - 1px)"></div>
+      </div>
+      <div class="gauge-ticks">${[0,12,24,36,48].map(t=>`<span>${t}K</span>`).join('')}</div>
+    </div>`;
+}
+
+// ── Door block (per your "block idea": ARC←DockFlow, trailer←YMS, weight←SSP,
+//    bar vs 33–40K band, DockFlow close projection vs CDT) ──
+function doorCard(d){
+  const b=band(d);
+  const cls=BAND_CARD[b],badgeCls=BAND_BADGE[b],barColor=BAND_COLOR[b];
+  const wtStr=(d.isEmpty||d.weight<=0)?'—':`${(d.weight/1000).toFixed(1)}K`;
+  const proj=projectClose(d);
+  let projHtml='';
+  if(!d.isEmpty&&b!=='hold'&&proj){
+    const mark=v=>v==='ok'?'✓':v==='late'?'✗':'';
+    const rc=v=>v==='late'?'risk-late':v==='ok'?'risk-ok':'';
+    projHtml=`
+      <div class="d-proj"><span title="Projected door close (${proj.basis})">▸ close ~${proj.time}</span><span title="ARC rate (DockFlow)">${proj.rate?proj.rate+' /hr':''}</span></div>
+      <div class="d-proj"><span class="${rc(proj.meetsSDT)}" title="Scheduled Departure Time">SDT ${d.sdt||'—'} ${mark(proj.meetsSDT)}</span><span class="${rc(proj.meetsCDT)}" title="Critical Departure Time">CDT ${d.cdt||'—'} ${mark(proj.meetsCDT)}</span></div>`;
+  }
+  return`<div class="door-card ${cls}" title="DD${d.door} · ARC ${d.arc} · ${d.trailerType||'no trailer type'}${d.vrid?' · VRID '+d.vrid:''}${d.vehicleId?' · Veh '+d.vehicleId:''} · ${d.weight?d.weight.toLocaleString()+' lbs (SSP)':'empty'} · ${d.sdt?'SDT '+d.sdt:''} ${d.cdt?'CDT '+d.cdt:''} · ${d.status}">
+    <div class="dh">
+      <span class="d-num">${d.door}</span>
+      <span class="d-dest ${d.isEmpty?'na':''}" title="ARC (DockFlow)">${d.arc}</span>
+    </div>
+    <div class="d-trailer" title="Trailer type (YMS)">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">trailer type?</span>')}</div>
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <span class="d-wt" style="color:${d.isEmpty?'#94a3b8':barColor}" title="Payload weight (SSP)">${wtStr}</span>
+      <span class="d-wt-sub">lbs · SSP</span>
+    </div>
+    <div class="wbar">
+      <span style="width:${pctOf(d.weight)}%;background:${barColor}"></span>
+      <span class="bandmark" style="left:${pctOf(DOOR_LO)}%"></span>
+      <span class="bandmark" style="left:${pctOf(DOOR_HI)}%"></span>
+      <span class="bandmark exc" style="left:${pctOf(DOOR_EXC)}%"></span>
+    </div>
+    <span class="d-badge ${badgeCls}">${BAND_LABEL[b]}${b!=='empty'&&b!=='in'?' · '+d.status:''}</span>
+    ${projHtml}
+  </div>`;
+}
+
+function applyFilters(list){
+  const side=document.getElementById('f-side').value;
+  const bandF=document.getElementById('f-band').value;
+  const q=document.getElementById('f-search').value.trim().toLowerCase();
+  const hideEmpty=document.getElementById('f-hide-empty').checked;
+  return list.filter(d=>{
+    if(side&&d.side!==side)return false;
+    if(bandF&&band(d)!==bandF)return false;
+    if(hideEmpty&&d.isEmpty)return false;
+    if(q&&!(d.arc.toLowerCase().includes(q)||(d.trailerType||'').toLowerCase().includes(q)||d.door.includes(q)))return false;
+    return true;
+  });
+}
+
+function renderAll(){
+  const all=doors();
+  // Side summaries (always full side, not filtered, so the monitor is accurate)
+  document.getElementById('east-summary').innerHTML=sideSummary('East',all.filter(d=>d.side==='East'));
+  document.getElementById('west-summary').innerHTML=sideSummary('West',all.filter(d=>d.side==='West'));
+
+  const filtered=applyFilters(all);
+  const east=filtered.filter(d=>d.side==='East');
+  const west=filtered.filter(d=>d.side==='West');
+  document.getElementById('east-doors').innerHTML=east.length?east.map(doorCard).join(''):'<p style="color:#64748b;font-size:12px">No East doors match.</p>';
+  document.getElementById('west-doors').innerHTML=west.length?west.map(doorCard).join(''):'<p style="color:#64748b;font-size:12px">No West doors match.</p>';
+  document.getElementById('east-count').textContent=`${east.length} shown`;
+  document.getElementById('west-count').textContent=`${west.length} shown`;
+
+  // Detail table — ARC+rate (DockFlow) · VRID+trailer (YMS) · weight+SDT+CDT (SSP) · predicted close
+  document.getElementById('detail-table').innerHTML=`<table>
+    <thead><tr><th>Side</th><th>Door</th><th>ARC</th><th>VRID</th><th>Vehicle ID</th><th>Trailer</th><th class="num">Weight (SSP)</th><th>Band</th><th class="num">Rate j/hr</th><th>SDT</th><th>CDT</th><th>Proj Close</th><th>Status</th></tr></thead>
+    <tbody>${filtered.map(d=>{const b=band(d);const c=b==='in'?'tg':b==='under'||b==='over'||b==='hold'?'tr':b==='exception'?'ta':'';const p=projectClose(d);const pCls=p&&p.meetsCDT==='late'?'tr':p&&p.meetsCDT==='ok'?'tg':'';return`<tr>
+      <td>${d.side}</td>
+      <td style="font-weight:800">${d.door}</td>
+      <td style="font-weight:700">${d.arc}</td>
+      <td style="color:#64748b;font-size:11px">${d.vrid||'—'}</td>
+      <td style="color:#64748b;font-size:11px">${d.vehicleId||'—'}</td>
+      <td style="color:#64748b">${d.trailerType||(d.isEmpty?'—':'<span style="color:#dc2626">missing</span>')}</td>
+      <td class="num">${d.weight?d.weight.toLocaleString():'—'}</td>
+      <td class="${c}" style="font-weight:700">${BAND_LABEL[b]}</td>
+      <td class="num">${p&&p.rate?p.rate:'—'}</td>
+      <td>${d.sdt||'—'}</td>
+      <td>${d.cdt||'—'}</td>
+      <td class="${pCls}" style="font-weight:700">${p?p.time:'—'}</td>
+      <td>${d.status}</td>
+    </tr>`}).join('')}</tbody>
+  </table>`;
+
+  renderBanner();
+}
+
+function renderBanner(){
+  const live=STORE.get('obd.lastPull',null);
+  const el=document.getElementById('src-banner');
+  if(live){
+    el.innerHTML=`<div class="banner banner-live">✓ Live data loaded — ${live.source} · captured ${new Date(live.at).toLocaleString()}. ${live.note||''}</div>`;
+  }else{
+    el.innerHTML=`<div class="banner banner-sample">⚠ <strong>SAMPLE</strong> data — door close projections use synthetic ARC forecasts. Pull <strong>DockFlow doors</strong>, <strong>DockFlow Arcs</strong> (rate+forecast), <strong>SSP</strong> (payload/jobs/SDT/CDT) and <strong>YMS</strong> (trailer+VRID) via the local proxy, or Paste CSV.</div>`;
+  }
+}
+
+// ── Filters ──
+function clearFilters(){
+  document.getElementById('f-side').value='';
+  document.getElementById('f-band').value='';
+  document.getElementById('f-search').value='';
+  document.getElementById('f-hide-empty').checked=false;
+  renderAll();
+}
+
+// ── Paste / upload / export / reset ──
+function showPaste(){document.getElementById('paste-modal').classList.add('show');}
+function hidePaste(){document.getElementById('paste-modal').classList.remove('show');}
+function savePaste(){
+  const txt=document.getElementById('paste-input').value.trim();
+  if(!txt){hidePaste();return;}
+  STORE.set('obd.doorsCsv',txt);
+  STORE.set('obd.lastPull',{source:'Manual paste',at:Date.now(),note:'Pasted CSV/TSV.'});
+  hidePaste();renderAll();
+}
+function uploadCsv(input){
+  const f=input.files[0];if(!f)return;
+  f.text().then(txt=>{
+    STORE.set('obd.doorsCsv',txt);
+    STORE.set('obd.lastPull',{source:'File upload: '+f.name,at:Date.now()});
+    renderAll();
+  });
+}
+const DOOR_HEAD='side,door,arc,vrid,vehicle_id,trailer_type,weight,jobs_current,sdt,cdt,status';
+function doorToRow(d){return [d.side,d.door,d.arc,d.vrid,d.vehicleId,d.trailerType,d.weight,d.jobsCurrent||'',d.sdt,d.cdt,d.status].join(',');}
+function exportCsv(){
+  const rows=doors();
+  const body=rows.map(doorToRow).join('\n');
+  const blob=new Blob([DOOR_HEAD+'\n'+body],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`obd-east-west-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();URL.revokeObjectURL(a.href);
+}
+function resetSample(){
+  STORE.set('obd.doorsCsv',sampleDoorsCsv);
+  ['obd.lastPull','obd.cdtRows','obd.divertRows','obd.arcData'].forEach(k=>localStorage.removeItem(k));
+  renderAll();renderCWM();
+}
+
+// ── Endpoint config ──
+// DockFlow MainSorter and YMS shipclerk are SPAs, so the *page* URL returns the app
+// shell, not data. Capture the underlying Fetch/XHR request in DevTools and store it
+// here; we route it through the local proxy by host and merge whatever rows come back.
+function endpoints(){return STORE.get('obd.endpoints',{});}
+function showEndpoints(){
+  const e=endpoints();
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v;};
+  set('ep-df-url',e.dockflow?.url||'');set('ep-df-method',e.dockflow?.method||'GET');set('ep-df-body',e.dockflow?.body||'');
+  set('ep-arcs-url',e.arcs?.url||'');set('ep-arcs-method',e.arcs?.method||'GET');set('ep-arcs-body',e.arcs?.body||'');
+  set('ep-yms-url',e.yms?.url||'');set('ep-yms-method',e.yms?.method||'GET');set('ep-yms-body',e.yms?.body||'');
+  set('ep-ssp-url',e.ssp?.url||'');set('ep-ssp-method',e.ssp?.method||'GET');set('ep-ssp-body',e.ssp?.body||'');
+  set('ep-divert-url',e.divert?.url||'');set('ep-divert-method',e.divert?.method||'GET');set('ep-divert-body',e.divert?.body||'');
+  document.getElementById('ep-modal').classList.add('show');
+}
+function hideEndpoints(){document.getElementById('ep-modal').classList.remove('show');}
+function saveEndpoints(){
+  const val=id=>document.getElementById(id).value.trim();
+  STORE.set('obd.endpoints',{
+    dockflow:{url:val('ep-df-url'),method:val('ep-df-method'),body:val('ep-df-body')},
+    arcs:{url:val('ep-arcs-url'),method:val('ep-arcs-method'),body:val('ep-arcs-body')},
+    yms:{url:val('ep-yms-url'),method:val('ep-yms-method'),body:val('ep-yms-body')},
+    ssp:{url:val('ep-ssp-url'),method:val('ep-ssp-method'),body:val('ep-ssp-body')},
+    divert:{url:val('ep-divert-url'),method:val('ep-divert-method'),body:val('ep-divert-body')}
+  });
+  hideEndpoints();
+}
+
+// Map a captured full URL to a local-proxy path, routed by host.
+function toProxyPath(u){
+  try{
+    const url=new URL(u);
+    const h=url.hostname;
+    let prefix=h.includes('dockflow')?'/dockflow':h.includes('trans-logistics')?'/yms':h.includes('fclm')?'/fclm':null;
+    if(!prefix)return null;
+    return '/api'+prefix+url.pathname+url.search;
+  }catch{return null;}
+}
+
+// Fetch a configured endpoint through the proxy. Returns response text, or null on a
+// handled problem (with a user-facing alert already shown).
+async function fetchEndpoint(cfg,label){
+  if(!cfg||!cfg.url){
+    alert(`No ${label} endpoint set yet.\nClick "⚙ Endpoints", paste the Request URL you captured in DevTools, then pull again.\n(Or use Paste CSV.)`);
+    return null;
+  }
+  const path=toProxyPath(cfg.url);
+  if(!path){alert(`The ${label} URL host isn't recognized.\nExpected a dockflow.robotics.a2z.com or trans-logistics.amazon.com URL.`);return null;}
+  const opts={signal:AbortSignal.timeout(30000)};
+  if((cfg.method||'GET').toUpperCase()==='POST'){opts.method='POST';opts.headers={'Content-Type':'application/json'};opts.body=cfg.body||'';}
+  let r;
+  try{r=await fetch(PROXY_BASE+path,opts);}
+  catch(e){alert(`Could not reach the local proxy.\nStart it with:  python proxy.py  (after mwinit).\nThen retry, or use Paste CSV.`);return null;}
+  if(r.headers.get('X-Proxy-Auth-Error')==='true'){alert(`${label} auth failed via proxy. Run mwinit and retry, or use Paste CSV.`);return null;}
+  return await r.text();
+}
+
+async function pullDockFlow(){
+  const txt=await fetchEndpoint(endpoints().dockflow,'DockFlow');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows){alert('DockFlow responded but no rows could be parsed.\nDouble-check you captured the data request (not the HTML page), or use Paste CSV.');return;}
+  mergeDockFlow(rows);
+  STORE.set('obd.lastPull',{source:'DockFlow MainSorter',at:Date.now(),note:'ARC + close projection merged.'});
+  renderAll();alert('FUSE: DockFlow data merged ('+rows.length+' rows).');
+}
+async function pullYms(){
+  const txt=await fetchEndpoint(endpoints().yms,'YMS');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows){alert('YMS responded but no rows could be parsed.\nDouble-check you captured the data request (not the HTML page), or use Paste CSV.');return;}
+  mergeYms(rows);
+  STORE.set('obd.lastPull',{source:'YMS yard (yesterday)',at:Date.now(),note:'Trailer types merged.'});
+  renderAll();alert('FUSE: YMS trailer types merged ('+rows.length+' rows).');
+}
+
+// Best-effort: pull rows out of JSON payload or embedded CSV/TSV.
+function extractRows(txt){
+  try{
+    const j=JSON.parse(txt);
+    let arr=Array.isArray(j)?j:(j.data||j.rows||j.workcells||j.arcs||j.results||j.loads||j.departures||j.trailers||j.diverts||j.items||j.content||null);
+    // one level deeper, e.g. {data:{loads:[...]}}
+    if(!Array.isArray(arr)&&j&&typeof j==='object'){for(const k in j){if(j[k]&&typeof j[k]==='object'){const inner=j[k].rows||j[k].loads||j[k].departures||j[k].results||j[k].items;if(Array.isArray(inner)&&inner.length){arr=inner;break;}}}}
+    if(Array.isArray(arr)&&arr.length)return arr;
+  }catch{}
+  // embedded CSV/TSV with a recognizable header row
+  const firstLine=(txt.split(/\r?\n/).find(l=>l.trim())||'');
+  if(/(door|vrid|trailer|cdt|divert|destination|weight|equip|departure)/i.test(firstLine)&&/[,\t]/.test(firstLine)){
+    const rows=parseCsv(txt);
+    if(rows.length)return rows;
+  }
+  return null;
+}
+function keyByDoor(){const m={};doors().forEach(d=>m[d.door]=d);return m;}
+function persist(map){
+  const body=Object.values(map).map(doorToRow).join('\n');
+  STORE.set('obd.doorsCsv',DOOR_HEAD+'\n'+body);
+}
+function fieldOf(o,names){for(const n of names){for(const k in o){if(k.toLowerCase().replace(/[^a-z]/g,'')===n)return o[k];}}return undefined;}
+// DockFlow → ARC/destination + fill rate + close projection (NOT weight; weight is SSP).
+function mergeDockFlow(rows){
+  const map=keyByDoor();let n=0;
+  rows.forEach(o=>{
+    const door=String(fieldOf(o,['door','dock','dockdoor','workcell','wc'])||'').replace(/[^0-9]/g,'');
+    if(!door||!map[door])return;
+    const arc=fieldOf(o,['arc','destination','dest','lane','fc','sortdestination']);
+    const rate=fieldOf(o,['fillrate','rate','lbsperhour','lbshr','throughput','flowrate']);
+    const proj=fieldOf(o,['projectedclose','expectedclose','closetime','projectedcloseout','eta']);
+    if(arc!=null&&String(arc).trim()){map[door].arc=String(arc).trim();if(map[door].arc.toUpperCase()!=='N/A')map[door].isEmpty=false;}
+    if(rate!=null&&String(rate).trim())map[door].fillRate=Number(String(rate).replace(/[^0-9.]/g,''))||map[door].fillRate;
+    if(proj!=null&&String(proj).trim())map[door].projectedClose=String(proj).trim();
+    n++;
+  });
+  persist(map);return n;
+}
+// "AZNG (AKQJP)" → "AZNG"; "AWDJA" → "AWDJA" (4–5 char Owner code is the trailer type)
+function ownerToTrailerType(owner){return String(owner||'').split('(')[0].trim().split(/\s+/)[0]||'';}
+// "NCSL, AZNG, RFD2->IND1" or "RFD2->IND1" → "IND1"
+function destFromLoad(s){const m=String(s||'').match(/->\s*([A-Z0-9]{3,5})/i);return m?m[1].toUpperCase():'';}
+function keyByVrid(map){const m={};Object.values(map).forEach(d=>{if(d.vrid)m[String(d.vrid).toUpperCase()]=d;});return m;}
+
+// YMS → Owner(trailer type) + Vehicle ID + VRID + ARC destination, per DD.
+function mergeYms(rows){
+  const map=keyByDoor();let n=0;
+  rows.forEach(o=>{
+    const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
+    if(!door||!map[door])return;
+    const ownerRaw=fieldOf(o,['owner','operator','owneroperator']);
+    const ttRaw=fieldOf(o,['trailertype','trailer','equipmenttype','equiptype','equipment'])||ownerRaw;
+    const vehId=fieldOf(o,['vehicleid','vehicle','vid','vehicleident']);
+    const vrid=fieldOf(o,['vrid']);
+    const arcRaw=fieldOf(o,['arc','destination','dest']);
+    const load=fieldOf(o,['loadidentifier','loadidentifiers','loadid','load','loads','notes']);
+    const dest=(arcRaw&&String(arcRaw).trim())?String(arcRaw).trim():destFromLoad(load);
+    if(ttRaw!=null&&String(ttRaw).trim())map[door].trailerType=ownerToTrailerType(String(ttRaw))||String(ttRaw).trim();
+    if(vehId!=null&&String(vehId).trim())map[door].vehicleId=String(vehId).trim();
+    if(vrid!=null&&String(vrid).trim())map[door].vrid=String(vrid).trim();
+    if(dest){map[door].arc=dest.toUpperCase();if(map[door].arc!=='N/A'){map[door].isEmpty=false;if((map[door].status||'').toLowerCase()==='empty')map[door].status='Loading';}}
+    n++;
+  });
+  persist(map);return n;
+}
+
+// SSP → payload weight + jobs + SDT + CDT. SSP is keyed by VRID, so we match on the
+// door's VRID (set from YMS) first, then fall back to a door field if present.
+function normTime(raw){const {hh,mm}=parseCdtTime(raw,null);return `${pad2(hh)}:${pad2(mm)}`;}
+function mergeSSP(rows){
+  const map=keyByDoor();const byVrid=keyByVrid(map);let n=0;
+  rows.forEach(o=>{
+    const door=String(fieldOf(o,['door','dock','dockdoor','location','loc'])||'').replace(/[^0-9]/g,'');
+    const vrid=String(fieldOf(o,['vrid','trailer','load','loadid'])||'').trim().toUpperCase();
+    const d=(door&&map[door])?map[door]:(vrid&&byVrid[vrid])?byVrid[vrid]:null;
+    if(!d)return;
+    const wt=fieldOf(o,['payloadweight','payload','weight','loadweight','wt','lbs']);
+    const jobs=fieldOf(o,['jobs','jobcount','jobscurrent','units','packages','currentjobs']);
+    const sdtRaw=fieldOf(o,['sdt','scheduleddeparturetime','scheduleddeparture','planneddeparture']);
+    const cdtRaw=fieldOf(o,['cdt','criticalpulltime','cpt','criticaldeparturetime','departuretime','dpt','departure']);
+    if(wt!=null&&String(wt).trim()){d.weight=Number(String(wt).replace(/[^0-9.]/g,''))||d.weight;if(d.weight>0){d.isEmpty=false;if((d.status||'').toLowerCase()==='empty')d.status='Loading';}}
+    if(jobs!=null&&String(jobs).trim())d.jobsCurrent=Number(String(jobs).replace(/[^0-9.]/g,''))||d.jobsCurrent;
+    if(sdtRaw!=null&&String(sdtRaw).trim())d.sdt=normTime(sdtRaw);
+    if(cdtRaw!=null&&String(cdtRaw).trim())d.cdt=normTime(cdtRaw);
+    if(vrid&&!d.vrid)d.vrid=vrid;
+    n++;
+  });
+  persist(map);
+  return n;
+}
+
+// DockFlow "Arcs" view → per-ARC rate + Future forecast curve, keyed by ARC name.
+function arcBucket(src,keys){for(const kk in src){const n=kk.toLowerCase().replace(/[^a-z0-9]/g,'');if(keys.includes(n)){const v=Number(String(src[kk]).replace(/[^0-9.]/g,''));if(!isNaN(v))return v;}}return 0;}
+function arcForecastOf(o){
+  let src=o.future||o.forecast||o.futureForecast||o.forecasts||o;
+  if(Array.isArray(src)){const m={};src.forEach(p=>{const h=String(p.horizon||p.bucket||p.minutes||p.label||'').toLowerCase().replace(/[^a-z0-9]/g,'');m[h]=Number(String(p.jobs??p.value??p.count??'0').replace(/[^0-9.]/g,''))||0;});src=m;}
+  return{
+    m15:arcBucket(src,['15min','min15','15m','pt15m']),
+    m30:arcBucket(src,['30min','min30','30m','pt30m']),
+    h1:arcBucket(src,['1hr','hr1','60min','pt1h','1hour']),
+    h2:arcBucket(src,['2hr','hr2','pt2h','2hour']),
+    h4:arcBucket(src,['4hr','hr4','pt4h','4hour']),
+    h8:arcBucket(src,['8hr','hr8','pt8h','8hour']),
+    h24:arcBucket(src,['24hr','hr24','pt24h','24hour','1d'])
+  };
+}
+function mergeArcForecast(rows){
+  // Merge into existing ARC data (don't replace) so partial/incremental captures
+  // accumulate rather than wiping arcs that weren't in this batch.
+  const data=Object.assign({},STORE.get('obd.arcData',null)||{});
+  let n=0;
+  rows.forEach(o=>{
+    const name=String(fieldOf(o,['arc','arcname','name','destination'])||'').trim();
+    if(!name)return;
+    const key=name.toUpperCase();
+    const rate=Number(String(fieldOf(o,['currentrate','rate','jobshr','jobsperhour','ratejobshr'])||'0').replace(/[^0-9.]/g,''))||0;
+    const fc=arcForecastOf(o);
+    const prev=data[key]||{};
+    const hasFc=['m15','m30','h1','h2','h4','h8','h24'].some(k=>fc[k]>0);
+    data[key]={rate:rate||prev.rate||0,
+      process:String(fieldOf(o,['process','tags','tag'])||'').trim()||prev.process||'',
+      assignment:String(fieldOf(o,['assignment','sorter','arcassignment'])||'').trim()||prev.assignment||'',
+      fc:hasFc?fc:(prev.fc||fc)};
+    n++;
+  });
+  if(n)STORE.set('obd.arcData',data);
+  return n;
+}
+async function pullArcs(){
+  const txt=await fetchEndpoint(endpoints().arcs,'DockFlow Arcs');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows||!mergeArcForecast(rows)){alert('DockFlow Arcs responded but no ARC rows could be parsed.\nCheck you captured the Arcs list request (rate + forecast), or keep sample.');return;}
+  STORE.set('obd.lastPull',{source:'DockFlow Arc forecasts',at:Date.now(),note:'Per-ARC rate + forecast merged → projections recomputed.'});
+  renderAll();alert('FUSE: DockFlow Arc forecasts merged ('+Object.keys(arcData()).length+' arcs).');
+}
+
+// ── Tampermonkey collector ──
+// The userscript (fuse-obd-collector.user.js) scrapes YMS / SSP / DockFlow inside the
+// authenticated pages and POSTs rows to the proxy's /collect store. We read that store
+// and merge by source. Order matters: YMS first (sets door↔VRID↔ARC), then SSP (joins
+// payload/CDT by VRID), then DockFlow arc forecasts.
+function mergeCollector(store){
+  if(!store||typeof store!=='object')return{total:0,parts:[]};
+  const pick=(...names)=>{for(const n of names){const e=store[n];if(e&&Array.isArray(e.rows)&&e.rows.length)return e;}return null;};
+  const parts=[];let total=0;
+  const yms=pick('yms');                              if(yms){const k=mergeYms(yms.rows);parts.push(`${k} YMS`);total+=k;}
+  const ssp=pick('ssp');                              if(ssp){const k=mergeSSP(ssp.rows);parts.push(`${k} SSP`);total+=k;}
+  const arcs=pick('dockflow-arcs','dockflowarcs','arcs'); if(arcs){const k=mergeArcForecast(arcs.rows);parts.push(`${k} arcs`);total+=k;}
+  const sorter=pick('dockflow-sorter','dockflowsorter','sorter'); if(sorter){const k=mergeDockFlow(sorter.rows);parts.push(`${k} sorter`);total+=k;}
+  if(total)STORE.set('obd.lastPull',{source:'Tampermonkey collector',at:Date.now(),note:parts.join(' · ')+' merged.'});
+  return{total,parts,ages:Object.fromEntries(Object.entries(store).map(([s,e])=>[s,e&&e.capturedAt]))};
+}
+async function collectorSync(silent){
+  let store;
+  try{const r=await fetch(PROXY_BASE+'/collect',{signal:AbortSignal.timeout(8000)});store=await r.json();}
+  catch(e){if(!silent)alert('Could not reach the collector on the local proxy.\nStart proxy.py, install the Tampermonkey script, and open YMS / SSP / DockFlow.');return;}
+  const res=mergeCollector(store);
+  if(res.total){renderAll();renderCWM();if(!silent)alert('FUSE: collector sync — '+res.parts.join(' · ')+' merged.');}
+  else if(!silent)alert('Collector reachable but no captures yet.\nOpen YMS / SSP / DockFlow with the Tampermonkey script active, then sync.');
+}
+let _autoSyncTimer=null;
+function toggleAutoSync(on){
+  if(_autoSyncTimer){clearInterval(_autoSyncTimer);_autoSyncTimer=null;}
+  if(on){collectorSync(true);_autoSyncTimer=setInterval(()=>collectorSync(true),20000);}
+  STORE.set('obd.autoSync',!!on);
+}
+
+// Direct ingest entry point for the Tampermonkey terminal (fuse-obd-terminal.user.js).
+// It pulls each source all at once and hands us {yms:{rows},ssp:{rows},dockflow-arcs:{rows},
+// dockflow-sorter:{rows}} — either by calling this via unsafeWindow, or by writing the same
+// object to localStorage 'obd.collectorInbox' which we poll below. Reuses the tested merges.
+window.fuseIngest=function(store){
+  const res=mergeCollector(store||{});
+  if(res.total){renderAll();renderCWM();}
+  return res;
+};
+let _inboxAt=0;
+setInterval(()=>{
+  let inbox;try{inbox=STORE.get('obd.collectorInbox',null);}catch(e){return;}
+  if(inbox&&inbox.at&&inbox.at!==_inboxAt){_inboxAt=inbox.at;window.fuseIngest(inbox.sources||inbox);}
+},3000);
+
+// ── CDT (SSP) + divert (DockFlow) live pulls ──
+function truthy(v){if(v==null)return false;const s=String(v).toLowerCase().trim();return s==='true'||s==='yes'||s==='y'||s==='1'||s==='open';}
+
+// Resolve a departure time into {hh,mm,min}. Accepts "HH:MM", an ISO/parseable
+// datetime, or an explicit minutes-remaining field.
+function parseCdtTime(raw,minField){
+  let min=null,hh=0,mm=0;
+  if(minField!=null&&String(minField).trim()!=='')min=Math.round(Number(String(minField).replace(/[^0-9.\-]/g,'')));
+  if(raw!=null&&String(raw).trim()!==''){
+    const s=String(raw).trim();let d=null;
+    if(/^\d{1,2}:\d{2}/.test(s)){const [H,M]=s.split(':');hh=+H;mm=parseInt(M,10);const now=new Date();d=new Date(now);d.setHours(hh,mm,0,0);if(d<now)d.setDate(d.getDate()+1);}
+    else{const t=Date.parse(s);if(!isNaN(t))d=new Date(t);}
+    if(d){hh=d.getHours();mm=d.getMinutes();if(min==null||isNaN(min))min=Math.max(0,Math.round((d-new Date())/60000));}
+  }
+  if(min==null||isNaN(min))min=0;
+  if(!hh&&!mm&&min){const dep=new Date(Date.now()+min*60000);hh=dep.getHours();mm=dep.getMinutes();}
+  return{hh,mm,min};
+}
+
+function mergeCDT(rows){
+  const out=rows.map(o=>{
+    const vrid=String(fieldOf(o,['vrid','trailer','trailerid','load','loadid','vr','scac'])||'—').trim();
+    const type=String(fieldOf(o,['freighttype','type','lane','program','sortcode'])||'—').trim();
+    const cdtRaw=fieldOf(o,['cdt','criticalpulltime','cpt','departuretime','dpt','departure','scheduleddeparture']);
+    const wt=Number(String(fieldOf(o,['weight','wt','loadweight','lbs'])||'0').replace(/[^0-9.]/g,''))||0;
+    const gw=truthy(fieldOf(o,['gw','gwopen','gatekeeping','gatekeepingwindow','gatekeeper']));
+    const {hh,mm,min}=parseCdtTime(cdtRaw,fieldOf(o,['minutesremaining','minremaining','timeremaining','minutes']));
+    const status=min<30?'urgent':min<90?'warn':'ok';
+    return{vrid,type,cdtHH:hh,cdtMM:mm,minRemaining:min,weight:wt,gwOpen:gw,status};
+  }).filter(c=>c.vrid&&c.vrid!=='—').sort((a,b)=>a.minRemaining-b.minRemaining);
+  if(out.length)STORE.set('obd.cdtRows',out);
+  return out.length;
+}
+
+function mergeDivert(rows){
+  const colors={MP:'#1d4ed8',FL:'#008891',FLUID:'#008891',RWC:'#c2410c',EOL:'#7c3aed'};
+  const out=rows.map(o=>{
+    const name=String(fieldOf(o,['name','divert','type','lane','destination','category'])||'').toUpperCase().trim();
+    const val=Number(String(fieldOf(o,['val','pct','percent','share','value'])||'0').replace(/[^0-9.]/g,''))||0;
+    return{name,val,color:colors[name]||'#64748b'};
+  }).filter(d=>d.name&&d.val>0);
+  if(out.length)STORE.set('obd.divertRows',out);
+  return out.length;
+}
+
+// SSP feeds BOTH the per-door payload weight + CDT (door blocks) and the departure tracker.
+async function pullSSP(){
+  const txt=await fetchEndpoint(endpoints().ssp,'SSP');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows){alert('SSP responded but no rows could be parsed.\nCheck you captured the OB load/departures request, or use Paste CSV.');return;}
+  const perDoor=mergeSSP(rows);
+  const tracker=mergeCDT(rows);
+  STORE.set('obd.lastPull',{source:'SSP OB payload',at:Date.now(),note:'Payload weight + CDT merged from SSP.'});
+  renderAll();renderCWM();
+  alert(`FUSE: SSP merged — ${perDoor} door payload weights, ${tracker} departures.`);
+}
+async function pullDivert(){
+  const txt=await fetchEndpoint(endpoints().divert,'DockFlow divert');
+  if(txt==null)return;
+  const rows=extractRows(txt);
+  if(!rows||!mergeDivert(rows)){alert('DockFlow responded but no divert rows could be parsed.\nCheck you captured the recirc/divert data request, or keep sample.');return;}
+  renderCWM();alert('FUSE: divert breakdown updated from DockFlow.');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  CDT·WM — Sorter Weight Monitor & Departure Tracker
+//  Self-contained: reuses STORE + BAND_LO/HI + WARN_LO/HI from above.
+//  Uses its own gauge max (CWM_MAX=55K) and cwmPct() so it does not touch the
+//  per-door GAUGE_MAX (48K) used by the door grids. Rendered via renderCWM().
+// ════════════════════════════════════════════════════════════════════════
+const CWM_MAX=55000;
+let currentWeight=36500;
+let weightHistory=STORE.get('ff.weightHistory',[]);
+let spikeLog=STORE.get('ff.spikeLog',[]);
+
+const arcs=[
+  {id:'arc1',label:'ARC 1',weight:8200,pct:22},
+  {id:'arc2',label:'ARC 2',weight:9400,pct:25},
+  {id:'arc3',label:'ARC 3',weight:7800,pct:21},
+  {id:'arc4',label:'ARC 4',weight:6100,pct:16},
+  {id:'arc5',label:'ARC 5',weight:5000,pct:14},
+];
+
+// CDT sample data (from SSP in production)
+const sampleCDT=[
+  {vrid:'OB-T7782',type:'Fluid',cdtHH:1,cdtMM:45,minRemaining:17,weight:22800,gwOpen:true,status:'urgent'},
+  {vrid:'OB-T4421',type:'RWC',  cdtHH:2,cdtMM:15,minRemaining:47,weight:28400,gwOpen:false,status:'warn'},
+  {vrid:'OB-T9001',type:'RWC',  cdtHH:2,cdtMM:45,minRemaining:77,weight:31200,gwOpen:false,status:'warn'},
+  {vrid:'OB-T3319',type:'Fluid',cdtHH:3,cdtMM:30,minRemaining:102,weight:35200,gwOpen:false,status:'ok'},
+  {vrid:'OB-T5510',type:'MP',   cdtHH:4,cdtMM:0, minRemaining:132,weight:38900,gwOpen:false,status:'ok'},
+  {vrid:'OB-T2210',type:'Fluid',cdtHH:4,cdtMM:30,minRemaining:162,weight:33700,gwOpen:false,status:'ok'},
+];
+const sampleDivert=[{name:'MP',val:41,color:'#1d4ed8'},{name:'FL',val:38,color:'#008891'},{name:'RWC',val:21,color:'#c2410c'}];
+
+// Live data when pulled, sample otherwise.
+function cdtRows(){return STORE.get('obd.cdtRows',null)||sampleCDT;}
+function divertRows(){return STORE.get('obd.divertRows',null)||sampleDivert;}
+
+function cwmPct(val){return Math.round((val/CWM_MAX)*100);}
+
+function buildGauge(weight){
+  const track=document.getElementById('gauge-track');
+  if(!track)return;
+  const fillPct=Math.min(cwmPct(weight),100);
+  const fillColor=weight>=BAND_LO&&weight<=BAND_HI?'#16a34a':weight>=WARN_LO&&weight<=WARN_HI?'#d97706':'#dc2626';
+  track.innerHTML=`
+    <div class="gauge-warn-lo" style="left:${cwmPct(WARN_LO)}%;width:${cwmPct(BAND_LO-WARN_LO)}%"></div>
+    <div class="gauge-band" style="left:${cwmPct(BAND_LO)}%;width:${cwmPct(BAND_HI-BAND_LO)}%"></div>
+    <div class="gauge-warn-hi" style="left:${cwmPct(BAND_HI)}%;width:${cwmPct(WARN_HI-BAND_HI)}%"></div>
+    <div class="gauge-fill" style="width:${fillPct}%;background:${fillColor};opacity:.25"></div>
+    <div class="gauge-pointer" data-val="${(weight/1000).toFixed(1)}K" style="left:calc(${fillPct}% - 1px)"></div>`;
+  document.getElementById('gauge-ticks').innerHTML=[0,10,20,30,40,50,55].map(t=>`<span>${t}K</span>`).join('');
+}
+
+function updateWeight(){
+  currentWeight=Number(document.getElementById('weight-input').value)||0;
+  buildGauge(currentWeight);
+  weightHistory.push({t:Date.now(),w:currentWeight});
+  if(weightHistory.length>20)weightHistory=weightHistory.slice(-20);
+  STORE.set('ff.weightHistory',weightHistory);
+  if(weightHistory.length>=2){
+    const prev=weightHistory[weightHistory.length-2],curr=weightHistory[weightHistory.length-1];
+    const delta=curr.w-prev.w;
+    if(delta>=8000||delta>=4000){
+      const entry={time:new Date().toLocaleTimeString(),from:(prev.w/1000).toFixed(1),to:(curr.w/1000).toFixed(1),delta:(delta/1000).toFixed(1),level:delta>=8000?'alert':'warn'};
+      spikeLog.unshift(entry);
+      if(spikeLog.length>10)spikeLog=spikeLog.slice(0,10);
+      STORE.set('ff.spikeLog',spikeLog);
+    }
+  }
+  renderWeightStatus();renderSweeperFlags();renderSpikeLog();
+}
+
+function renderWeightStatus(){
+  const w=currentWeight,el=document.getElementById('weight-status');
+  if(!el)return;
+  if(w>=BAND_LO&&w<=BAND_HI)el.innerHTML='<span class="tg">✓ In band</span>';
+  else if(w<BAND_LO)el.innerHTML=`<span class="tr">↓ Under — ${((BAND_LO-w)/1000).toFixed(1)}K below target</span>`;
+  else el.innerHTML=`<span class="ta">↑ Over — ${((w-BAND_HI)/1000).toFixed(1)}K above target</span>`;
+  const gapEl=document.getElementById('gap-val'),gapDir=document.getElementById('gap-dir');
+  if(w>=BAND_LO&&w<=BAND_HI){gapEl.textContent='In band';gapEl.className='kv tg';gapDir.textContent='No sweep needed';}
+  else if(w<BAND_LO){gapEl.textContent=`−${((BAND_LO-w)/1000).toFixed(1)}K`;gapEl.className='kv tr';gapDir.textContent='Need more freight';}
+  else{gapEl.textContent=`+${((w-BAND_HI)/1000).toFixed(1)}K`;gapEl.className='kv ta';gapDir.textContent='Reduce divert';}
+  const banner=document.getElementById('alert-banner');
+  if(spikeLog.length>0&&spikeLog[0].level==='alert'){
+    banner.style.display='block';
+    banner.innerHTML=`<div style="background:#fee2e2;border:2px solid #ef4444;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-weight:700;color:#991b1b;font-size:13px"><span style="font-size:20px">🚨</span><span>WEIGHT SPIKE DETECTED — ${spikeLog[0].from}K → ${spikeLog[0].to}K (+${spikeLog[0].delta}K) at ${spikeLog[0].time} — Notify PA and AM immediately</span><button class="btn danger" style="margin-left:auto;font-size:11px" onclick="this.parentElement.parentElement.style.display='none'">Dismiss</button></div>`;
+  }else{banner.style.display='none';}
+}
+
+function renderSweeperFlags(){
+  const w=currentWeight,flags=[];
+  if(w<BAND_LO)flags.push({cls:'flag-warn',icon:'📦',msg:`Weight ${(w/1000).toFixed(1)}K — ${((BAND_LO-w)/1000).toFixed(1)}K below target band. Load heavier freight or increase divert throughput.`});
+  if(w>BAND_HI)flags.push({cls:'flag-warn',icon:'⚠️',msg:`Weight ${(w/1000).toFixed(1)}K — ${((w-BAND_HI)/1000).toFixed(1)}K above target band. Reduce divert or shift to lighter freight.`});
+  if(w<WARN_LO)flags.push({cls:'flag-alert',icon:'🚨',msg:`Critical underweight at ${(w/1000).toFixed(1)}K. Sweeper sweep is urgently needed.`});
+  if(w>WARN_HI)flags.push({cls:'flag-alert',icon:'🚨',msg:`Critical overweight at ${(w/1000).toFixed(1)}K. Risk of system overload — reduce flow immediately.`});
+  const cdt=cdtRows();
+  const critical=cdt.filter(x=>x.status==='urgent');
+  if(critical.length)flags.push({cls:'flag-alert',icon:'⏰',msg:`${critical.length} trailer${critical.length>1?'s':''} at critical CDT — sweeper closeout required now: ${critical.map(x=>x.vrid).join(', ')}`});
+  const watching=cdt.filter(x=>x.status==='warn');
+  if(watching.length)flags.push({cls:'flag-warn',icon:'👁',msg:`${watching.length} trailer${watching.length>1?'s':''} entering gatekeeping window — prepare closeout: ${watching.map(x=>x.vrid).join(', ')}`});
+  if(w>=BAND_LO&&w<=BAND_HI&&!critical.length&&!watching.length)flags.push({cls:'flag-ok',icon:'✓',msg:'Weight in target band. No sweeper flags active.'});
+  document.getElementById('sweeper-flags').innerHTML=flags.map(f=>`<div class="flag-row ${f.cls}"><span class="flag-icon">${f.icon}</span><span>${f.msg}</span></div>`).join('');
+}
+
+function renderSpikeLog(){
+  const log=STORE.get('ff.spikeLog',[]);
+  document.getElementById('spike-log').innerHTML=!log.length
+    ?'<p style="color:#64748b;font-size:12px">No spikes recorded this session.</p>'
+    :log.map(e=>`<div class="spike-item ${e.level==='alert'?'spike-alert':'spike-warn'}"><span class="spike-time">${e.time}</span><span><strong>${e.from}K → ${e.to}K</strong> (+${e.delta}K) ${e.level==='alert'?'🚨 SPIKE — PA + AM notified':'⚠ Rapid change detected'}</span></div>`).join('');
+}
+
+function renderArcs(){
+  document.getElementById('arc-grid').innerHTML=arcs.map(arc=>`
+    <div class="arc-item">
+      <div class="arc-label">${arc.label}</div>
+      <div class="arc-input"><input type="number" id="${arc.id}-wt" value="${arc.weight}" min="0" max="20000" step="100" onchange="recalcWeight()"><span>lbs</span></div>
+      <div style="margin-top:4px;font-size:11px;color:#64748b"><input type="number" id="${arc.id}-pct" value="${arc.pct}" min="0" max="100" step="1" style="width:42px;height:22px;padding:0 4px;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:11px" onchange="recalcWeight()">% active</div>
+    </div>`).join('');
+}
+
+function recalcWeight(){
+  let total=0;
+  arcs.forEach(arc=>{
+    const wt=Number(document.getElementById(arc.id+'-wt')?.value||arc.weight);
+    const pctVal=Number(document.getElementById(arc.id+'-pct')?.value||arc.pct)/100;
+    total+=wt*pctVal;
+  });
+  document.getElementById('weight-input').value=Math.round(total);
+  currentWeight=Math.round(total);
+  buildGauge(currentWeight);renderWeightStatus();renderSweeperFlags();
+}
+
+function clearArcs(){arcs.forEach(arc=>{const el=document.getElementById(arc.id+'-wt');if(el)el.value=0;const pe=document.getElementById(arc.id+'-pct');if(pe)pe.value=0;});recalcWeight();}
+
+function renderDivert(){
+  const divData=divertRows();
+  const live=STORE.get('obd.divertRows',null)!=null;
+  const total=divData.reduce((s,x)=>s+(Number(x.val)||0),0)||1;
+  document.getElementById('divert-breakdown').innerHTML=divData.map(d=>`
+    <div class="div-row">
+      <span style="min-width:32px;font-weight:800;font-size:12px">${d.name}</span>
+      <div class="div-bar"><span style="width:${Math.round((d.val/total)*100)}%;background:${d.color||'#64748b'}"></span></div>
+      <span style="min-width:36px;text-align:right;font-size:12px;font-weight:700">${d.val}%</span>
+      <span style="min-width:50px;text-align:right;font-size:11px;color:#64748b">${((total*d.val/100)/1000).toFixed(1)}K lbs</span>
+    </div>`).join('')+`<p style="font-size:11px;color:#64748b;margin-top:8px">${live?'Live DockFlow capture':'Sample data — connect DockFlow for live values'}</p>`;
+  const src=document.getElementById('divert-src');if(src){src.textContent=live?'· live':'· sample';src.style.color=live?'#166534':'#92400e';}
+}
+
+function renderCDT(){
+  const rows=cdtRows();
+  const live=STORE.get('obd.cdtRows',null)!=null;
+  const src=document.getElementById('cdt-src');if(src){src.textContent=live?'· live':'· sample';src.style.color=live?'#166534':'#92400e';}
+  document.getElementById('cdt-cards').innerHTML=rows.map(c=>{
+    const h=Math.floor(c.minRemaining/60),m=c.minRemaining%60;
+    const countdownStr=h>0?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m`;
+    const inBand=c.weight>=BAND_LO&&c.weight<=BAND_HI;
+    const wtColor=inBand?'#166534':c.weight<WARN_LO||c.weight>WARN_HI?'#991b1b':'#92400e';
+    const cdtTime=`${String(c.cdtHH).padStart(2,'0')}:${String(c.cdtMM).padStart(2,'0')}`;
+    return`<div class="cdt-card ${c.status}">
+      <div class="cdt-vrid">${c.vrid}</div>
+      <div class="cdt-meta">${c.type} · CDT ${cdtTime}</div>
+      <div class="cdt-countdown ${c.status}">${countdownStr}</div>
+      <div class="cdt-timelabel">Time to departure</div>
+      <div class="cdt-wt">Weight: <span class="cdt-wt-val" style="color:${wtColor}">${(c.weight/1000).toFixed(1)}K lbs</span>${inBand?' ✓':' ⚠'}</div>
+      <span class="cdt-status ${c.status==='ok'?'s-ok':c.status==='warn'?'s-warn':'s-urgent'}">${c.status==='ok'?'On Track':c.status==='warn'?'Watch':'Critical'}</span>
+      ${c.gwOpen?'<span class="cdt-gw-badge">🔑 GW Open</span>':''}
+    </div>`}).join('');
+}
+
+function addSpikeTest(){
+  const prev=currentWeight,spikeVal=prev+12000;
+  document.getElementById('weight-input').value=spikeVal;
+  currentWeight=spikeVal;
+  weightHistory.push({t:Date.now(),w:prev},{t:Date.now()+100,w:spikeVal});
+  spikeLog.unshift({time:new Date().toLocaleTimeString(),from:(prev/1000).toFixed(1),to:(spikeVal/1000).toFixed(1),delta:'12.0',level:'alert'});
+  STORE.set('ff.spikeLog',spikeLog);STORE.set('ff.weightHistory',weightHistory);
+  buildGauge(currentWeight);renderWeightStatus();renderSweeperFlags();renderSpikeLog();
+}
+
+// Render the whole CDT·WM block. Kept separate from renderAll() so door-grid
+// filter changes don't reset the ARC inputs.
+function renderCWM(){
+  buildGauge(currentWeight);renderWeightStatus();renderArcs();renderDivert();renderCDT();renderSweeperFlags();renderSpikeLog();
+}
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+{const fr=document.getElementById('fill-rate');if(fr)fr.value=fillRateDefault();const lj=document.getElementById('lbs-per-job');if(lj)lj.value=lbsPerJobDefault();}
+renderAll();
+renderCWM();
+setInterval(renderCDT,30000);
+// Restore collector auto-sync if it was on (starts a 20s poll of the proxy /collect store)
+{const as=document.getElementById('auto-sync');if(as&&STORE.get('obd.autoSync',false)){as.checked=true;toggleAutoSync(true);}}
+
+// ── FUSE merged SPA view router ──
+const FUSE_VIEWS = ['obd-east-west'];
+const FUSE_DEFAULT_VIEW = 'obd-east-west';
+const FUSE_VIEW_LABELS = {'obd-east-west': 'OBD E/W'};
+
+function fuseShowView(id) {
+  if (!FUSE_VIEWS.includes(id)) return;
+  document.querySelectorAll('.view-panel').forEach(el => el.classList.toggle('active', el.dataset.view === id));
+  document.querySelectorAll('.pills button[data-view]').forEach(btn => btn.classList.toggle('active', btn.dataset.view === id));
+  const sub = document.getElementById('nav-sub');
+  if (sub) sub.textContent = 'v001 · ' + (FUSE_VIEW_LABELS[id] || id.toUpperCase());
+  try { localStorage.setItem('fuse.activeView', id); } catch (e) {}
+  if (id === 'obd-east-west' || id === 'obd') { try { renderAll(); } catch (e) {} }
+  if (id === 'cdt' || id === 'obd-east-west') { try { renderCWM(); } catch (e) {} }
+}
+
+(function fuseInitView() {
+  let v = FUSE_DEFAULT_VIEW;
+  try { v = localStorage.getItem('fuse.activeView') || v; } catch (e) {}
+  if (!document.getElementById('view-' + v)) v = FUSE_DEFAULT_VIEW;
+  fuseShowView(v);
+})();
+
+</script>
+</body>
+</html>
