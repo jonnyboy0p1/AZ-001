@@ -5,9 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="ob-report-card" content="v2.1-hybrid" />
   <title>OB Report Card</title>
+  <script>
+(function () {
+  var KEY = 'ob_prc_vscode_app_theme';
+  var STATE_KEY = 'ob_prc_vscode_app_state_v1';
+  var VARIANT_KEY = 'ob_prc_vscode_app_theme_variants';
+  var VALID = {
+    midnight: 1, 'midnight-violet': 1, 'midnight-carbon': 1, 'midnight-rose': 1,
+    ice: 1, 'ice-teal': 1, light: 1, darkwhite: 1, ember: 1, forest: 1
+  };
+  function resolveTheme(family, variant) {
+    if (!variant || variant === 'default') return family;
+    return family + '-' + variant;
+  }
+  var theme = 'midnight';
+  try {
+    var stored = localStorage.getItem(KEY);
+    if (stored === 'forest') stored = 'ember';
+    if (stored && VALID[stored]) {
+      theme = stored;
+    } else {
+      var state = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+      var family = state.themeSelect;
+      if (family === 'forest') family = 'ember';
+      if (family) {
+        var variants = JSON.parse(localStorage.getItem(VARIANT_KEY) || '{}');
+        theme = resolveTheme(family, variants[family] || 'default');
+        if (!VALID[theme]) theme = family;
+      }
+    }
+  } catch (e) {}
+  document.documentElement.className = 'theme-' + theme;
+})();
+  </script>
   <style>
-:root,
-body.theme-midnight{
+:root{
   --bg:#0d1522;
   --panel:#161f2e;
   --panel2:#131b29;
@@ -17,15 +49,20 @@ body.theme-midnight{
   --blue:#5b8fd4;
   --green:#6fbf96;
   --yellow:#d4c48e;
-  --orange:#c9956e;
+  --orange:#fb923c;
   --red:#cf939c;
   --shadow:0 10px 22px rgba(0,0,0,.16);
   --radius:18px;
   --input:#101826;
   --thead:#141d2b;
   --gradient:radial-gradient(circle at top left,#1a2a42 0,#0d1522 58%,#0a1019 100%);
+  --accent:#5b8fd4;
+  --accent-text:#ffffff;
+  --button:#334155;
+  --button-text:#d8e2f0;
+  --button-soft:#1e293b;
 }
-body.theme-light{
+html.theme-light, body.theme-light{
   --bg:#eef2f7;
   --panel:#f8fafc;
   --panel2:#f1f5f9;
@@ -40,24 +77,67 @@ body.theme-light{
   --input:#ffffff;
   --thead:#e8eef5;
   --gradient:linear-gradient(135deg,#f8fafc 0,#eef3f8 55%,#e4ebf3 100%);
+  --accent:#4a7ec8;
+  --accent-text:#ffffff;
+  --button:#475569;
+  --button-text:#ffffff;
+  --button-soft:#e2e8f0;
 }
-body.theme-darkwhite{
-  --bg:#161616;
-  --panel:#222222;
-  --panel2:#1b1b1b;
-  --line:#404040;
-  --text:#e8e8e8;
-  --muted:#b0b0b0;
-  --blue:#d8d8d8;
-  --green:#7fbf9a;
-  --yellow:#c9b574;
-  --red:#c98f8f;
-  --shadow:0 10px 24px rgba(0,0,0,.22);
-  --input:#121212;
-  --thead:#1a1a1a;
-  --gradient:radial-gradient(circle at top left,#2a2a2a 0,#161616 55%,#101010 100%);
+html.theme-darkwhite, body.theme-darkwhite{
+  --bg:#1e1e1e;
+  --panel:#282828;
+  --panel2:#222222;
+  --line:#4a4a4a;
+  --text:#d4d4d4;
+  --muted:#9ca3af;
+  --heading:#e2e2e2;
+  --blue:#b8b8b8;
+  --green:#89efb0;
+  --yellow:#f4d06f;
+  --red:#ff9696;
+  --shadow:0 12px 30px rgba(0,0,0,.28);
+  --input:#1a1a1a;
+  --thead:#202020;
+  --gradient:radial-gradient(circle at top left,#343434 0,#1e1e1e 52%,#171717 100%);
+  --accent:#454545;
+  --accent-text:#efefef;
+  --button:#353535;
+  --button-text:#e4e4e4;
+  --button-soft:#2c2c2c;
 }
-body.theme-ice{
+html.theme-darkwhite h1,
+html.theme-darkwhite h2,
+html.theme-darkwhite .pace-board-head h3,
+body.theme-darkwhite h1,
+body.theme-darkwhite h2,
+body.theme-darkwhite .pace-board-head h3{
+  color:var(--heading);
+  font-weight:700;
+}
+html.theme-darkwhite .view-tab.active,
+html.theme-darkwhite .pace-stream-tab.active,
+html.theme-darkwhite .period-open-tab.active,
+body.theme-darkwhite .view-tab.active,
+body.theme-darkwhite .pace-stream-tab.active,
+body.theme-darkwhite .period-open-tab.active{
+  background:var(--accent);
+  color:var(--accent-text);
+  border-color:var(--line);
+}
+html.theme-darkwhite button.primary,
+html.theme-darkwhite .button-link.primary,
+body.theme-darkwhite button.primary,
+body.theme-darkwhite .button-link.primary{
+  background:var(--accent);
+  color:var(--accent-text);
+}
+html.theme-darkwhite .mode-chip,
+body.theme-darkwhite .mode-chip{
+  background:color-mix(in srgb,var(--accent),var(--panel2) 55%);
+  border-color:var(--line);
+  color:var(--heading);
+}
+html.theme-ice, body.theme-ice{
   --bg:#edf4fa;
   --panel:#f7fafc;
   --panel2:#e9f2f8;
@@ -72,22 +152,117 @@ body.theme-ice{
   --input:#ffffff;
   --thead:#dfeaf3;
   --gradient:linear-gradient(135deg,#f9fcff 0,#eaf2f8 55%,#dde8f2 100%);
+  --accent:#3b8ab8;
+  --accent-text:#ffffff;
+  --button:#475569;
+  --button-text:#ffffff;
+  --button-soft:#dbeafe;
 }
-body.theme-forest{
-  --bg:#0b1712;
-  --panel:#15241c;
-  --panel2:#121f18;
-  --line:#355245;
-  --text:#ddece3;
-  --muted:#8fa89a;
-  --blue:#5fae8f;
-  --green:#7fbf96;
-  --yellow:#c9b574;
-  --red:#c98f98;
-  --shadow:0 10px 22px rgba(0,0,0,.18);
-  --input:#0e1a14;
-  --thead:#111c16;
-  --gradient:radial-gradient(circle at top left,#234a36 0,#0b1712 58%,#07100c 100%);
+html.theme-ice-teal, body.theme-ice-teal{
+  --bg:#ecfdf5;
+  --panel:#f8fffc;
+  --panel2:#e6faf4;
+  --line:#99d5c9;
+  --text:#0f3d34;
+  --muted:#4b7c72;
+  --blue:#0d9488;
+  --green:#059669;
+  --yellow:#b45309;
+  --red:#dc2626;
+  --shadow:0 12px 28px rgba(13,148,136,.12);
+  --input:#ffffff;
+  --thead:#d7f5ee;
+  --gradient:linear-gradient(135deg,#ffffff 0,#e9fff8 52%,#ccfbf1 100%);
+  --accent:#0f766e;
+  --accent-text:#ffffff;
+  --button:#475569;
+  --button-text:#ffffff;
+  --button-soft:#ccfbf1;
+}
+html.theme-midnight-violet, body.theme-midnight-violet{
+  --bg:#0a0814;
+  --panel:#141022;
+  --panel2:#0d0a18;
+  --line:#352a52;
+  --text:#efe8ff;
+  --muted:#b7a8d9;
+  --blue:#a78bfa;
+  --green:#86efac;
+  --yellow:#fde68a;
+  --red:#fb7185;
+  --shadow:0 12px 28px rgba(76,29,149,.28);
+  --input:#0b0814;
+  --thead:#110d1c;
+  --gradient:radial-gradient(circle at top left,#2a1650 0,#0a0814 48%,#05030a 100%);
+  --accent:#8b5cf6;
+  --accent-text:#ffffff;
+  --button:#2a2140;
+  --button-text:#efe8ff;
+  --button-soft:#1a1528;
+}
+html.theme-midnight-carbon, body.theme-midnight-carbon{
+  --bg:#0b0f14;
+  --panel:#141a22;
+  --panel2:#0d1218;
+  --line:#2b3644;
+  --text:#e5edf5;
+  --muted:#94a3b8;
+  --blue:#94a3b8;
+  --green:#6ee7b7;
+  --yellow:#fcd34d;
+  --red:#f87171;
+  --shadow:0 12px 28px rgba(15,23,42,.34);
+  --input:#0a1016;
+  --thead:#0d131a;
+  --gradient:radial-gradient(circle at top left,#1f2937 0,#0b0f14 48%,#05070a 100%);
+  --accent:#64748b;
+  --accent-text:#ffffff;
+  --button:#243041;
+  --button-text:#e5edf5;
+  --button-soft:#18202b;
+}
+html.theme-midnight-rose, body.theme-midnight-rose{
+  --bg:#120910;
+  --panel:#1c1018;
+  --panel2:#120810;
+  --line:#4a2740;
+  --text:#ffeef8;
+  --muted:#d8a8c5;
+  --blue:#f472b6;
+  --green:#86efac;
+  --yellow:#fde68a;
+  --red:#fb7185;
+  --shadow:0 12px 28px rgba(159,18,57,.24);
+  --input:#100710;
+  --thead:#160c13;
+  --gradient:radial-gradient(circle at top left,#4a1235 0,#120910 48%,#070407 100%);
+  --accent:#ec4899;
+  --accent-text:#ffffff;
+  --button:#301828;
+  --button-text:#ffeef8;
+  --button-soft:#22101a;
+}
+html.theme-ember, body.theme-ember,
+html.theme-forest, body.theme-forest{
+  --bg:#140c08;
+  --panel:#211610;
+  --panel2:#170f0a;
+  --line:#4a3424;
+  --text:#fff4ea;
+  --muted:#d4b59a;
+  --blue:#fb923c;
+  --green:#86efac;
+  --yellow:#fbbf24;
+  --red:#f87171;
+  --shadow:0 12px 28px rgba(124,45,18,.28);
+  --input:#120a06;
+  --thead:#180e08;
+  --gradient:radial-gradient(circle at top left,#5c2f14 0,#140c08 48%,#080503 100%);
+  --accent:#f59e0b;
+  --accent-text:#1a0f06;
+  --button:#3a2418;
+  --button-text:#fff4ea;
+  --button-soft:#261810;
 }
 *{box-sizing:border-box}
 [hidden]{
@@ -208,11 +383,11 @@ h2{margin:0;font-size:17px;line-height:1.1}
 }
 .save-counter.good{
   color:var(--green);
-  border-color:rgba(111,191,150,.28);
+  border-color:rgba(111,191,150,.26);
 }
 .save-counter.warn{
   color:var(--yellow);
-  border-color:rgba(212,196,142,.28);
+  border-color:rgba(212,196,142,.45);
 }
 .btnrow,.copy-actions,.chiprow,.btnstack{display:flex;gap:8px;flex-wrap:wrap}
 .btnstack{flex-direction:column}
@@ -234,9 +409,9 @@ h2{margin:0;font-size:17px;line-height:1.1}
   border:1px solid var(--line);
 }
 .view-tab.active{
-  background:color-mix(in srgb,var(--blue),var(--panel2) 22%);
+  background:color-mix(in srgb,var(--accent),var(--panel2) 22%);
   color:var(--text);
-  border-color:rgba(91,143,212,.30);
+  border-color:color-mix(in srgb,var(--accent),var(--line) 30%);
 }
 button{
   border:0;
@@ -247,15 +422,27 @@ button{
   font-weight:900;
   cursor:pointer;
 }
+html.theme-light button.soft,
+html.theme-light .button-link.soft,
+body.theme-light button.soft,
+body.theme-light .button-link.soft{
+  color:var(--text);
+}
 button:hover{filter:brightness(1.1)}
 button:disabled{
   cursor:not-allowed;
   opacity:.55;
   filter:none;
 }
-button.primary{background:var(--blue);color:#fff}
-button.danger{background:color-mix(in srgb,var(--red),var(--panel2) 35%)}
-button.soft{background:color-mix(in srgb,var(--panel2),var(--line) 25%)}
+button.primary{
+  background:var(--accent);
+  color:var(--accent-text);
+}
+button.danger{background:color-mix(in srgb,var(--red),var(--panel2) 35%);color:#fff}
+button.soft{
+  background:color-mix(in srgb,var(--panel2),var(--line) 25%);
+  color:var(--text);
+}
 .button-link{
   display:inline-flex;
   align-items:center;
@@ -264,13 +451,19 @@ button.soft{background:color-mix(in srgb,var(--panel2),var(--line) 25%)}
   padding:10px 13px;
   border:0;
   border-radius:12px;
-  background:color-mix(in srgb,var(--line),var(--panel2) 55%);
-  color:var(--text);
+  background:var(--button);
+  color:var(--button-text);
   font-weight:900;
   text-decoration:none;
 }
-.button-link.primary{background:var(--blue);color:#fff}
-.button-link.soft{background:color-mix(in srgb,var(--panel2),var(--line) 25%)}
+.button-link.primary{
+  background:var(--accent);
+  color:var(--accent-text);
+}
+.button-link.soft{
+  background:var(--button-soft);
+  color:var(--button-text);
+}
 .tinybtn{
   padding:7px 9px;
   border-radius:10px;
@@ -292,6 +485,7 @@ button.soft{background:color-mix(in srgb,var(--panel2),var(--line) 25%)}
 .setup-panel{
   margin-bottom:14px;
 }
+#themeVariantWrap[hidden]{display:none!important;}
 .setup-panel > .grid-4,
 .topbar-controls-grid{
   grid-template-columns:1.1fr 1.4fr 1fr 1fr;
@@ -346,13 +540,13 @@ button.soft{background:color-mix(in srgb,var(--panel2),var(--line) 25%)}
   background:var(--panel);
 }
 .stream-fluid{
-  border-color:rgba(91,143,212,.26)!important;
+  border-color:rgba(47,111,234,.48)!important;
 }
 .stream-mp{
-  border-color:rgba(111,191,150,.26)!important;
+  border-color:rgba(114,240,164,.48)!important;
 }
 .stream-rwc{
-  border-color:rgba(212,196,142,.28)!important;
+  border-color:rgba(253,230,138,.52)!important;
 }
 .snapshot-group-title{
   color:var(--muted);
@@ -426,7 +620,7 @@ body[data-view="goals"] .chart-panel{order:3}
   margin:0 16px 16px;
 }
 .shift-source-panel{
-  border-color:rgba(91,143,212,.24);
+  border-color:rgba(47,111,234,.42);
 }
 .jplh-source-body{
   display:grid;
@@ -788,16 +982,16 @@ textarea{
   font-weight:900;
 }
 .mode-chip{
-  border-color:rgba(91,143,212,.28);
+  border-color:rgba(47,111,234,.55);
   color:var(--text);
-  background:color-mix(in srgb,var(--blue),var(--panel2) 90%);
+  background:color-mix(in srgb,var(--blue),var(--panel2) 78%);
 }
 .mode-chip.met-active{
   border-color:rgba(250,204,21,.7);
-  background:color-mix(in srgb,var(--yellow),var(--panel2) 92%);
+  background:color-mix(in srgb,var(--yellow),var(--panel2) 82%);
 }
 body.met-enabled #topControls{
-  border-color:rgba(250,204,21,.24);
+  border-color:rgba(250,204,21,.42);
 }
 body.met-enabled .view-tabs{
   border-color:rgba(250,204,21,.28);
@@ -928,7 +1122,7 @@ body.met-enabled .view-tabs{
   width:100%;
   margin:0;
   padding:12px 10px;
-  border:1px solid rgba(91,143,212,.35);
+  border:1px solid rgba(47,111,234,.35);
   border-radius:12px;
   background:var(--panel);
   color:var(--muted);
@@ -943,7 +1137,7 @@ body.met-enabled .view-tabs{
 }
 .monitor-timer-pill.override{
   color:var(--yellow);
-  border-color:rgba(250,204,21,.26);
+  border-color:rgba(250,204,21,.45);
 }
 .monitor-timer-extra{
   display:grid;
@@ -1067,7 +1261,7 @@ body.met-enabled .view-tabs{
   gap:10px;
   margin:0;
   padding:12px;
-  border:1px solid rgba(91,143,212,.26);
+  border:1px solid rgba(47,111,234,.45);
   border-radius:14px;
   background:var(--panel2);
 }
@@ -1132,7 +1326,7 @@ body.met-enabled .view-tabs{
 }
 #monitorOverrideState.active{
   color:var(--yellow);
-  border-color:rgba(250,204,21,.26);
+  border-color:rgba(250,204,21,.45);
 }
 #liveMetricsBridgeState{
   color:var(--muted);
@@ -1215,7 +1409,7 @@ body.met-enabled .view-tabs{
   font-size:11px;
   font-weight:800;
 }
-.hourly-chip.latest{border-color:rgba(91,143,212,.34);color:var(--text)}
+.hourly-chip.latest{border-color:rgba(47,111,234,.65);color:var(--text)}
 .hourly-table{
   width:100%;
   border-collapse:collapse;
@@ -1317,7 +1511,7 @@ body.met-enabled .view-tabs{
   background:var(--panel2);
 }
 .ops-override-row.pending{opacity:.55}
-.ops-override-row.live{border-color:rgba(111,191,150,.28)}
+.ops-override-row.live{border-color:rgba(114,240,164,.5)}
 .ops-ovr-chip{
   padding:3px 9px;
   border:1px solid var(--blue);
@@ -1416,13 +1610,13 @@ body.met-enabled .view-tabs{
   overflow:hidden;
 }
 .period-pulse-card.total{
-  border-color:rgba(91,143,212,.28);
+  border-color:rgba(47,111,234,.55);
 }
 .period-pulse-card.eol{
-  border-color:rgba(251,146,60,.28);
+  border-color:rgba(251,146,60,.55);
 }
 .period-pulse-card.struggle{
-  border-color:rgba(207,147,156,.28);
+  border-color:rgba(255,143,154,.55);
 }
 .period-pulse-head{
   display:flex;
@@ -1489,7 +1683,7 @@ body.met-enabled .view-tabs{
 .period-struggle-note{
   margin:0 12px 12px;
   padding:10px 11px;
-  border:1px solid rgba(207,147,156,.22);
+  border:1px solid rgba(255,143,154,.35);
   border-radius:10px;
   background:var(--panel);
   color:var(--text);
@@ -1613,12 +1807,12 @@ body.met-enabled .view-tabs{
   text-align:center;
 }
 .projection-stream-chip.active{
-  border-color:rgba(91,143,212,.30);
-  box-shadow:inset 0 0 0 1px rgba(91,143,212,.18);
+  border-color:rgba(47,111,234,.58);
+  box-shadow:inset 0 0 0 1px rgba(47,111,234,.18);
 }
-.projection-stream-chip.good{border-color:rgba(111,191,150,.26)}
-.projection-stream-chip.warn{border-color:rgba(212,196,142,.32)}
-.projection-stream-chip.bad{border-color:rgba(207,147,156,.32)}
+.projection-stream-chip.good{border-color:rgba(114,240,164,.45)}
+.projection-stream-chip.warn{border-color:rgba(253,230,138,.6)}
+.projection-stream-chip.bad{border-color:rgba(255,143,154,.6)}
 .projection-stream-label{
   color:var(--muted);
   font-size:11px;
@@ -1773,15 +1967,15 @@ td input{
 }
 .insight-card.good,
 .insight-alert.good{
-  border-color:rgba(111,191,150,.26);
+  border-color:rgba(114,240,164,.45);
 }
 .insight-card.warn,
 .insight-alert.warn{
-  border-color:rgba(212,196,142,.28);
+  border-color:rgba(253,230,138,.55);
 }
 .insight-card.bad,
 .insight-alert.bad{
-  border-color:rgba(207,147,156,.28);
+  border-color:rgba(255,143,154,.55);
 }
 .insight-title{
   color:var(--muted);
@@ -1821,18 +2015,18 @@ td input{
   border-radius:12px;
   background:var(--panel2);
 }
-.projection-status-card.good{border-color:rgba(111,191,150,.26)}
-.projection-status-card.warn{border-color:rgba(212,196,142,.32)}
-.projection-status-card.bad{border-color:rgba(207,147,156,.32)}
+.projection-status-card.good{border-color:rgba(114,240,164,.45)}
+.projection-status-card.warn{border-color:rgba(253,230,138,.6)}
+.projection-status-card.bad{border-color:rgba(255,143,154,.6)}
 body.met-enabled .projection-panel{
-  border-color:rgba(250,204,21,.26);
+  border-color:rgba(250,204,21,.46);
 }
 body.met-enabled .projection-panel .panel-head{
-  background:linear-gradient(90deg,color-mix(in srgb,var(--yellow),var(--panel) 93%),var(--panel));
+  background:linear-gradient(90deg,color-mix(in srgb,var(--yellow),var(--panel) 86%),var(--panel));
 }
 body.met-enabled .projection-status-card.met-mode{
-  border-color:rgba(250,204,21,.34);
-  background:color-mix(in srgb,var(--yellow),var(--panel2) 95%);
+  border-color:rgba(250,204,21,.65);
+  background:color-mix(in srgb,var(--yellow),var(--panel2) 88%);
 }
 body.met-enabled .projection-status-card.met-mode .projection-status-value{
   color:var(--yellow);
@@ -1940,9 +2134,9 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   border-radius:12px;
   background:var(--panel2);
 }
-.projection-callout.good{border-color:rgba(111,191,150,.26)}
-.projection-callout.warn{border-color:rgba(212,196,142,.32)}
-.projection-callout.bad{border-color:rgba(207,147,156,.32)}
+.projection-callout.good{border-color:rgba(114,240,164,.45)}
+.projection-callout.warn{border-color:rgba(253,230,138,.6)}
+.projection-callout.bad{border-color:rgba(255,143,154,.6)}
 .projection-callout span{
   color:var(--muted);
   font-size:12px;
@@ -1965,15 +2159,15 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   width:100%;
 }
 .pace-board-hero{
-  border-color:rgba(91,143,212,.30);
-  box-shadow:0 12px 28px rgba(0,0,0,.12);
+  border-color:rgba(47,111,234,.58);
+  box-shadow:0 18px 42px rgba(0,0,0,.18);
 }
 .pace-board .table-wrap{
   width:100%;
   overflow:auto;
 }
 .pace-board-hero .pace-board-head{
-  background:linear-gradient(90deg,color-mix(in srgb,var(--blue),var(--thead) 84%),var(--thead));
+  background:linear-gradient(90deg,color-mix(in srgb,var(--blue),var(--thead) 72%),var(--thead));
 }
 .pace-stream-tabs{
   display:grid;
@@ -1991,9 +2185,9 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   font-size:15px;
 }
 .pace-stream-tab.active{
-  background:color-mix(in srgb,var(--blue),var(--panel2) 22%);
+  background:color-mix(in srgb,var(--accent),var(--panel2) 22%);
   color:var(--text);
-  border-color:rgba(91,143,212,.30);
+  border-color:color-mix(in srgb,var(--accent),var(--line) 30%);
 }
 .pace-board{
   min-width:0;
@@ -2081,7 +2275,7 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   text-transform:uppercase;
 }
 .projection-segment-row.is-overridden{
-  background:rgba(251,146,60,.05);
+  background:rgba(251,146,60,.07);
 }
 .projection-segment-row.is-overridden td{
   color:var(--muted);
@@ -2147,7 +2341,7 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   white-space:normal;
   line-height:1.25;
   background:var(--thead);
-  border-bottom:2px solid color-mix(in srgb,var(--blue),var(--line) 78%);
+  border-bottom:2px solid color-mix(in srgb,var(--blue),var(--line) 64%);
   border-right:1px solid var(--line);
   color:var(--text);
 }
@@ -2157,7 +2351,7 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   font-size:15px;
   border-right:1px solid color-mix(in srgb,var(--line),transparent 28%);
   border-bottom:1px solid color-mix(in srgb,var(--line),transparent 34%);
-  background:color-mix(in srgb,var(--panel2),var(--thead) 30%);
+  background:color-mix(in srgb,var(--panel2),var(--thead) 22%);
   color:var(--text);
   font-weight:750;
 }
@@ -2243,8 +2437,8 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   color:var(--text);
   font-weight:950;
   text-align:center;
-  background:color-mix(in srgb,var(--blue),var(--panel2) 92%) !important;
-  border-right:2px solid color-mix(in srgb,var(--blue),var(--line) 76%) !important;
+  background:color-mix(in srgb,var(--blue),var(--panel2) 82%) !important;
+  border-right:2px solid color-mix(in srgb,var(--blue),var(--line) 62%) !important;
 }
 .projection-actual{
   width:100%;
@@ -2275,36 +2469,36 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   text-transform:uppercase;
 }
 .projection-period-total td{
-  background:color-mix(in srgb,var(--blue),var(--thead) 28%) !important;
-  border-top:2px solid color-mix(in srgb,var(--blue),var(--line) 70%);
-  border-bottom:2px solid color-mix(in srgb,var(--blue),var(--line) 72%);
+  background:color-mix(in srgb,var(--blue),var(--thead) 18%) !important;
+  border-top:2px solid color-mix(in srgb,var(--blue),var(--line) 35%);
+  border-bottom:2px solid color-mix(in srgb,var(--blue),var(--line) 42%);
   font-weight:950;
   color:var(--text);
 }
 .projection-grand-total td{
-  background:color-mix(in srgb,var(--blue),var(--thead) 32%) !important;
+  background:color-mix(in srgb,var(--blue),var(--thead) 24%) !important;
   border-top:3px solid var(--blue);
   border-bottom:0;
   font-weight:950;
   color:var(--text);
 }
 .projection-table .projection-segment-row:nth-child(even) td{
-  background:color-mix(in srgb,var(--panel2),var(--thead) 40%);
+  background:color-mix(in srgb,var(--panel2),var(--thead) 32%);
 }
 .projection-table .projection-segment-row.is-current td{
-  background:color-mix(in srgb,var(--blue),var(--panel2) 94%);
+  background:color-mix(in srgb,var(--blue),var(--panel2) 86%);
 }
 .projection-table .projection-segment-row.is-future td{
   color:var(--muted);
 }
 .projection-table .projection-segment-1 td{
-  border-top:2px solid color-mix(in srgb,var(--blue),var(--line) 74%);
+  border-top:2px solid color-mix(in srgb,var(--blue),var(--line) 58%);
 }
 .projection-table tr.risk-warn td{
-  background:color-mix(in srgb,var(--yellow),var(--panel2) 94%);
+  background:color-mix(in srgb,var(--yellow),var(--panel2) 86%);
 }
 .projection-table tr.risk-bad td{
-  background:color-mix(in srgb,var(--red),var(--panel2) 94%);
+  background:color-mix(in srgb,var(--red),var(--panel2) 86%);
 }
 .projection-period-total span{
   margin-left:8px;
@@ -2331,7 +2525,7 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   background:var(--panel2);
 }
 .log-lock.locked{
-  border-color:rgba(111,191,150,.26);
+  border-color:rgba(114,240,164,.45);
 }
 .log-lock span{
   color:var(--muted);
@@ -2462,10 +2656,10 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   width:10px;
   height:10px;
   border-radius:50%;
-  background:#c07070;
+  background:#ef4444;
   display:inline-block;
 }
-.status-dot.fresh{background:#6fbf96}
+.status-dot.fresh{background:#22c55e}
 .bridge-list{display:grid;gap:8px}
 .bridge-row{
   display:grid;
@@ -2547,21 +2741,21 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
 }
 /* Per-row performance highlighting */
 .projection-table .projection-segment-row.perf-good td{
-  background:color-mix(in srgb,var(--green),var(--panel2) 95%);
+  background:color-mix(in srgb,var(--green),var(--panel2) 88%);
 }
 .projection-table .projection-segment-row.perf-warn td{
-  background:color-mix(in srgb,var(--yellow),var(--panel2) 95%);
+  background:color-mix(in srgb,var(--yellow),var(--panel2) 88%);
 }
 .projection-table .projection-segment-row.perf-bad td{
-  background:color-mix(in srgb,var(--red),var(--panel2) 95%);
+  background:color-mix(in srgb,var(--red),var(--panel2) 88%);
 }
 /* Period total row performance highlighting */
 .projection-table .projection-period-total.perf-good td{
-  background:color-mix(in srgb,var(--green),var(--thead) 38%) !important;
+  background:color-mix(in srgb,var(--green),var(--thead) 30%) !important;
   border-top:2px solid var(--green);
 }
 .projection-table .projection-period-total.perf-bad td{
-  background:color-mix(in srgb,var(--red),var(--thead) 38%) !important;
+  background:color-mix(in srgb,var(--red),var(--thead) 30%) !important;
   border-top:2px solid var(--red);
 }
 /* Keep future rows dim regardless of perf class */
@@ -2595,18 +2789,18 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   transition:filter .12s ease;
 }
 .projection-period-summary td{
-  background:color-mix(in srgb,var(--blue),var(--panel2) 92%) !important;
+  background:color-mix(in srgb,var(--blue),var(--panel2) 80%) !important;
   border-top:2px solid color-mix(in srgb,var(--blue),var(--line) 55%);
   font-size:15px;
   padding-top:11px;
   padding-bottom:11px;
 }
 .projection-period-summary.perf-good td{
-  background:color-mix(in srgb,var(--green),var(--thead) 40%) !important;
+  background:color-mix(in srgb,var(--green),var(--thead) 32%) !important;
   border-top:2px solid var(--green);
 }
 .projection-period-summary.perf-bad td{
-  background:color-mix(in srgb,var(--red),var(--thead) 40%) !important;
+  background:color-mix(in srgb,var(--red),var(--thead) 32%) !important;
   border-top:2px solid var(--red);
 }
 .projection-period-summary:hover td{
@@ -2688,9 +2882,9 @@ body.met-enabled .projection-status-card.met-mode .projection-status-value{
   color:var(--muted);
   white-space:nowrap;
 }
-.source-age-chip.good{color:var(--green);border-color:rgba(111,191,150,.22);}
+.source-age-chip.good{color:var(--green);border-color:rgba(34,197,94,.3);}
 .source-age-chip.warn{color:var(--yellow);border-color:rgba(250,204,21,.3);}
-.source-age-chip.bad{color:var(--red);border-color:rgba(207,147,156,.22);}
+.source-age-chip.bad{color:var(--red);border-color:rgba(239,68,68,.3);}
 /* Copy button flash feedback */
 button.copy-success{
   background:color-mix(in srgb,var(--green),var(--panel) 35%) !important;
@@ -2804,9 +2998,9 @@ button.copy-success{
   cursor:pointer;
   text-align:center;
 }
-.period-open-tab.active{background:color-mix(in srgb,var(--blue),var(--panel2) 22%);color:var(--text);border-color:rgba(91,143,212,.30);}
+.period-open-tab.active{background:var(--accent);color:var(--accent-text);border-color:transparent;}
 .period-open-auto.active{background:var(--green);color:#06210f;border-color:transparent;}
-.period-open-tab.now{border-color:rgba(111,191,150,.7);}
+.period-open-tab.now{border-color:rgba(114,240,164,.7);}
 .period-open-tab .now-dot{
   position:absolute;
   top:4px;
@@ -2894,7 +3088,13 @@ button.copy-success{
 
   </style>
 </head>
-<body class="theme-midnight">
+<body>
+<script>
+(function () {
+  var theme = (document.documentElement.className.match(/theme-([\w-]+)/) || ['', 'midnight'])[1];
+  document.body.className = 'theme-' + theme;
+})();
+</script>
   <div class="app">
     <header class="topbar">
       <div class="topbar-inner">
@@ -2932,11 +3132,15 @@ button.copy-success{
               <label for="themeSelect">Theme</label>
               <select id="themeSelect">
                 <option value="midnight">Midnight Dark</option>
+                <option value="ice">Ice Blue</option>
                 <option value="light">Clean Light</option>
                 <option value="darkwhite">Dark White</option>
-                <option value="ice">Ice Blue</option>
-                <option value="forest">Forest Ops</option>
+                <option value="ember">Ember Copper</option>
               </select>
+            </div>
+            <div id="themeVariantWrap" hidden>
+              <label for="themeVariantSelect">Accent Style</label>
+              <select id="themeVariantSelect"></select>
             </div>
             <div>
               <label for="focusMode">Focus Mode</label>
@@ -3226,7 +3430,7 @@ button.copy-success{
                   <p>Auto pulls on the quarter hour, or faster during an active pull override.</p>
                 </div>
                 <div class="live-metrics-actions">
-                  <span id="liveMetricsBridgeState">Userscript bridge not detected yet</span>
+                  <span id="liveMetricsBridgeState">Checking server proxy…</span>
                   <button id="pullLiveMetricsBtn" class="primary">Pull Live Metrics Now</button>
                 </div>
               </div>
@@ -3595,6 +3799,34 @@ const SHIFT_LOG_KEY = 'ob_prc_vscode_shift_results_log_v1';
 const LEGACY_SHIFT_LOG_KEY = 'OB_PERIOD_REPORT_CARD_SHIFT_LOGS';
 const XBELT_LOG_KEY = 'ob_prc_vscode_xbelt_downtime_log_v1';
 const THEME_KEY = 'ob_prc_vscode_app_theme';
+const THEME_VARIANTS_KEY = 'ob_prc_vscode_app_theme_variants';
+const THEME_FAMILIES = {
+  midnight: {
+    label: 'Midnight Dark',
+    variants: {
+      default: 'Classic Blue',
+      violet: 'Violet Night',
+      carbon: 'Carbon Steel',
+      rose: 'Deep Rose'
+    }
+  },
+  ice: {
+    label: 'Ice Blue',
+    variants: {
+      default: 'Sky Blue',
+      teal: 'Glacier Teal'
+    }
+  },
+  light: { label: 'Clean Light' },
+  darkwhite: { label: 'Dark White' },
+  ember: { label: 'Ember Copper' }
+};
+const VALID_THEMES = [
+  'midnight', 'midnight-violet', 'midnight-carbon', 'midnight-rose',
+  'ice', 'ice-teal',
+  'light', 'darkwhite', 'ember', 'forest'
+];
+const LEGACY_THEME_MAP = { forest: 'ember' };
 const FOCUS_KEY = 'ob_prc_vscode_app_focus';
 const TOP_KEY = 'ob_prc_vscode_app_top_min';
 const COPY_BLOCK_KEY = 'ob_prc_vscode_copy_block_min';
@@ -4420,13 +4652,121 @@ function loadState() {
   } catch {}
 }
 
-function applyTheme(theme) {
-  const next = theme || localStorage.getItem(THEME_KEY) || 'midnight';
-  document.body.classList.remove('theme-midnight', 'theme-light', 'theme-darkwhite', 'theme-ice', 'theme-forest');
+function readThemeVariants() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(THEME_VARIANTS_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveThemeVariant(family, variant) {
+  const next = { ...readThemeVariants(), [family]: variant || 'default' };
+  try { localStorage.setItem(THEME_VARIANTS_KEY, JSON.stringify(next)); } catch {}
+}
+
+function themeFamily(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  if (mapped.startsWith('midnight-')) return 'midnight';
+  if (mapped.startsWith('ice-')) return 'ice';
+  return mapped;
+}
+
+function themeVariant(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  if (mapped.startsWith('midnight-')) return mapped.slice('midnight-'.length);
+  if (mapped.startsWith('ice-')) return mapped.slice('ice-'.length);
+  return 'default';
+}
+
+function resolveThemeId(family, variant = 'default') {
+  const base = LEGACY_THEME_MAP[family] || family;
+  if (!variant || variant === 'default') return base;
+  return `${base}-${variant}`;
+}
+
+function themeDisplayLabel(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  const family = themeFamily(mapped);
+  const familyMeta = THEME_FAMILIES[family];
+  if (!familyMeta) return mapped;
+  const variant = themeVariant(mapped);
+  const variantLabel = familyMeta.variants?.[variant];
+  return variantLabel ? `${familyMeta.label} · ${variantLabel}` : familyMeta.label;
+}
+
+function readStoredTheme() {
+  try {
+    const fromKey = localStorage.getItem(THEME_KEY);
+    if (fromKey) {
+      const mapped = LEGACY_THEME_MAP[fromKey] || fromKey;
+      if (VALID_THEMES.includes(mapped)) return mapped;
+    }
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const family = LEGACY_THEME_MAP[state.themeSelect] || state.themeSelect;
+    if (family && THEME_FAMILIES[family]) {
+      const variants = readThemeVariants();
+      const resolved = resolveThemeId(family, variants[family] || 'default');
+      if (VALID_THEMES.includes(resolved)) return resolved;
+      return family;
+    }
+  } catch {}
+  return 'midnight';
+}
+
+function persistThemeChoice(themeId) {
+  const mapped = LEGACY_THEME_MAP[themeId] || themeId;
+  localStorage.setItem(THEME_KEY, mapped);
+  saveThemeVariant(themeFamily(mapped), themeVariant(mapped));
+  try {
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    state.themeSelect = themeFamily(mapped);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+function syncThemeVariantUi(family) {
+  const wrap = $('themeVariantWrap');
+  const select = $('themeVariantSelect');
+  const meta = THEME_FAMILIES[family];
+  if (!wrap || !select) return;
+  const variants = meta?.variants;
+  if (!variants || Object.keys(variants).length <= 1) {
+    wrap.hidden = true;
+    select.innerHTML = '';
+    return;
+  }
+  wrap.hidden = false;
+  const current = themeVariant(readStoredTheme());
+  select.innerHTML = Object.entries(variants).map(([value, label]) =>
+    `<option value="${value}">${label}</option>`
+  ).join('');
+  select.value = variants[current] ? current : 'default';
+}
+
+function applyTheme(themeId) {
+  const fallback = readStoredTheme();
+  let next = themeId || fallback;
+  if (THEME_FAMILIES[next] && !next.includes('-')) {
+    const variants = readThemeVariants();
+    next = resolveThemeId(next, variants[next] || 'default');
+  }
+  next = LEGACY_THEME_MAP[next] || next;
+  if (!VALID_THEMES.includes(next)) next = fallback;
+
+  VALID_THEMES.forEach((name) => {
+    document.documentElement.classList.remove(`theme-${name}`);
+    document.body.classList.remove(`theme-${name}`);
+  });
+  document.documentElement.classList.add(`theme-${next}`);
   document.body.classList.add(`theme-${next}`);
-  $('themeSelect').value = next;
-  $('themeChip').textContent = `Theme: ${$('themeSelect').selectedOptions[0].textContent}`;
-  localStorage.setItem(THEME_KEY, next);
+
+  const family = themeFamily(next);
+  if ($('themeSelect')) $('themeSelect').value = family;
+  syncThemeVariantUi(family);
+  if ($('themeChip')) $('themeChip').textContent = `Theme: ${themeDisplayLabel(next)}`;
+  persistThemeChoice(next);
 }
 
 function applyFocus(value) {
@@ -5018,7 +5358,7 @@ function renderPieChart(chartId, legendId, items) {
   const legend = $(legendId);
   if (!chart || !legend) return;
 
-  const colors = ['#5b8fd4', '#6fbf96', '#b88fc4', '#c9b574', '#7eb8d4', '#cf939c'];
+  const colors = ['#173cff', '#00f12a', '#ff00e6', '#facc15', '#38bdf8', '#fb7185'];
   const clean = items
     .map((item, i) => ({ ...item, color: item.color || colors[i % colors.length], value: Math.max(0, num(item.value)) }))
     .filter((item) => item.value > 0);
@@ -5306,29 +5646,29 @@ function renderCharts(board) {
   const eos = board.eos;
 
   renderPieChart('chartFlUtil', 'legendFlUtil', [
-    { label: 'TOTAL FL', value: eos.fl, color: '#5b8fd4' },
-    { label: 'TOTAL MP', value: eos.mp, color: '#6fbf96' },
-    { label: 'TOTAL RWC', value: eos.rwc, color: '#b88fc4' }
+    { label: 'TOTAL FL', value: eos.fl, color: '#173cff' },
+    { label: 'TOTAL MP', value: eos.mp, color: '#00f12a' },
+    { label: 'TOTAL RWC', value: eos.rwc, color: '#ff00e6' }
   ]);
 
   renderPieChart('chartBelt', 'legendBelt', [
-    { label: 'East Side', value: eos.east, color: '#5b8fd4' },
-    { label: 'West Side', value: eos.west, color: '#6fbf96' }
+    { label: 'East Side', value: eos.east, color: '#173cff' },
+    { label: 'West Side', value: eos.west, color: '#00f12a' }
   ]);
 
   renderPieChart('chartCapture', 'legendCapture', [
-    { label: 'Captured', value: eos.capture, color: '#6fbf96' },
-    { label: 'Remaining OB', value: Math.max(0, eos.remain), color: '#cf939c' }
+    { label: 'Captured', value: eos.capture, color: '#00f12a' },
+    { label: 'Remaining OB', value: Math.max(0, eos.remain), color: '#ff4d5e' }
   ]);
   renderPieChart('chartCaptureOverview', 'legendCaptureOverview', [
-    { label: 'Captured', value: eos.capture, color: '#6fbf96' },
-    { label: 'Remaining OB', value: Math.max(0, eos.remain), color: '#cf939c' }
+    { label: 'Captured', value: eos.capture, color: '#00f12a' },
+    { label: 'Remaining OB', value: Math.max(0, eos.remain), color: '#ff4d5e' }
   ]);
 
   renderPieChart('chartPeriods', 'legendPeriods', eos.periodCaptures.map((p, i) => ({
     label: p.label,
     value: p.value,
-    color: ['#5b8fd4', '#6fbf96', '#b88fc4', '#c9b574'][i]
+    color: ['#173cff', '#00f12a', '#ff00e6', '#facc15'][i]
   })));
 }
 
@@ -7091,8 +7431,6 @@ function resetHybridBridgeState(shiftDate, includeMET) {
     localStorage.setItem('OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE', JSON.stringify(payload));
     localStorage.setItem('OB_PERIOD_REPORT_CARD_BRIDGE', JSON.stringify(payload));
   } catch {}
-
-  window.postMessage({ type: 'PRC_V2_HYBRID_RESET', payload }, '*');
 }
 
 function clearWorkingShift(shiftDate, includeMET, statusMessage = '') {
@@ -7455,7 +7793,8 @@ function copyMonitorUrl(type, windowKey) {
 // endpoint instead of scraping the rendered iGraph page. The iGraph HTML is a
 // JS app shell with no numbers in it, so background pulls must hit the data
 // API. Fetches go through the Tampermonkey fetch bridge when present (CORS),
-// with a direct fetch fallback. All parsing happens here in the dashboard.
+// API. Fetches go through the local server proxy (/api/proxy) using your
+// Midway session cookie. All parsing happens here in the dashboard.
 // Auto pulls are clock-aligned to the quarter hour (:00/:15/:30/:45) so the
 // :00 pull closes out a full wall-clock hour for the hourly tracker.
 const LIVE_METRICS_VARIANT_KEY = 'ob_prc_vscode_live_metrics_variant';
@@ -7463,9 +7802,8 @@ const LIVE_METRICS_BODY_LIMIT = 800000;
 const LIVE_METRIC_TYPE_LABELS = { flUtil: 'FL Utilization', belt: 'Battle of the Belt' };
 let liveMetricsTimer = null;
 let liveMetricsRunning = false;
-let liveMetricsBridgeVersion = '';
+let serverProxyReady = false;
 let nextLiveMetricsPullAt = null;
-const liveFetchWaiters = new Map();
 
 function liveMetricsVariants(graphUrl) {
   const query = String(graphUrl).split('?').slice(1).join('?');
@@ -7618,30 +7956,34 @@ function liveValuesFromSeries(type, series) {
   return found ? { east: Math.round(grouped.east), west: Math.round(grouped.west) } : null;
 }
 
-function liveBridgeFetch(items, timeoutMs = 30000) {
-  return new Promise((resolve) => {
-    const requestId = `lm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const timer = setTimeout(() => {
-      liveFetchWaiters.delete(requestId);
-      resolve(null);
-    }, timeoutMs);
-    liveFetchWaiters.set(requestId, { resolve, timer });
-    window.postMessage({
-      type: 'PRC_V2_LIVE_FETCH_REQUEST',
-      requestId,
-      urls: items.map((item) => ({ id: item.id, url: item.url }))
-    }, '*');
-  });
-}
-
-async function liveDirectFetch(items) {
+async function liveServerFetch(items) {
   return Promise.all(items.map(async (item) => {
     try {
-      const res = await fetch(item.url, { credentials: 'include', signal: AbortSignal.timeout(20000) });
+      const proxyUrl = `/api/proxy?url=${encodeURIComponent(item.url)}`;
+      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(25000) });
+      if (res.headers.get('X-Proxy-Auth-Error') === 'true') {
+        const errJson = await res.json().catch(() => ({}));
+        return {
+          id: item.id,
+          ok: false,
+          status: errJson.code || 401,
+          error: errJson.message || 'auth required - run mwinit and restart the server'
+        };
+      }
       const body = await res.text();
-      return { id: item.id, ok: res.ok, status: res.status, body: body.slice(0, LIVE_METRICS_BODY_LIMIT) };
+      return {
+        id: item.id,
+        ok: res.ok,
+        status: Number(res.headers.get('X-Upstream-Status') || res.status || 0),
+        body: body.slice(0, LIVE_METRICS_BODY_LIMIT)
+      };
     } catch (err) {
-      return { id: item.id, ok: false, status: 0, error: err?.name === 'TimeoutError' ? 'timeout' : 'blocked (CORS) - install the Live Metrics userscript' };
+      return {
+        id: item.id,
+        ok: false,
+        status: 0,
+        error: err?.name === 'TimeoutError' ? 'timeout' : 'server proxy unavailable - run python server.py'
+      };
     }
   }));
 }
@@ -7683,13 +8025,28 @@ function updateLiveMetricsStatus(message, cls = '') {
   if (cls) el.classList.add(cls);
 }
 
-function updateLiveMetricsBridgeState() {
+async function updateLiveMetricsBridgeState() {
   const el = $('liveMetricsBridgeState');
   if (!el) return;
-  el.textContent = liveMetricsBridgeVersion
-    ? `Userscript bridge v${liveMetricsBridgeVersion} connected`
-    : 'Userscript bridge not detected - direct fetch fallback';
-  el.classList.toggle('good', !!liveMetricsBridgeVersion);
+  try {
+    const res = await fetch('/health', { signal: AbortSignal.timeout(3000) });
+    const data = await res.json();
+    serverProxyReady = data.status === 'ok' || data.manualCookie;
+    if (serverProxyReady) {
+      el.textContent = 'Server proxy connected';
+      el.classList.add('good');
+    } else if (data.status === 'stale') {
+      el.textContent = 'Server proxy online - Midway cookie stale (run mwinit)';
+      el.classList.remove('good');
+    } else {
+      el.textContent = 'Server proxy online - Midway cookie missing (run mwinit)';
+      el.classList.remove('good');
+    }
+  } catch {
+    serverProxyReady = false;
+    el.textContent = 'Server proxy offline - run python server.py';
+    el.classList.remove('good');
+  }
 }
 
 function renderLiveMetricsDiag(entries) {
@@ -8073,12 +8430,8 @@ async function runLiveMetricsPull(trigger = 'manual') {
   for (const variantIdx of variantOrder) {
     if (!pending.length) break;
     const batch = pending.map((item) => ({ id: item.id, url: item.variants[variantIdx].url }));
-    let results = await liveBridgeFetch(batch);
-    let channel = 'userscript';
-    if (!results) {
-      results = await liveDirectFetch(batch);
-      channel = 'direct';
-    }
+    const results = await liveServerFetch(batch);
+    const channel = 'server';
     const stillPending = [];
     for (const item of pending) {
       const res = (results || []).find((r) => r && r.id === item.id);
@@ -8139,9 +8492,9 @@ async function runLiveMetricsPull(trigger = 'manual') {
     updateLiveMetricsStatus(`Live metrics updated ${okCount}/${items.length} windows in ${seconds}s. Next auto pull on the quarter hour.`, 'good');
   } else {
     updateLiveMetricsStatus(
-      liveMetricsBridgeVersion
+      serverProxyReady
         ? 'Live metrics pull failed on every endpoint - open the diagnostic below and screenshot it.'
-        : 'Live metrics pull failed - userscript bridge not detected and direct fetch is blocked. Install rb20-bridge.user.js in Tampermonkey.',
+        : 'Live metrics pull failed - start python server.py and run mwinit so the server proxy can reach MonitorPortal.',
       'warn'
     );
   }
@@ -8248,7 +8601,6 @@ function pullMonitorWindow(type, windowKey) {
 }
 
 async function requestBridgePull() {
-  window.postMessage({ type: 'PRC_V2_HYBRID_PULL_REQUEST' }, '*');
   try {
     const res = await fetch(SERVER_BRIDGE_URL);
     if (res.ok && res.status !== 204) {
@@ -8286,36 +8638,38 @@ function bridgePullRequestPayload(source) {
   };
 }
 
-function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
-  const payload = bridgePullRequestPayload(source);
-  window.postMessage({
-    type: 'PRC_V2_HYBRID_SOURCE_PULL',
-    ...payload
-  }, '*');
+async function requestBridgeSourcePull(source = 'all', trigger = 'manual') {
   const label = trigger === 'auto'
     ? `Auto ${bridgeSourceLabel(source)} refresh requested.`
     : `${bridgeSourceLabel(source)} pull requested.`;
   updateMiniStatus(label);
   setAutoFclmStatus(label, 'good');
+  try {
+    const res = await fetch(SERVER_BRIDGE_URL);
+    if (res.ok && res.status !== 204) {
+      const json = await res.json();
+      if (json?.payload && hasUsableBridgeData(json.payload)) {
+        lastServerBridgeTs = json.receivedAt || Date.now();
+        importBridgePayload(json.payload, `${bridgeSourceLabel(source)} data imported from server.`);
+        return;
+      }
+    }
+  } catch {}
+  const imported = importStoredBridgePayload(`${bridgeSourceLabel(source)} data imported from storage.`);
+  if (!imported) {
+    updateMiniStatus(`${label} Open the source links above or paste bridge JSON manually.`);
+  }
   startBridgeRefreshPoll(`${bridgeSourceLabel(source)} bridge data refreshed.`);
 }
 
-function requestFclmPull(source = 'manual') {
-  const includeMET = $('useMET')?.value === 'true';
-  const periods = pullPeriodsForShift();
-  window.postMessage({
-    type: 'PRC_V2_HYBRID_FCLM_PULL',
-    periods,
-    shiftDate: $('shiftDate')?.value || defaultShiftDateString(),
-    includeMET,
-    includeMonitor: true
-  }, '*');
+async function requestFclmPull(source = 'manual') {
   const label = source === 'auto'
     ? 'Auto FCLM + flow refresh requested.'
     : 'FCLM, FL Utilization, and Battle of the Belt pull requested.';
   updateMiniStatus(label);
   setAutoFclmStatus(label, 'good');
-  startBridgeRefreshPoll('FCLM and flow bridge data refreshed.');
+  await requestBridgeSourcePull('all', source === 'auto' ? 'auto' : 'manual');
+  runLiveMetricsPull(source === 'auto' ? 'auto' : 'manual');
 }
 
 function setAutoFclmStatus(message, cls = '') {
@@ -8484,6 +8838,11 @@ function bind() {
   });
 
   $('themeSelect').addEventListener('change', (e) => applyTheme(e.target.value));
+  $('themeVariantSelect')?.addEventListener('change', (e) => {
+    const family = $('themeSelect')?.value || 'midnight';
+    saveThemeVariant(family, e.target.value);
+    applyTheme(resolveThemeId(family, e.target.value));
+  });
   $('focusMode').addEventListener('change', (e) => applyFocus(e.target.value));
   $('shiftProfile')?.addEventListener('change', () => {
     updateShiftUi();
@@ -8735,20 +9094,6 @@ function bind() {
   });
 
   window.addEventListener('message', (event) => {
-    if (event.data?.type === 'PRC_V2_LIVE_BRIDGE_READY') {
-      liveMetricsBridgeVersion = event.data.version || '1.0.0';
-      updateLiveMetricsBridgeState();
-      return;
-    }
-    if (event.data?.type === 'PRC_V2_LIVE_FETCH_RESULT') {
-      const waiter = liveFetchWaiters.get(event.data.requestId);
-      if (waiter) {
-        clearTimeout(waiter.timer);
-        liveFetchWaiters.delete(event.data.requestId);
-        waiter.resolve(Array.isArray(event.data.results) ? event.data.results : []);
-      }
-      return;
-    }
     if (event.data?.type === 'PRC_V2_HYBRID_RESET_DASHBOARD') {
       const shift = event.data.payload?.shift || {};
       const targetDate = shift.shiftDate || resetShiftDateTarget($('shiftDate').value);
@@ -8797,7 +9142,7 @@ function init() {
   generatedCopyEdited = localStorage.getItem(COPY_BLOCK_EDITED_KEY) === 'true';
   periodSummaryEdited = localStorage.getItem(PERIOD_SUMMARY_EDITED_KEY) === 'true';
   eosSummaryEdited = localStorage.getItem(EOS_SUMMARY_EDITED_KEY) === 'true';
-  applyTheme($('themeSelect').value || localStorage.getItem(THEME_KEY) || 'midnight');
+  applyTheme(readStoredTheme());
   applyFocus($('focusMode').value || localStorage.getItem(FOCUS_KEY) || 'false');
   updateShiftUi();
   const requestedView = new URLSearchParams(window.location.search).get('view');
@@ -8838,6 +9183,7 @@ function init() {
   configureFclmAutoRefresh(true);
   startServerBridgePoll();
   startLiveMetricsAutoRefresh();
+  updateLiveMetricsBridgeState();
   updateLiveClock();
   setInterval(updateLiveClock, 10000);
 }

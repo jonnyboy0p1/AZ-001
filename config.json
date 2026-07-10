@@ -1,0 +1,13 @@
+{
+  "projectName": "RB021",
+  "projectRoot": "C:\\Users\\rja09\\OneDrive\\Desktop\\RB021",
+  "serverPort": 5220,
+  "dashboardUrl": "http://127.0.0.1:5220/",
+  "bridgeUrl": "http://127.0.0.1:5220/bridge",
+  "legacyPaths": [
+    "d:\\AZ003\\RB021",
+    "C:\\Users\\jonavroa\\Desktop\\OB02",
+    "C:\\Users\\jonavroa\\Desktop\\OBR03",
+    "C:\\Users\\jonavroa\\Desktop\\Echos\\RB20"
+  ]
+}
