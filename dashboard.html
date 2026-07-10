@@ -24,28 +24,37 @@
       --text:        #1a202c;
     }
 
+    html, body {
+      height: 100%;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 13px;
       background: #f0f2f5;
       color: var(--text);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
 
     /* ── Page header ── */
     .page-header {
       background: var(--blue-dark);
       color: #fff;
-      padding: 12px 20px;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 10px;
+      flex-wrap: nowrap;
+      flex-shrink: 0;
+      min-height: 46px;
     }
-    .page-header h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 200px; }
+    .page-header h1 { font-size: 15px; font-weight: 600; white-space: nowrap; }
     .week-badge {
       background: var(--blue-bright);
       border-radius: 4px;
-      padding: 3px 10px;
+      padding: 2px 8px;
       font-size: 11px;
       white-space: nowrap;
     }
@@ -58,7 +67,7 @@
       font-size: 11px;
       background: rgba(255,255,255,.08);
       border-radius: 20px;
-      padding: 4px 10px;
+      padding: 3px 9px;
       white-space: nowrap;
     }
     #proxy-status .dot {
@@ -67,15 +76,15 @@
       background: var(--grey-400);
       flex-shrink: 0;
     }
-    #proxy-status[data-state="connected"]    .dot { background: var(--green); }
+    #proxy-status[data-state="connected"]     .dot { background: var(--green); }
     #proxy-status[data-state="auth-required"] .dot { background: var(--orange); }
-    #proxy-status[data-state="stale"]        .dot { background: var(--orange); }
-    #proxy-status[data-state="offline"]      .dot { background: var(--grey-400); }
-    #proxy-status[data-state="error"]        .dot { background: var(--red); }
+    #proxy-status[data-state="stale"]         .dot { background: var(--orange); }
+    #proxy-status[data-state="offline"]       .dot { background: var(--grey-400); }
+    #proxy-status[data-state="error"]         .dot { background: var(--red); }
 
     /* ── Header buttons ── */
     .btn {
-      padding: 5px 14px;
+      padding: 4px 12px;
       border-radius: 5px;
       border: none;
       cursor: pointer;
@@ -83,17 +92,18 @@
       font-weight: 600;
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       transition: opacity .15s;
+      white-space: nowrap;
     }
     .btn:hover { opacity: .85; }
     .btn:disabled { opacity: .5; cursor: not-allowed; }
-    .btn-primary { background: var(--blue-bright); color: #fff; }
+    .btn-primary   { background: var(--blue-bright); color: #fff; }
     .btn-secondary { background: rgba(255,255,255,.15); color: #fff; }
 
     .spinner {
       display: none;
-      width: 12px; height: 12px;
+      width: 11px; height: 11px;
       border: 2px solid rgba(255,255,255,.4);
       border-top-color: #fff;
       border-radius: 50%;
@@ -102,15 +112,188 @@
     .loading .spinner { display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Banner ── */
+    /* ── App body (sidebar + main) ── */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════
+       PRC SIDEBAR
+    ══════════════════════════════════ */
+    .prc-sidebar {
+      width: 272px;
+      min-width: 272px;
+      background: #0d1424;
+      color: #e5edf8;
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border-right: 1px solid rgba(148,163,184,.2);
+      transition: width .2s ease, min-width .2s ease;
+      flex-shrink: 0;
+    }
+    .prc-sidebar.collapsed {
+      width: 32px;
+      min-width: 32px;
+    }
+
+    .prc-sidebar-header {
+      background: #0a1020;
+      border-bottom: 1px solid rgba(148,163,184,.22);
+      padding: 8px 10px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .prc-sidebar-header .prc-title-block { overflow: hidden; }
+    .prc-sidebar-header h2 {
+      font-size: 12px;
+      font-weight: 900;
+      color: #e5edf8;
+      white-space: nowrap;
+    }
+    #prc-last-pull {
+      font-size: 10px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 200px;
+    }
+
+    .prc-toggle-btn {
+      background: #1e293b;
+      border: 0;
+      border-radius: 5px;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 3px 5px;
+      font-size: 11px;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: color .15s;
+    }
+    .prc-toggle-btn:hover { color: #e5edf8; }
+
+    .prc-sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 10px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: #334155 transparent;
+    }
+    .prc-sidebar.collapsed .prc-sidebar-body { display: none; }
+    .prc-sidebar.collapsed .prc-title-block   { display: none; }
+
+    /* Controls */
+    .prc-ctrl { margin-bottom: 8px; }
+    .prc-ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .prc-ctrl-row label {
+      font-size: 10px;
+      color: #94a3b8;
+      min-width: 66px;
+      white-space: nowrap;
+    }
+    .prc-ctrl-row input[type="date"],
+    .prc-ctrl-row select {
+      flex: 1;
+      font-size: 11px;
+      background: #1e293b;
+      border: 1px solid rgba(148,163,184,.25);
+      border-radius: 5px;
+      color: #e5edf8;
+      padding: 3px 5px;
+      outline: none;
+      width: 0;
+    }
+    .prc-ctrl-row input[type="date"]:focus,
+    .prc-ctrl-row select:focus { border-color: #38bdf8; }
+    .prc-ctrl-row select option { background: #1e293b; }
+
+    /* Buttons */
+    .prc-btn-row { display: flex; gap: 5px; margin-bottom: 8px; }
+    .prc-btn {
+      flex: 1;
+      border: 0;
+      border-radius: 7px;
+      color: #fff;
+      font-weight: 900;
+      padding: 6px 4px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: Arial, sans-serif;
+      white-space: nowrap;
+    }
+    .prc-btn:hover { filter: brightness(1.15); }
+    .prc-btn:disabled { opacity: .45; cursor: not-allowed; }
+    .prc-btn-primary   { background: #2563eb; }
+    .prc-btn-secondary { background: #334155; }
+
+    /* Message */
+    .prc-msg {
+      font-size: 10px;
+      color: #fde68a;
+      font-weight: 700;
+      padding: 3px 0 5px;
+    }
+
+    /* Sections */
+    .prc-sep { border-top: 1px solid rgba(148,163,184,.16); margin: 6px 0; }
+    .prc-section-lbl {
+      color: #38bdf8;
+      font-size: 9.5px;
+      font-weight: 900;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .prc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 1.5px 0;
+    }
+    .prc-row .lbl { color: #94a3b8; font-size: 11px; }
+    .prc-row .val { font-weight: 700; font-size: 11px; text-align: right; }
+
+    .prc-age     { color: #a3e635; }
+    .prc-waiting { color: #475569; }
+    .prc-pos     { color: #4ade80; }
+    .prc-neg     { color: #f87171; }
+
+    /* ══════════════════════════════════
+       MAIN CONTENT
+    ══════════════════════════════════ */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Banners ── */
     .banner {
       display: none;
-      padding: 10px 20px;
+      padding: 9px 16px;
       font-size: 12px;
       font-weight: 500;
+      flex-shrink: 0;
     }
     .banner.show { display: block; }
-    .banner-warn { background: #fefcbf; color: #744210; border-bottom: 1px solid #f6e05e; }
+    .banner-warn  { background: #fefcbf; color: #744210; border-bottom: 1px solid #f6e05e; }
     .banner-error { background: #fff5f5; color: #742a2a; border-bottom: 1px solid #feb2b2; }
     .banner-info  { background: #ebf8ff; color: #2c5282; border-bottom: 1px solid #bee3f8; }
 
@@ -119,24 +302,23 @@
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 1px 4px rgba(0,0,0,.1);
-      margin: 16px 16px 0;
+      margin: 14px 14px 0;
       overflow: hidden;
     }
-    .card:last-child { margin-bottom: 16px; }
+    .card:last-child { margin-bottom: 14px; }
 
-    /* ── Live data card ── */
+    /* ── Live data ── */
     #live-table-container { display: none; }
     #live-table-container.show { display: block; }
 
     /* ── FCLM Table ── */
     .fclm-table { width: 100%; border-collapse: collapse; }
     .fclm-table th, .fclm-table td {
-      padding: 6px 10px;
+      padding: 5px 9px;
       border-bottom: 1px solid var(--grey-200);
       white-space: nowrap;
     }
 
-    /* Column header */
     .fclm-table thead tr.col-group th {
       background: #2d3748;
       color: #90cdf4;
@@ -156,7 +338,6 @@
     }
     .fclm-table thead tr.col-names th.num { text-align: right; }
 
-    /* Section header rows */
     .fclm-table tr.section-hdr td {
       background: var(--blue-mid);
       color: #fff;
@@ -170,12 +351,10 @@
     .toggle-icon { margin-right: 6px; font-size: 10px; display: inline-block; transition: transform .2s; }
     .collapsed .toggle-icon { transform: rotate(-90deg); }
 
-    /* Data rows */
     .fclm-table tr.data-row:nth-child(even) td { background: var(--grey-50); }
     .fclm-table tr.data-row:hover td { background: var(--blue-light); }
     .fclm-table tr.data-row td { font-size: 12px; }
 
-    /* Sub-total rows */
     .fclm-table tr.sub-total td {
       background: #dbeafe;
       font-weight: 700;
@@ -183,7 +362,6 @@
       border-top: 1px solid #bfdbfe;
     }
 
-    /* RC Sort Total highlight */
     .fclm-table tr.rc-sort-total td {
       background: var(--blue-mid);
       color: #fff;
@@ -194,33 +372,27 @@
     }
     .fclm-table tr.rc-sort-total .pct-badge { border: 1px solid rgba(255,255,255,.3); }
 
-    /* Number cells */
     .num { text-align: right; font-variant-numeric: tabular-nums; }
 
-    /* Trend */
     .trend-up   { color: #2b6cb0; }
     .trend-down { color: var(--orange); }
 
-    /* % badge */
     .pct-badge {
       display: inline-block;
       border-radius: 4px;
-      padding: 2px 7px;
+      padding: 2px 6px;
       font-size: 11px;
       font-weight: 700;
     }
-    .pct-green { background: var(--green);  color: #fff; }
-    .pct-red   { background: var(--red);    color: #fff; }
+    .pct-green { background: var(--green);    color: #fff; }
+    .pct-red   { background: var(--red);      color: #fff; }
     .pct-grey  { background: var(--grey-400); color: #fff; }
 
-    /* Delta */
     .delta-pos { color: var(--green); font-weight: 600; }
     .delta-neg { color: var(--red);   font-weight: 600; }
 
-    /* Hidden rows */
     tr.collapsible.hidden { display: none; }
 
-    /* Merged-cell labels */
     td.merge-cell {
       color: var(--grey-600);
       font-size: 11px;
@@ -228,34 +400,33 @@
       vertical-align: middle;
     }
 
-    /* Totals bar */
     .totals-bar {
       background: var(--grey-800);
       color: var(--grey-200);
-      padding: 8px 20px;
+      padding: 7px 16px;
       display: flex;
-      gap: 20px;
+      gap: 18px;
       align-items: center;
       font-size: 12px;
       flex-wrap: wrap;
     }
-    .totals-bar .t-label { color: var(--grey-400); font-size: 11px; margin-right: 4px; }
+    .totals-bar .t-label { color: var(--grey-400); font-size: 11px; margin-right: 3px; }
     .totals-bar .t-val   { font-weight: 700; font-variant-numeric: tabular-nums; }
 
-    /* ── Placeholder / empty state ── */
+    /* ── Empty state ── */
     .empty-state {
       text-align: center;
-      padding: 48px 20px;
+      padding: 40px 16px;
       color: var(--grey-600);
     }
-    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
-    .empty-state h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--grey-800); }
-    .empty-state p  { font-size: 12px; line-height: 1.6; max-width: 380px; margin: 0 auto; }
-    .empty-state code {
+    .empty-state .icon { font-size: 34px; margin-bottom: 10px; }
+    .empty-state h2    { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--grey-800); }
+    .empty-state p     { font-size: 12px; line-height: 1.6; max-width: 360px; margin: 0 auto; }
+    .empty-state code  {
       background: var(--grey-100);
       border: 1px solid var(--grey-200);
       border-radius: 3px;
-      padding: 2px 6px;
+      padding: 1px 5px;
       font-size: 11px;
     }
 
@@ -272,15 +443,15 @@
     .modal-card {
       background: #fff;
       border-radius: 10px;
-      padding: 24px;
-      width: 520px;
+      padding: 22px;
+      width: 500px;
       max-width: 95vw;
       box-shadow: 0 20px 60px rgba(0,0,0,.3);
     }
-    .modal-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-    .modal-card p  { font-size: 12px; color: var(--grey-600); line-height: 1.6; margin-bottom: 12px; }
-    .modal-card ol { font-size: 12px; color: var(--grey-600); line-height: 1.8; margin: 0 0 16px 18px; }
-    .modal-card ol code {
+    .modal-card h2  { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .modal-card p   { font-size: 12px; color: var(--grey-600); line-height: 1.6; margin-bottom: 10px; }
+    .modal-card ol  { font-size: 12px; color: var(--grey-600); line-height: 1.8; margin: 0 0 14px 18px; }
+    .modal-card ol code, .modal-card p code {
       background: var(--grey-100);
       border: 1px solid var(--grey-200);
       border-radius: 3px;
@@ -289,36 +460,37 @@
     }
     .modal-card textarea {
       width: 100%;
-      height: 90px;
+      height: 80px;
       font-size: 11px;
       font-family: monospace;
       border: 1px solid var(--grey-200);
       border-radius: 5px;
-      padding: 8px;
+      padding: 7px;
       resize: vertical;
       outline: none;
     }
     .modal-card textarea:focus { border-color: var(--blue-bright); }
-    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
     .btn-modal-save   { background: var(--blue-mid); color: #fff; }
     .btn-modal-cancel { background: var(--grey-100); color: var(--grey-800); }
 
     /* ── Responsive ── */
     @media (max-width: 900px) {
-      .fclm-table th:nth-child(1),
-      .fclm-table td:nth-child(1),
-      .fclm-table th:nth-child(2),
-      .fclm-table td:nth-child(2) { display: none; }
+      .fclm-table th:nth-child(1), .fclm-table td:nth-child(1),
+      .fclm-table th:nth-child(2), .fclm-table td:nth-child(2) { display: none; }
     }
+
+    /* Hide Tampermonkey floating panel when native panel is present */
+    #prcV2HybridPanel { display: none !important; }
   </style>
 </head>
-<body>
+<body data-prc-native="true">
 
 <!-- ═══════════════════════════════════════════
      PAGE HEADER
 ═══════════════════════════════════════════ -->
 <div class="page-header">
-  <h1>RC Sort — Process Path Rollup</h1>
+  <h1>RC Sort Dashboard</h1>
   <span class="week-badge" id="week-badge">WK — · —</span>
 
   <div id="proxy-status" data-state="unknown">
@@ -326,58 +498,103 @@
     <span id="proxy-status-label">Checking proxy…</span>
   </div>
 
-  <button class="btn btn-secondary" id="btn-cookie" onclick="showCookieModal()">
-    🔑 Session Cookie
-  </button>
+  <button class="btn btn-secondary" onclick="showCookieModal()">🔑 Cookie</button>
 
   <button class="btn btn-primary" id="btn-refresh" onclick="fetchData()">
     <span class="spinner" id="refresh-spinner"></span>
-    ⟳ Connect / Refresh
+    ⟳ Refresh
   </button>
 </div>
 
-<!-- ── Banners ── -->
-<div id="banner-stale"   class="banner banner-warn">
-  ⚠ Your Midway session cookie may be expired (older than 12 hours).
-  Run <strong>mwinit</strong> in a terminal then click Refresh.
-</div>
-<div id="banner-no-proxy" class="banner banner-error">
-  ✗ Proxy is not running. In a terminal: <strong>python proxy.py</strong> — then click Refresh.
-</div>
-<div id="banner-auth"    class="banner banner-error">
-  ✗ Authentication failed. Run <strong>mwinit</strong> or paste a session cookie via 🔑 Session Cookie.
-</div>
-<div id="banner-parse"   class="banner banner-warn">
-  ⚠ Data loaded but table format was not recognized. FCLM may have updated its layout.
-</div>
-
 <!-- ═══════════════════════════════════════════
-     LIVE DATA TABLE (shown when data loaded)
+     APP BODY
 ═══════════════════════════════════════════ -->
-<div id="live-table-container">
-  <!-- Totals bar injected here by JS -->
-  <div id="totals-bar-wrap"></div>
-  <!-- Main table card -->
-  <div class="card" style="margin-bottom:16px;">
-    <div id="fclm-table-wrap"></div>
-  </div>
-</div>
+<div class="app-body">
 
-<!-- ═══════════════════════════════════════════
-     EMPTY STATE (shown when no data yet)
-═══════════════════════════════════════════ -->
-<div id="empty-state-container" class="card" style="margin:16px;margin-bottom:16px;">
-  <div class="empty-state">
-    <div class="icon">📊</div>
-    <h2>No data loaded yet</h2>
-    <p>
-      Start the local proxy in a terminal:<br/>
-      <code>python proxy.py</code><br/><br/>
-      Then click <strong>Connect / Refresh</strong> above.
-      Make sure you've run <code>mwinit</code> first so your Midway session is active.
-    </p>
-  </div>
-</div>
+  <!-- ═══ PRC SIDEBAR ═══ -->
+  <aside class="prc-sidebar" id="prc-sidebar">
+    <div class="prc-sidebar-header">
+      <div class="prc-title-block">
+        <h2>Period Report Card</h2>
+        <div id="prc-last-pull">Waiting for data…</div>
+      </div>
+      <button class="prc-toggle-btn" id="prc-toggle" title="Collapse sidebar">◀</button>
+    </div>
+
+    <div class="prc-sidebar-body">
+      <!-- Controls -->
+      <div class="prc-ctrl">
+        <div class="prc-ctrl-row">
+          <label for="prc-shift-date">Shift Date</label>
+          <input type="date" id="prc-shift-date" />
+        </div>
+        <div class="prc-ctrl-row">
+          <label for="prc-include-met">Include MET</label>
+          <select id="prc-include-met">
+            <option value="false">No (standard)</option>
+            <option value="true">Yes (+ MET)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="prc-btn-row">
+        <button class="prc-btn prc-btn-primary" id="prc-btn-fclm">⟳ Pull FCLM</button>
+        <button class="prc-btn prc-btn-secondary" id="prc-btn-reset">Reset</button>
+      </div>
+
+      <div class="prc-msg" id="prc-msg" style="display:none;"></div>
+
+      <!-- Dynamic data display -->
+      <div id="prc-data">
+        <div style="padding:12px 0;text-align:center;color:#475569;font-size:11px;">
+          No bridge data yet.<br>
+          <span style="font-size:10px;">Visit FCLM/NEO pages or click Pull FCLM.</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <div class="main-content">
+
+    <!-- Banners -->
+    <div id="banner-stale"    class="banner banner-warn">
+      ⚠ Your Midway session cookie may be expired (older than 12 hours). Run <strong>mwinit</strong> then click Refresh.
+    </div>
+    <div id="banner-no-proxy" class="banner banner-error">
+      ✗ Proxy is not running. In a terminal: <strong>python proxy.py</strong> — then click Refresh.
+    </div>
+    <div id="banner-auth"     class="banner banner-error">
+      ✗ Authentication failed. Run <strong>mwinit</strong> or paste a session cookie via 🔑 Cookie.
+    </div>
+    <div id="banner-parse"    class="banner banner-warn">
+      ⚠ Data loaded but table format was not recognized. FCLM may have updated its layout.
+    </div>
+
+    <!-- Live table -->
+    <div id="live-table-container">
+      <div id="totals-bar-wrap"></div>
+      <div class="card" style="margin-bottom:14px;">
+        <div id="fclm-table-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div id="empty-state-container" class="card" style="margin:14px;margin-bottom:14px;">
+      <div class="empty-state">
+        <div class="icon">📊</div>
+        <h2>No data loaded yet</h2>
+        <p>
+          Start the local proxy in a terminal:<br/>
+          <code>python proxy.py</code><br/><br/>
+          Then click <strong>⟳ Refresh</strong> above.<br/>
+          Make sure you've run <code>mwinit</code> first.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /.main-content -->
+</div><!-- /.app-body -->
 
 <!-- ═══════════════════════════════════════════
      COOKIE MODAL
@@ -387,10 +604,9 @@
     <h2>🔑 Paste Session Cookie</h2>
     <p>Use this if <code>mwinit</code> isn't available or the automatic cookie isn't working.</p>
     <ol>
-      <li>Open <strong>https://fclm-portal.amazon.com</strong> in your browser while logged in.</li>
-      <li>Open DevTools → <strong>Network</strong> tab → refresh the page.</li>
-      <li>Click any request → <strong>Headers</strong> → find <code>Cookie:</code> in the Request headers.</li>
-      <li>Copy the entire cookie value and paste it below.</li>
+      <li>Open <strong>https://fclm-portal.amazon.com</strong> while logged in.</li>
+      <li>DevTools → <strong>Network</strong> tab → refresh → click any request.</li>
+      <li><strong>Headers</strong> → find <code>Cookie:</code> → copy the full value.</li>
     </ol>
     <textarea id="cookie-input" placeholder="Paste your session cookie string here…"></textarea>
     <div class="modal-actions">
@@ -403,13 +619,15 @@
 <script>
 "use strict";
 
-// ── Config ────────────────────────────────────────────────────────────────────
-const PROXY_BASE  = "http://localhost:8765";
-const WAREHOUSE   = "RFD2";
-const FCLM_PATH   = `/reports/processPathRollup?warehouseId=${WAREHOUSE}`;
-const REFRESH_MS  = 5 * 60 * 1000;  // auto-refresh every 5 min
+// ═══════════════════════════════════════════════════════════════════
+// PROCESS PATH ROLLUP (existing functionality)
+// ═══════════════════════════════════════════════════════════════════
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
+const PROXY_BASE = "http://localhost:8765";
+const WAREHOUSE  = "RFD2";
+const FCLM_PATH  = `/reports/processPathRollup?warehouseId=${WAREHOUSE}`;
+const REFRESH_MS = 5 * 60 * 1000;
+
 const elStatus      = document.getElementById("proxy-status");
 const elStatusLabel = document.getElementById("proxy-status-label");
 const elBtnRefresh  = document.getElementById("btn-refresh");
@@ -427,14 +645,13 @@ const banners = {
   parse:   document.getElementById("banner-parse"),
 };
 
-// ── Status pill ───────────────────────────────────────────────────────────────
 const STATUS_LABELS = {
-  unknown:       "Checking proxy…",
-  connected:     "Connected",
+  unknown:         "Checking proxy…",
+  connected:       "Connected",
   "auth-required": "Auth Required",
-  stale:         "Session Stale",
-  offline:       "Proxy Offline",
-  error:         "Error",
+  stale:           "Session Stale",
+  offline:         "Proxy Offline",
+  error:           "Error",
 };
 
 function setStatus(state) {
@@ -442,7 +659,6 @@ function setStatus(state) {
   elStatusLabel.textContent = STATUS_LABELS[state] ?? state;
 }
 
-// ── Banner helpers ────────────────────────────────────────────────────────────
 function clearBanners() {
   Object.values(banners).forEach(b => b.classList.remove("show"));
 }
@@ -451,112 +667,74 @@ function showBanner(key) {
   banners[key]?.classList.add("show");
 }
 
-// ── Loading state ─────────────────────────────────────────────────────────────
 function setLoading(on) {
   elBtnRefresh.disabled = on;
   elBtnRefresh.classList.toggle("loading", on);
 }
 
-// ── Week badge ────────────────────────────────────────────────────────────────
 function updateWeekBadge() {
-  const now = new Date();
+  const now   = new Date();
   const start = new Date(now.getFullYear(), 0, 1);
-  const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+  const week  = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
   elWeekBadge.textContent = `WK ${week} · ${now.getFullYear()}`;
 }
 
-// ── Health check ──────────────────────────────────────────────────────────────
 async function checkHealth() {
   try {
-    const r = await fetch(`${PROXY_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+    const r    = await fetch(`${PROXY_BASE}/health`, { signal: AbortSignal.timeout(3000) });
     const data = await r.json();
     if (data.status === "ok" || data.manualCookie) {
-      setStatus("connected");
-      clearBanners();
+      setStatus("connected"); clearBanners();
     } else if (data.status === "stale") {
-      setStatus("stale");
-      showBanner("stale");
+      setStatus("stale"); showBanner("stale");
     } else {
-      setStatus("auth-required");
-      showBanner("auth");
+      setStatus("auth-required"); showBanner("auth");
     }
     return data.status === "ok" || data.manualCookie;
   } catch {
-    setStatus("offline");
-    showBanner("noProxy");
+    setStatus("offline"); showBanner("noProxy");
     return false;
   }
 }
 
-// ── Main fetch ────────────────────────────────────────────────────────────────
 async function fetchData() {
-  setLoading(true);
-  clearBanners();
-
-  // Check proxy first
+  setLoading(true); clearBanners();
   const healthy = await checkHealth();
-  if (!healthy && elStatus.dataset.state === "offline") {
-    setLoading(false);
-    return;
-  }
+  if (!healthy && elStatus.dataset.state === "offline") { setLoading(false); return; }
 
   try {
-    const r = await fetch(`${PROXY_BASE}/api${FCLM_PATH}`, {
-      signal: AbortSignal.timeout(30000),
-    });
+    const r = await fetch(`${PROXY_BASE}/api${FCLM_PATH}`, { signal: AbortSignal.timeout(30000) });
 
-    // Auth error
     if (r.headers.get("X-Proxy-Auth-Error") === "true") {
-      const body = await r.json().catch(() => ({}));
-      setStatus("auth-required");
-      showBanner("auth");
-      setLoading(false);
-      return;
+      setStatus("auth-required"); showBanner("auth"); setLoading(false); return;
     }
 
     const contentType = r.headers.get("X-Upstream-Content-Type") || r.headers.get("Content-Type") || "";
     let rows;
-
     if (contentType.includes("json")) {
-      const json = await r.json();
-      rows = parseJSON(json);
+      rows = parseJSON(await r.json());
     } else {
-      const html = await r.text();
-      rows = parseHTML(html);
+      rows = parseHTML(await r.text());
     }
 
-    if (!rows || rows.length === 0) {
-      showBanner("parse");
-      setLoading(false);
-      return;
-    }
-
+    if (!rows || rows.length === 0) { showBanner("parse"); setLoading(false); return; }
     renderTable(rows);
     setStatus("connected");
 
   } catch (err) {
-    if (err.name === "TimeoutError") {
-      showBanner("noProxy");
-      setStatus("offline");
-    } else {
-      setStatus("error");
-    }
+    if (err.name === "TimeoutError") { showBanner("noProxy"); setStatus("offline"); }
+    else { setStatus("error"); }
   }
-
   setLoading(false);
 }
 
-// ── HTML parser ───────────────────────────────────────────────────────────────
 function parseHTML(html) {
   const doc = new DOMParser().parseFromString(html, "text/html");
-
-  // Find the table whose headers include "Main Processes" or "Line Items"
   let targetTable = null;
   for (const tbl of doc.querySelectorAll("table")) {
     const text = tbl.textContent || "";
     if (text.includes("Line Items") || text.includes("Main Processes") || text.includes("RC Sort")) {
-      targetTable = tbl;
-      break;
+      targetTable = tbl; break;
     }
   }
   if (!targetTable) return null;
@@ -565,44 +743,35 @@ function parseHTML(html) {
   let mainProcess = "", coreProcess = "";
 
   for (const tr of targetTable.querySelectorAll("tr")) {
-    const cells = [...tr.querySelectorAll("td, th")].map(c => c.textContent.trim());
+    const cells  = [...tr.querySelectorAll("td, th")].map(c => c.textContent.trim());
     if (cells.length < 4) continue;
-
-    // Detect merged-cell rows (Main Process / Core Process labels)
-    const td0 = tr.querySelector("td");
+    const td0    = tr.querySelector("td");
     if (!td0) continue;
-
     const rowspan0 = parseInt(td0.getAttribute("rowspan") || "1");
     if (rowspan0 > 1) mainProcess = cells[0] || mainProcess;
 
-    // Build row object — column positions inferred from screenshot layout:
-    // [mainProc?, coreProc?, lineItem, icons, unit, volAct, hrsAct, rateAct, ratePlan, hrsPlan, delta, pct]
-    // Column count varies; we detect by looking at known numeric patterns
     const numCols = cells.length;
-
     if (numCols >= 8) {
       const offset = numCols >= 12 ? 0 : numCols >= 10 ? 1 : 2;
       rows.push({
-        mainProcess:  cells[0 - offset] || mainProcess,
-        coreProcess:  cells[1 - offset] || coreProcess,
-        lineItem:     cells[Math.max(0, 2 - offset)],
-        unit:         cells[Math.max(0, 4 - offset)] || "-",
-        volActual:    cells[numCols - 7] || "0",
-        hrsActual:    cells[numCols - 6] || "0",
-        rateActual:   cells[numCols - 5] || "0",
-        ratePlan:     cells[numCols - 4] || "0",
-        hrsPlan:      cells[numCols - 3] || "0",
-        deltaPlan:    cells[numCols - 2] || "0",
-        pctPlan:      cells[numCols - 1] || "0%",
+        mainProcess: cells[0 - offset] || mainProcess,
+        coreProcess: cells[1 - offset] || coreProcess,
+        lineItem:    cells[Math.max(0, 2 - offset)],
+        unit:        cells[Math.max(0, 4 - offset)] || "-",
+        volActual:   cells[numCols - 7] || "0",
+        hrsActual:   cells[numCols - 6] || "0",
+        rateActual:  cells[numCols - 5] || "0",
+        ratePlan:    cells[numCols - 4] || "0",
+        hrsPlan:     cells[numCols - 3] || "0",
+        deltaPlan:   cells[numCols - 2] || "0",
+        pctPlan:     cells[numCols - 1] || "0%",
       });
     }
   }
   return rows.length ? rows : null;
 }
 
-// ── JSON parser (if FCLM returns JSON) ───────────────────────────────────────
 function parseJSON(json) {
-  // Handle array of row objects or wrapped {data: [...]}
   const arr = Array.isArray(json) ? json : json.data || json.rows || [];
   return arr.map(r => ({
     mainProcess: r.mainProcess  || r.main_process || "",
@@ -619,10 +788,7 @@ function parseJSON(json) {
   }));
 }
 
-// ── Rendering helpers ─────────────────────────────────────────────────────────
-function num(v) {
-  return `<span class="num">${v ?? "-"}</span>`;
-}
+function numCell(v) { return `<span class="num">${v ?? "-"}</span>`; }
 
 function pctBadge(v) {
   const val = parseFloat(String(v).replace("%", ""));
@@ -638,9 +804,7 @@ function deltaBadge(v) {
   return v;
 }
 
-// ── Table renderer ────────────────────────────────────────────────────────────
 function renderTable(rows) {
-  // Group rows by mainProcess
   const groups = new Map();
   let currentMain = "";
   for (const row of rows) {
@@ -650,12 +814,8 @@ function renderTable(rows) {
     groups.get(key).push(row);
   }
 
-  // Build totals from the last "Total" row or last row
-  const totalRow = rows.find(r =>
-    /RC Sort.*Total/i.test(r.lineItem) || /Total/i.test(r.lineItem)
-  ) || rows[rows.length - 1];
+  const totalRow = rows.find(r => /RC Sort.*Total/i.test(r.lineItem) || /Total/i.test(r.lineItem)) || rows[rows.length - 1];
 
-  // Render totals bar
   elTotalsWrap.innerHTML = `
     <div class="totals-bar">
       <span><span class="t-label">Vol</span><span class="t-val">${totalRow.volActual}</span></span>
@@ -665,12 +825,9 @@ function renderTable(rows) {
       <span><span class="t-label">Hrs (Plan)</span><span class="t-val">${totalRow.hrsPlan}</span></span>
       <span><span class="t-label">Δ to Plan</span><span class="t-val">${totalRow.deltaPlan}</span></span>
       <span>${pctBadge(totalRow.pctPlan)}</span>
-      <span style="margin-left:auto;font-size:10px;color:#718096;">
-        Last updated: ${new Date().toLocaleTimeString()}
-      </span>
+      <span style="margin-left:auto;font-size:10px;color:#718096;">Updated: ${new Date().toLocaleTimeString()}</span>
     </div>`;
 
-  // Build table HTML
   let html = `
   <table class="fclm-table" id="main-fclm-table">
     <thead>
@@ -696,7 +853,7 @@ function renderTable(rows) {
 
   let sectionIdx = 0;
   for (const [groupName, groupRows] of groups) {
-    const secId = `sec-${sectionIdx++}`;
+    const secId   = `sec-${sectionIdx++}`;
     const isRCSort = /RC Sort/i.test(groupName);
 
     html += `
@@ -706,9 +863,9 @@ function renderTable(rows) {
 
     let rowIdx = 0;
     for (const row of groupRows) {
-      const isTotal = /Total/i.test(row.lineItem);
+      const isTotal      = /Total/i.test(row.lineItem);
       const isRCSortTotal = isRCSort && /RC Sort.*Total/i.test(row.lineItem);
-      const cls = isRCSortTotal ? "rc-sort-total" : isTotal ? "sub-total" : `data-row collapsible`;
+      const cls = isRCSortTotal ? "rc-sort-total" : isTotal ? "sub-total" : "data-row collapsible";
 
       html += `
       <tr class="${cls}" data-group="${secId}">
@@ -727,11 +884,8 @@ function renderTable(rows) {
       rowIdx++;
     }
   }
-
   html += `</tbody></table>`;
   elTableWrap.innerHTML = html;
-
-  // Show live table, hide empty state
   elLiveWrap.classList.add("show");
   elEmptyWrap.style.display = "none";
 }
@@ -742,13 +896,9 @@ function fmt(v) {
 }
 
 function escHtml(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
-// ── Section collapse ──────────────────────────────────────────────────────────
 function toggleSection(secId) {
   const hdr  = document.querySelector(`[onclick="toggleSection('${secId}')"]`);
   const rows = document.querySelectorAll(`[data-group="${secId}"]`);
@@ -756,7 +906,6 @@ function toggleSection(secId) {
   rows.forEach(r => r.classList.toggle("hidden", collapsed));
 }
 
-// ── Cookie modal ──────────────────────────────────────────────────────────────
 function showCookieModal()  { document.getElementById("cookie-modal").classList.add("show"); }
 function hideCookieModal()  { document.getElementById("cookie-modal").classList.remove("show"); }
 
@@ -765,9 +914,9 @@ async function saveCookie() {
   if (!val) return;
   try {
     await fetch(`${PROXY_BASE}/set-cookie`, {
-      method:  "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ cookie: val }),
+      body: JSON.stringify({ cookie: val }),
     });
     hideCookieModal();
     fetchData();
@@ -776,10 +925,440 @@ async function saveCookie() {
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════
+// PERIOD REPORT CARD — BRIDGE INTEGRATION
+// ═══════════════════════════════════════════════════════════════════
+
+const PRC_KEY     = "OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE";
+const PRC_KEY_ALT = "OB_PERIOD_REPORT_CARD_BRIDGE";
+const PRC_WH      = "RFD2";
+const PRC_PID     = "1003021";
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function prcClean(s)  { return String(s||"").replace(/ /g," ").replace(/\s+/g," ").trim(); }
+function prcNum(v) {
+  if (v == null || v === "") return NaN;
+  const n = Number(String(v).replace(/,/g,"").replace(/[^0-9.-]/g,"").trim());
+  return Number.isFinite(n) ? n : NaN;
+}
+function prcFmt(n, d=0) {
+  const x = prcNum(n);
+  return Number.isFinite(x) ? x.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}) : "--";
+}
+function prcAge(ts) {
+  if (!ts) return "waiting";
+  const sec = Math.max(0, Math.round((Date.now() - Number(ts)) / 1000));
+  return sec < 60 ? `${sec}s ago` : `${Math.floor(sec/60)}m ${sec%60}s ago`;
+}
+function prcPad2(n) { return String(n).padStart(2,"0"); }
+
+// ── Bridge read/write ─────────────────────────────────────────────────────────
+function prcRead() {
+  try {
+    const raw = localStorage.getItem(PRC_KEY) || localStorage.getItem(PRC_KEY_ALT);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+function prcWrite(data) {
+  try {
+    const s = JSON.stringify(data);
+    localStorage.setItem(PRC_KEY, s);
+    localStorage.setItem(PRC_KEY_ALT, s);
+  } catch {}
+}
+
+// ── Shift windows ─────────────────────────────────────────────────────────────
+let prcDateManual = false;
+
+function prcGetDate() {
+  const v = document.getElementById("prc-shift-date").value;
+  if (v) return v.split("-").map(Number); // [y, m, d]
+  const now = new Date();
+  const h   = now.getHours();
+  const d   = h < 12 ? new Date(now.getTime() - 86400000) : now;
+  return [d.getFullYear(), d.getMonth()+1, d.getDate()];
+}
+
+function prcGetMET() {
+  return document.getElementById("prc-include-met").value === "true";
+}
+
+function prcAddDays(y, m, d, n) {
+  const x = new Date(Date.UTC(y, m-1, d+n, 12));
+  return [x.getUTCFullYear(), x.getUTCMonth()+1, x.getUTCDate()];
+}
+
+function prcYmd(y, m, d) {
+  return `${y}/${prcPad2(m)}/${prcPad2(d)}`;
+}
+
+function prcWindows() {
+  const [sy, sm, sd] = prcGetDate();
+  const [ny, nm, nd] = prcAddDays(sy, sm, sd, 1);
+  const met = prcGetMET();
+  return {
+    p1:   {sy,sm,sd,ey:sy,em:sm,ed:sd, sh:19,smin:0,  eh:23, emin:0  },
+    p2:   {sy,sm,sd,ey:ny,em:nm,ed:nd, sh:23,smin:30, eh:2,  emin:30 },
+    p3:   {sy:ny,sm:nm,sd:nd, ey:ny,em:nm,ed:nd, sh:3, smin:0,  eh:5, emin:30 },
+    met:  {sy:ny,sm:nm,sd:nd, ey:ny,em:nm,ed:nd, sh:5, smin:30, eh:6, emin:30 },
+    full: {sy,sm,sd,ey:ny,em:nm,ed:nd, sh:19,smin:0, eh:met?6:5, emin:30 },
+  };
+}
+
+function prcBuildProxyUrl(key) {
+  const w = prcWindows()[key] || prcWindows().full;
+  const p = new URLSearchParams({
+    reportFormat:        "HTML",
+    warehouseId:         PRC_WH,
+    processId:           PRC_PID,
+    maxIntradayDays:     "1",
+    spanType:            "Intraday",
+    startDateIntraday:   prcYmd(w.sy, w.sm, w.sd),
+    startHourIntraday:   String(w.sh),
+    startMinuteIntraday: String(w.smin),
+    endDateIntraday:     prcYmd(w.ey, w.em, w.ed),
+    endHourIntraday:     String(w.eh),
+    endMinuteIntraday:   String(w.emin),
+  });
+  return `${PROXY_BASE}/api/reports/functionRollup?${p}`;
+}
+
+// ── FCLM HTML parser ──────────────────────────────────────────────────────────
+function prcParseFclmHtml(html, period) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+
+  function allEls() {
+    return [...doc.querySelectorAll("td,th,div,span,a")];
+  }
+  function findExact(text) {
+    const t = prcClean(text).toLowerCase();
+    return allEls().find(el => prcClean(el.textContent).toLowerCase() === t) || null;
+  }
+  function findContaining(text) {
+    const t = prcClean(text).toLowerCase();
+    return allEls().find(el => prcClean(el.textContent).toLowerCase().includes(t)) || null;
+  }
+  function rowCells(row) {
+    return row ? [...row.querySelectorAll("td,th")].map(c => prcClean(c.textContent)) : [];
+  }
+  function numsInRow(row) {
+    return rowCells(row).map(prcNum).filter(Number.isFinite);
+  }
+  function sectionTotal(label) {
+    const el  = findExact(label) || findContaining(label);
+    const row = el?.closest("tr");
+    if (!row) return NaN;
+    let r = row, i = 0;
+    while (r && i < 30) {
+      const cells = rowCells(r).map(t => t.toLowerCase());
+      const text  = prcClean(r.textContent).toLowerCase();
+      if (cells.includes("total") || text.includes(" total ")) {
+        const nums = numsInRow(r);
+        const jobs = nums.find(n => Number.isInteger(n) && n > 0);
+        if (Number.isFinite(jobs)) return jobs;
+      }
+      r = r.nextElementSibling; i++;
+    }
+    return NaN;
+  }
+  function wallBuilder() {
+    const el  = findExact("Wall Builder") || findContaining("Wall Builder");
+    const row = el?.closest("tr");
+    if (!row) return NaN;
+    let r = row, i = 0;
+    while (r && i < 16) {
+      const cells = rowCells(r).map(t => t.toLowerCase());
+      const text  = prcClean(r.textContent).toLowerCase();
+      if (cells.includes("total") || text.includes(" total ")) {
+        const nums  = numsInRow(r);
+        const dec   = nums.find(n => !Number.isInteger(n) && n > 0);
+        if (Number.isFinite(dec)) return dec;
+        const fallb = nums.find(n => n > 0);
+        if (Number.isFinite(fallb)) return fallb;
+      }
+      r = r.nextElementSibling; i++;
+    }
+    return NaN;
+  }
+
+  const totesJobs  = sectionTotal("Fluid Load - Tote");
+  const casesJobs  = sectionTotal("Fluid Load - Case");
+  const totalJobs  = (Number.isFinite(totesJobs) ? totesJobs : 0) + (Number.isFinite(casesJobs) ? casesJobs : 0);
+  const wbRate     = wallBuilder();
+  const jplh       = Number.isFinite(wbRate) && wbRate > 0 ? totalJobs / wbRate : NaN;
+
+  return { totesJobs, casesJobs, totalJobs, wallBuilderRate: wbRate, jplh, updatedAt: Date.now(), period };
+}
+
+// ── Pull FCLM periods via proxy ───────────────────────────────────────────────
+let prcPulling = false;
+
+async function prcPullFclm() {
+  if (prcPulling) return;
+  prcPulling = true;
+  document.getElementById("prc-btn-fclm").disabled = true;
+  prcMsg("Pulling FCLM periods…", 0);
+
+  const met     = prcGetMET();
+  const periods = met ? ["full","p1","p2","p3","met"] : ["full","p1","p2","p3"];
+
+  try {
+    const settled = await Promise.allSettled(
+      periods.map(k =>
+        fetch(prcBuildProxyUrl(k), { signal: AbortSignal.timeout(30000) })
+          .then(r => {
+            if (r.headers.get("X-Proxy-Auth-Error") === "true") throw new Error("Auth required");
+            return r.text();
+          })
+          .then(html => prcParseFclmHtml(html, k))
+      )
+    );
+
+    const bridge = prcRead();
+    bridge.fclmPeriods = bridge.fclmPeriods || {};
+    bridge.fclmFull    = bridge.fclmFull    || {};
+    const [sy,sm,sd]   = prcGetDate();
+    bridge.shift = { shiftDate: `${sy}-${prcPad2(sm)}-${prcPad2(sd)}`, includeMET: met };
+
+    let ok = 0, fail = 0;
+    for (let i = 0; i < periods.length; i++) {
+      if (settled[i].status === "fulfilled") {
+        const pl  = settled[i].value;
+        const key = pl.period;
+        if (key === "full") {
+          bridge.fclmFull = { ...bridge.fclmFull, ...pl };
+        } else {
+          bridge.fclmPeriods[key] = { ...(bridge.fclmPeriods[key]||{}), ...pl };
+        }
+        ok++;
+      } else {
+        fail++;
+      }
+    }
+
+    bridge.lastPull = {
+      source: "fclm", label: "FCLM",
+      detail: periods.map(k => k.toUpperCase()).join(", "),
+      updatedAt: Date.now()
+    };
+    prcWrite(bridge);
+    prcRender(bridge);
+    prcMsg(fail > 0 ? `FCLM pull done — ${ok} ok, ${fail} failed` : `FCLM pull complete (${ok} windows)`, 6000);
+
+  } catch (err) {
+    prcMsg(`FCLM pull failed: ${err.message}`, 8000);
+  }
+
+  prcPulling = false;
+  document.getElementById("prc-btn-fclm").disabled = false;
+}
+
+// ── Sidebar toggle ────────────────────────────────────────────────────────────
+(function initSidebarToggle() {
+  const sidebar = document.getElementById("prc-sidebar");
+  const btn     = document.getElementById("prc-toggle");
+  const KEY     = "PRC_SIDEBAR_COLLAPSED";
+
+  function setCollapsed(c) {
+    sidebar.classList.toggle("collapsed", c);
+    btn.textContent = c ? "▶" : "◀";
+    btn.title = c ? "Expand sidebar" : "Collapse sidebar";
+    try { localStorage.setItem(KEY, c ? "1" : ""); } catch {}
+  }
+
+  try { if (localStorage.getItem(KEY) === "1") setCollapsed(true); } catch {}
+  btn.addEventListener("click", () => setCollapsed(!sidebar.classList.contains("collapsed")));
+})();
+
+// ── Message helper ────────────────────────────────────────────────────────────
+let _prcMsgTimer = null;
+function prcMsg(text, ms = 5000) {
+  const el = document.getElementById("prc-msg");
+  if (!el) return;
+  el.textContent = text;
+  el.style.display = text ? "block" : "none";
+  if (_prcMsgTimer) clearTimeout(_prcMsgTimer);
+  if (ms > 0 && text) _prcMsgTimer = setTimeout(() => { el.style.display = "none"; }, ms);
+}
+
+// ── Render PRC sidebar content ────────────────────────────────────────────────
+function prcAgeHtml(ts) {
+  if (!ts) return `<span class="prc-waiting">—</span>`;
+  return `<span class="prc-age">${prcAge(ts)}</span>`;
+}
+function prcRow(label, value) {
+  return `<div class="prc-row"><span class="lbl">${label}</span><span class="val">${value}</span></div>`;
+}
+function prcSep() { return `<div class="prc-sep"></div>`; }
+function prcSec(label) { return `<div class="prc-section-lbl">${label}</div>`; }
+
+function prcRender(data) {
+  const content = document.getElementById("prc-data");
+  if (!content) return;
+
+  if (!data || Object.keys(data).length === 0) {
+    content.innerHTML = `<div style="padding:12px 0;text-align:center;color:#475569;font-size:11px;">
+      No bridge data yet.<br>
+      <span style="font-size:10px;color:#334155;">Visit FCLM/NEO pages<br>or click Pull FCLM.</span>
+    </div>`;
+    document.getElementById("prc-last-pull").textContent = "Waiting for data…";
+    return;
+  }
+
+  const lp      = data.lastPull;
+  const lastPullEl = document.getElementById("prc-last-pull");
+  if (lastPullEl) {
+    lastPullEl.textContent = lp
+      ? `${lp.label} · ${prcAge(lp.updatedAt)}`
+      : "No pull yet";
+  }
+
+  const p       = data.fclmPeriods  || {};
+  const mPer    = data.monitorPeriods || {};
+  const roster  = data.roster?.fluid  || {};
+  const neo     = data.neo            || {};
+  const met     = Boolean(data.shift?.includeMET) || prcGetMET();
+
+  // Update shift controls from bridge if user hasn't overridden
+  if (!prcDateManual && data.shift?.shiftDate) {
+    const inp = document.getElementById("prc-shift-date");
+    if (inp && !inp.value) inp.value = data.shift.shiftDate;
+  }
+  if (data.shift?.includeMET !== undefined) {
+    const sel = document.getElementById("prc-include-met");
+    if (sel && !prcDateManual) sel.value = data.shift.includeMET ? "true" : "false";
+  }
+
+  let html = "";
+
+  // Sources
+  html += prcSec("Sources");
+  html += prcRow("NEO goals",    prcAgeHtml(neo.updatedAt));
+  html += prcRow("Fluid Roster", prcAgeHtml(roster.updatedAt));
+  html += prcRow("FCLM full",    prcAgeHtml(data.fclmFull?.updatedAt));
+
+  // NEO
+  if (neo.updatedAt) {
+    html += prcSep() + prcSec("NEO Shift Goals");
+    html += prcRow("FL Jobs",    prcFmt(neo.fluidLoadJobs));
+    html += prcRow("Pal Jobs",   prcFmt(neo.manualPalletizeJobs));
+    html += prcRow("RWC Jobs",   prcFmt(neo.rwcJobs));
+    html += prcRow("FL Rate",    prcFmt(neo.fluidLoadRate));
+    if (Number.isFinite(prcNum(neo.shipSortDiverts)))
+      html += prcRow("Ship Sort", prcFmt(neo.shipSortDiverts));
+  }
+
+  // Roster
+  html += prcSep() + prcSec("Fluid Roster");
+  const rGap = roster.gap != null
+    ? ` <span class="${roster.gap >= 0 ? "prc-pos" : "prc-neg"}">(${roster.gap >= 0 ? "+" : ""}${prcFmt(roster.gap)})</span>`
+    : "";
+  html += prcRow("Headcount",
+    `${prcFmt(roster.headcount)}${roster.target ? `/${prcFmt(roster.target)}` : ""}${rGap}`);
+  for (const g of (roster.groups || [])) {
+    const gap = g.target ? g.current - g.target : null;
+    const gHtml = gap !== null
+      ? ` <span class="${gap >= 0 ? "prc-pos" : "prc-neg"}">(${gap >= 0 ? "+" : ""}${prcFmt(gap)})</span>`
+      : "";
+    html += prcRow(g.label, `${prcFmt(g.current)}${g.target ? `/${prcFmt(g.target)}` : ""}${gHtml}`);
+  }
+
+  // FCLM
+  html += prcSep() + prcSec("FCLM (JPLH by Period)");
+  const fclmPeriodRow = (key, label) =>
+    prcRow(label,
+      `Jobs&nbsp;${prcFmt(p[key]?.totalJobs)}&ensp;JPLH&nbsp;${prcFmt(p[key]?.jplh, 2)}&ensp;${prcAgeHtml(p[key]?.updatedAt)}`);
+  html += fclmPeriodRow("p1",  "P1");
+  html += fclmPeriodRow("p2",  "P2");
+  html += fclmPeriodRow("p3",  "P3");
+  if (met) html += fclmPeriodRow("met", "MET");
+
+  // Monitor
+  html += prcSep() + prcSec("Monitor Portal");
+  const monRow = (key, label) =>
+    prcRow(label,
+      `FL&nbsp;${prcAgeHtml(mPer[key]?.flUtil?.updatedAt)}&ensp;Belt&nbsp;${prcAgeHtml(mPer[key]?.belt?.updatedAt)}`);
+  html += monRow("p1",  "P1");
+  html += monRow("p2",  "P2");
+  html += monRow("p3",  "P3");
+  if (met) html += monRow("met", "MET");
+
+  // Monitor note if no data
+  if (!mPer.p1?.flUtil?.updatedAt && !mPer.p1?.belt?.updatedAt) {
+    html += `<div style="font-size:10px;color:#475569;margin-top:4px;">
+      Visit Monitor Portal pages with Tampermonkey active to collect FL &amp; Belt data.
+    </div>`;
+  }
+
+  content.innerHTML = html;
+}
+
+// ── postMessage listener (Tampermonkey bridge push) ───────────────────────────
+window.addEventListener("message", event => {
+  if (event.source !== window) return;
+  if (event.data?.type === "PRC_V2_HYBRID_DATA") {
+    const payload = event.data.payload || {};
+    prcWrite(payload);
+    prcRender(payload);
+  }
+});
+
+// ── storage event (cross-tab TM update) ──────────────────────────────────────
+window.addEventListener("storage", event => {
+  if (event.key === PRC_KEY || event.key === PRC_KEY_ALT) {
+    try {
+      const data = event.newValue ? JSON.parse(event.newValue) : {};
+      prcRender(data);
+    } catch {}
+  }
+});
+
+// ── Init PRC ─────────────────────────────────────────────────────────────────
+function prcInit() {
+  // Default shift date
+  const inp = document.getElementById("prc-shift-date");
+  if (inp && !inp.value) {
+    const now = new Date();
+    const h   = now.getHours();
+    const d   = h < 12 ? new Date(now.getTime() - 86400000) : now;
+    const y   = d.getFullYear();
+    const m   = String(d.getMonth()+1).padStart(2,"0");
+    const dy  = String(d.getDate()).padStart(2,"0");
+    inp.value = `${y}-${m}-${dy}`;
+  }
+
+  // Mark when user manually changes date/met so we stop auto-filling from bridge
+  inp?.addEventListener("change", () => { prcDateManual = true; });
+  document.getElementById("prc-include-met")?.addEventListener("change", () => { prcDateManual = true; });
+
+  // Button handlers
+  document.getElementById("prc-btn-fclm").addEventListener("click", prcPullFclm);
+  document.getElementById("prc-btn-reset").addEventListener("click", () => {
+    if (!confirm("Clear all Period Report Card bridge data?")) return;
+    localStorage.removeItem(PRC_KEY);
+    localStorage.removeItem(PRC_KEY_ALT);
+    prcDateManual = false;
+    prcRender({});
+    prcMsg("Bridge data cleared.", 4000);
+  });
+
+  // Initial render from localStorage
+  const existing = prcRead();
+  prcRender(existing);
+
+  // Poll localStorage every 5 s (catches TM writes from other tabs)
+  setInterval(() => prcRender(prcRead()), 5000);
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════
 updateWeekBadge();
 checkHealth();
 setInterval(fetchData, REFRESH_MS);
+prcInit();
 </script>
 </body>
 </html>
