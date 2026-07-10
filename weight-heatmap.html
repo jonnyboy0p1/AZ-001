@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trailer Weight Heat Map</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue-dark:   #1a1a2e;
+      --blue-mid:    #1e3a5f;
+      --blue-bright: #2d6a9f;
+      --blue-light:  #ebf8ff;
+      --green:       #38a169;
+      --red:         #e53e3e;
+      --orange:      #dd6b20;
+      --grey-50:     #f8f9fb;
+      --grey-100:    #edf2f7;
+      --grey-200:    #e2e8f0;
+      --grey-400:    #a0aec0;
+      --grey-600:    #718096;
+      --grey-800:    #2d3748;
+      --text:        #1a202c;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      background: #f0f2f5;
+      color: var(--text);
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      background: var(--blue-dark);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .page-header h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 220px; }
+
+    /* ── Proxy status pill ── */
+    #proxy-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; background: rgba(255,255,255,.08);
+      border-radius: 20px; padding: 4px 10px; white-space: nowrap;
+    }
+    #proxy-status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--grey-400); flex-shrink: 0; }
+    #proxy-status[data-state="connected"] .dot     { background: var(--green); }
+    #proxy-status[data-state="auth-required"] .dot { background: var(--orange); }
+    #proxy-status[data-state="sample"] .dot        { background: var(--blue-bright); }
+    #proxy-status[data-state="offline"] .dot       { background: var(--grey-400); }
+    #proxy-status[data-state="error"] .dot         { background: var(--red); }
+
+    /* ── Buttons / inputs ── */
+    .btn {
+      padding: 5px 14px; border-radius: 5px; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 600; display: inline-flex; align-items: center;
+      gap: 6px; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary   { background: var(--blue-bright); color: #fff; }
+    .btn-secondary { background: rgba(255,255,255,.15); color: #fff; }
+    select.hdr-select {
+      background: rgba(255,255,255,.15); color: #fff; border: none;
+      border-radius: 5px; padding: 5px 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    select.hdr-select option { color: #000; }
+
+    .spinner {
+      display: none; width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+      border-radius: 50%; animation: spin .6s linear infinite;
+    }
+    .loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Banner ── */
+    .banner { display: none; padding: 10px 20px; font-size: 12px; font-weight: 500; }
+    .banner.show { display: block; }
+    .banner-warn  { background: #fefcbf; color: #744210; border-bottom: 1px solid #f6e05e; }
+    .banner-error { background: #fff5f5; color: #742a2a; border-bottom: 1px solid #feb2b2; }
+    .banner-info  { background: #ebf8ff; color: #2c5282; border-bottom: 1px solid #bee3f8; }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      margin: 16px 16px 0; overflow: hidden;
+    }
+    .card:last-child { margin-bottom: 16px; }
+    .card-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+      color: var(--grey-600); padding: 12px 16px 0;
+    }
+
+    /* ── Legend ── */
+    .legend { display: flex; align-items: center; gap: 10px; padding: 10px 16px 14px; flex-wrap: wrap; }
+    .legend .scale { display: flex; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px var(--grey-200); }
+    .legend .swatch { width: 26px; height: 16px; font-size: 9px; color: #fff; text-align: center; line-height: 16px; }
+    .legend .lab { font-size: 11px; color: var(--grey-600); }
+
+    /* ── Heat grid (tiles) ── */
+    .heat-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px; padding: 14px 16px 16px;
+    }
+    .tile {
+      border-radius: 8px; padding: 12px; color: #fff; position: relative; min-height: 92px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); transition: background .6s ease;
+    }
+    .tile .dest { font-size: 12px; font-weight: 700; opacity: .95; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile .sub  { font-size: 10px; opacity: .8; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tile .pct  { font-size: 28px; font-weight: 800; line-height: 1; margin-top: 8px; font-variant-numeric: tabular-nums; }
+    .tile .eta  { font-size: 10px; opacity: .9; margin-top: 4px; }
+
+    /* ── Table ── */
+    .ht { width: 100%; border-collapse: collapse; }
+    .ht th, .ht td { padding: 7px 10px; border-bottom: 1px solid var(--grey-200); white-space: nowrap; }
+    .ht thead th {
+      background: #3d4f64; color: #e2e8f0; font-size: 11px; font-weight: 600;
+      text-align: left; position: sticky; top: 0;
+    }
+    .ht thead th.num { text-align: right; }
+    .ht tbody tr:nth-child(even) td { background: var(--grey-50); }
+    .ht tbody tr:hover td { background: var(--blue-light); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .muted { color: var(--grey-600); }
+
+    /* % pill in table — colour set inline by JS */
+    .pct-pill {
+      display: inline-block; min-width: 52px; text-align: center;
+      border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 800; color: #fff;
+      transition: background .6s ease;
+    }
+
+    /* ── Empty / config ── */
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--grey-600); }
+    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-state h2 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--grey-800); }
+    .empty-state p { font-size: 12px; line-height: 1.6; max-width: 460px; margin: 0 auto; }
+    code {
+      background: var(--grey-100); border: 1px solid var(--grey-200);
+      border-radius: 3px; padding: 1px 5px; font-size: 11px;
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-card {
+      background: #fff; border-radius: 10px; padding: 24px; width: 560px; max-width: 95vw;
+      max-height: 92vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .modal-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .modal-card p  { font-size: 12px; color: var(--grey-600); line-height: 1.6; margin-bottom: 12px; }
+    .modal-card label { display: block; font-size: 11px; font-weight: 700; color: var(--grey-800); margin: 12px 0 4px; }
+    .modal-card input[type=text], .modal-card input[type=number], .modal-card textarea {
+      width: 100%; font-size: 12px; font-family: monospace; border: 1px solid var(--grey-200);
+      border-radius: 5px; padding: 8px; outline: none;
+    }
+    .modal-card textarea { height: 120px; resize: vertical; }
+    .modal-card input:focus, .modal-card textarea:focus { border-color: var(--blue-bright); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+    .btn-modal-cancel { background: var(--grey-100); color: var(--grey-800); }
+
+    .ts { margin-left: auto; font-size: 10px; color: var(--grey-600); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<div class="page-header">
+  <h1>Trailer Weight Heat Map <span style="font-weight:400;opacity:.7;font-size:12px">· dispatch window 28k → 40k</span></h1>
+
+  <div id="proxy-status" data-state="unknown">
+    <span class="dot"></span><span id="proxy-status-label">Checking…</span>
+  </div>
+
+  <label style="font-size:11px;opacity:.8">Auto-refresh
+    <select id="refresh-select" class="hdr-select" onchange="restartTimers()">
+      <option value="60000">1 min</option>
+      <option value="120000" selected>2 min</option>
+      <option value="180000">3 min</option>
+    </select>
+  </label>
+
+  <button class="btn btn-secondary" onclick="showConfig()">⚙ Source / Settings</button>
+  <button class="btn btn-secondary" onclick="simulateFleet()">🎲 Simulate fleet</button>
+  <button class="btn btn-secondary" onclick="exportCSV()">⬇ Export CSV</button>
+  <button class="btn btn-primary" id="btn-refresh" onclick="fetchData()">
+    <span class="spinner" id="refresh-spinner"></span>⟳ Refresh
+  </button>
+</div>
+
+<!-- ── Banners ── -->
+<div id="banner-sample" class="banner banner-info">
+  ℹ Showing <strong>sample data</strong>. Click <strong>⚙ Source / Settings</strong> to point at your live Dockflow endpoint (via <code>python proxy.py</code>) or paste real data.
+</div>
+<div id="banner-offline" class="banner banner-error">
+  ✗ Local proxy not reachable. In a terminal run <strong>python proxy.py</strong> (after <strong>mwinit</strong>), then Refresh.
+</div>
+<div id="banner-auth" class="banner banner-error">
+  ✗ Authentication failed. Run <strong>mwinit</strong> to refresh your Midway session, then Refresh.
+</div>
+<div id="banner-parse" class="banner banner-warn">
+  ⚠ Data fetched but no rows were recognised. Open <strong>⚙ Source / Settings</strong> and adjust the field mapping to match Dockflow's response.
+</div>
+
+<!-- ── Legend ── -->
+<div class="card" style="margin-bottom:0;">
+  <div class="card-title">Heat scale — payload weight, dispatch window 28k → 40k (5% bands)</div>
+  <div class="legend">
+    <div class="scale" id="legend-scale"></div>
+    <span class="lab">Grey = empty · Green = filling · <strong>Yellow = 28k dispatch floor</strong> · Red = 40k (cube-out). Numbers = % of 40k.</span>
+  </div>
+</div>
+
+<!-- ── Heat tiles ── -->
+<div class="card">
+  <div class="card-title" style="display:flex;align-items:center;">
+    At a glance <span class="ts" id="ts-tiles"></span>
+  </div>
+  <div class="heat-grid" id="heat-grid"></div>
+</div>
+
+<!-- ── Detail table ── -->
+<div class="card">
+  <div class="card-title">Detail</div>
+  <div style="overflow:auto;">
+    <table class="ht">
+      <thead>
+        <tr>
+          <th>Destination (ARC)</th>
+          <th>Trailer</th>
+          <th class="num">Live Rate (jobs/hr)</th>
+          <th class="num">Content</th>
+          <th class="num">Payload (lb)</th>
+          <th class="num">Target (lb)</th>
+          <th class="num">Fill %</th>
+          <th class="num">Fill Rate (lb/hr)</th>
+          <th class="num">ETA to Full</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="ht-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════ CONFIG MODAL ═══════════ -->
+<div id="config-modal" class="modal-overlay">
+  <div class="modal-card">
+    <h2>⚙ Source &amp; Settings</h2>
+    <p>
+      <strong>Live mode:</strong> start <code>python proxy.py</code>, open Dockflow in your browser, copy the
+      data request URL from DevTools → Network, and paste it below. The proxy reuses your Midway cookie.<br/>
+      <strong>Browser mode (no proxy):</strong> install <code>dockflow-heatmap.user.js</code> in Tampermonkey to read Dockflow directly in your logged-in tab.<br/>
+      <strong>Manual / test mode:</strong> paste JSON or CSV rows (leave URL blank), or use <strong>🎲 Simulate fleet</strong>.
+    </p>
+
+    <label>Dockflow data URL (https://*.amazon.com…)</label>
+    <input type="text" id="cfg-url" placeholder="https://dockflow….amazon.com/api/…?node=RFD2" />
+
+    <label>Default target weight per trailer (lb) — equals 100% (red / cube-out)</label>
+    <input type="number" id="cfg-target" value="40000" />
+
+    <label>Dispatch floor (lb) — lowest weight you kick a truck at (the yellow line)</label>
+    <input type="number" id="cfg-floor" value="28000" />
+
+    <label>Manual data (JSON array or CSV) — used when URL is blank</label>
+    <textarea id="cfg-data" placeholder='[{"destination":"SBN1","trailerId":"YTF21313988237","payloadWeight":36953.9,"contentCount":1760,"liveRate":772}]
+— or CSV —
+destination,trailerId,payloadWeight,contentCount,liveRate,targetWeight
+SBN1,YTF21313988237,36953.9,1760,772,40000'></textarea>
+
+    <div class="modal-actions">
+      <button class="btn btn-modal-cancel" onclick="hideConfig()">Cancel</button>
+      <button class="btn btn-secondary" style="background:var(--grey-200);color:var(--grey-800)" onclick="loadSample()">Load sample</button>
+      <button class="btn btn-primary" onclick="saveConfig()">Save &amp; Refresh</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ════════════════════════════════════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════════════════════════════════════ */
+const PROXY_BASE = "http://localhost:8765";
+
+const cfg = {
+  url:          localStorage.getItem("wh_url")    || "",
+  target:       parseFloat(localStorage.getItem("wh_target")) || 40000,   // 100% / red / cube-out
+  floor:        parseFloat(localStorage.getItem("wh_floor"))  || 28000,   // lowest dispatch weight → yellow line
+  manual:       localStorage.getItem("wh_manual") || "",
+  refreshMs:    parseInt(localStorage.getItem("wh_refresh")) || 120000,
+};
+
+let rows = [];            // current snapshot of row objects
+let liveTimer = null;     // 1-second "running %" ticker
+let pollTimer = null;     // 1–3 min server poll
+
+/* ════════════════════════════════════════════════════════════════════════
+   CORE EQUATION + HEAT COLOUR
+   ─ fillPct       = payloadWeight / targetWeight * 100
+   ─ bucket (5%)   = floor(fillPct / 5) * 5            → 0,5,10,…,100
+   ─ weightPerUnit = payloadWeight / contentCount      (lb per job)
+   ─ fillRateLbHr  = liveRate(jobs/hr) * weightPerUnit (lb/hr into the trailer)
+   ─ projWeight(t) = payloadWeight + fillRateLbHr * hoursSinceSnapshot   (the "running" value)
+   ─ etaToFullHrs  = (targetWeight - projWeight) / fillRateLbHr
+════════════════════════════════════════════════════════════════════════ */
+function bucket5(pct) { return Math.max(0, Math.min(100, Math.floor(pct / 5) * 5)); }
+
+function heatColor(pct, floorPct) {
+  const b  = bucket5(pct);
+  const fp = floorPct || 70;                     // dispatch floor as % of target (28k/40k = 70%)
+  if (b <= 0)   return "#a0aec0";                // grey = empty
+  if (b >= 100) return "hsl(0, 75%, 45%)";       // red  = at / over max (cube-out)
+  // Two-segment scale so colour spreads across the real dispatch range:
+  //   0 → floor   : green → yellow-green   (still filling, plenty of room)
+  //   floor → 100 : yellow → red           (dispatch-eligible, getting heavy)
+  const hue = b < fp ? 140 - 70 * (b / fp)
+                     : 60  - 60 * ((b - fp) / (100 - fp));
+  return `hsl(${Math.round(hue)}, 72%, 45%)`;
+}
+
+/* derive the live, time-extrapolated state of one row */
+function liveState(r) {
+  const weightPerUnit = r.contentCount > 0 ? r.payloadWeight / r.contentCount : 0;
+  const fillRateLbHr  = (r.liveRate || 0) * weightPerUnit;
+  const elapsedHr     = (Date.now() - r.snapshotAt) / 3.6e6;
+  const target        = r.targetWeight || cfg.target;
+  const floor         = Math.min(cfg.floor, target);
+  const projWeight    = Math.min(target, r.payloadWeight + fillRateLbHr * elapsedHr);
+  const pct           = target > 0 ? (projWeight / target) * 100 : 0;
+  const floorPct      = target > 0 ? (floor / target) * 100 : 70;
+  const remaining     = target - projWeight;
+  const toReady       = floor  - projWeight;
+  const etaFullHr     = fillRateLbHr > 0 && remaining > 0 ? remaining / fillRateLbHr : (remaining <= 0 ? 0 : Infinity);
+  const etaReadyHr    = fillRateLbHr > 0 && toReady  > 0 ? toReady  / fillRateLbHr : 0;
+  const dispatchReady = projWeight >= floor;
+  return { weightPerUnit, fillRateLbHr, projWeight, pct, target, floor, floorPct, etaFullHr, etaReadyHr, dispatchReady };
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   FORMAT HELPERS
+════════════════════════════════════════════════════════════════════════ */
+const fmtN  = (n, d = 0) => (n == null || isNaN(n)) ? "—" : Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
+function fmtEta(hr) {
+  if (hr === 0)             return "FULL";
+  if (!isFinite(hr))        return "—";
+  const m = Math.round(hr * 60);
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
+}
+function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   STATUS / BANNERS
+════════════════════════════════════════════════════════════════════════ */
+const elStatus = document.getElementById("proxy-status");
+const elStatusLabel = document.getElementById("proxy-status-label");
+const STATUS_LABELS = { connected: "Live (proxy)", "auth-required": "Auth required", sample: "Sample / manual", offline: "Proxy offline", error: "Error", unknown: "Checking…" };
+function setStatus(s) { elStatus.dataset.state = s; elStatusLabel.textContent = STATUS_LABELS[s] || s; }
+
+const banners = ["sample", "offline", "auth", "parse"].reduce((m, k) => (m[k] = document.getElementById("banner-" + k), m), {});
+function clearBanners() { Object.values(banners).forEach(b => b.classList.remove("show")); }
+function showBanner(k) { clearBanners(); banners[k]?.classList.add("show"); }
+
+function setLoading(on) {
+  document.getElementById("btn-refresh").disabled = on;
+  document.getElementById("btn-refresh").classList.toggle("loading", on);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   DATA SOURCE
+════════════════════════════════════════════════════════════════════════ */
+async function fetchData() {
+  setLoading(true);
+  try {
+    if (cfg.url) {
+      await fetchFromProxy();
+    } else if (cfg.manual.trim()) {
+      ingest(parseManual(cfg.manual), "sample");
+    } else {
+      loadSample();
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus("error");
+  }
+  setLoading(false);
+}
+
+async function fetchFromProxy() {
+  let r;
+  try {
+    r = await fetch(`${PROXY_BASE}/fetch?url=${encodeURIComponent(cfg.url)}`, { signal: AbortSignal.timeout(30000) });
+  } catch {
+    setStatus("offline"); showBanner("offline"); return;
+  }
+  if (r.headers.get("X-Proxy-Auth-Error") === "true") { setStatus("auth-required"); showBanner("auth"); return; }
+
+  const ct = r.headers.get("X-Upstream-Content-Type") || r.headers.get("Content-Type") || "";
+  let data;
+  try { data = ct.includes("json") ? await r.json() : JSON.parse(await r.text()); }
+  catch { setStatus("error"); showBanner("parse"); return; }
+
+  const mapped = mapDockflow(data);
+  if (!mapped.length) { showBanner("parse"); setStatus("error"); return; }
+  ingest(mapped, "connected"); clearBanners();
+}
+
+/* Tolerant Dockflow → row mapper.  ADJUST the field names on the right-hand
+   side of each `||` chain once you see Dockflow's real JSON in DevTools. */
+function mapDockflow(data) {
+  const arr = Array.isArray(data) ? data
+            : data.arcs || data.containers || data.data || data.rows || data.results || [];
+  return arr.map(o => normalizeRow({
+    destination:  o.destination ?? o.arc ?? o.arcName ?? o.name ?? o.stackingFilter ?? o.lane ?? "—",
+    trailerId:    o.trailerId ?? o.containerId ?? o.vrId ?? o.trailer ?? o.scac ?? "",
+    payloadWeight: o.payloadWeight ?? o.weight ?? o.payload ?? o.currentWeight ?? o.weightLb ?? 0,
+    contentCount: o.contentCount ?? o.count ?? o.units ?? o.contentCount ?? o.jobs ?? 0,
+    liveRate:     o.liveRate ?? o.currentRate ?? o.rate ?? o.jobsPerHour ?? o.rateJobsPerHour ?? 0,
+    targetWeight: o.targetWeight ?? o.maxWeight ?? o.maxPayload ?? o.capacity ?? null,
+  })).filter(Boolean);
+}
+
+function parseManual(text) {
+  text = text.trim();
+  if (text.startsWith("[") || text.startsWith("{")) {
+    const j = JSON.parse(text);
+    return mapDockflow(j);
+  }
+  // CSV: header row required
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const head  = lines.shift().split(",").map(h => h.trim());
+  return lines.map(line => {
+    const cells = line.split(",");
+    const o = {};
+    head.forEach((h, i) => o[h] = (cells[i] ?? "").trim());
+    return normalizeRow(o);
+  }).filter(Boolean);
+}
+
+function normalizeRow(o) {
+  const payloadWeight = parseFloat(o.payloadWeight) || 0;
+  const contentCount  = parseFloat(o.contentCount) || 0;
+  const liveRate      = parseFloat(o.liveRate) || 0;
+  const targetWeight  = o.targetWeight != null && o.targetWeight !== "" ? parseFloat(o.targetWeight) : null;
+  if (!o.destination && !o.trailerId && !payloadWeight) return null;
+  return {
+    destination:  o.destination || "—",
+    trailerId:    o.trailerId || "",
+    payloadWeight, contentCount, liveRate,
+    targetWeight: targetWeight || null,
+    snapshotAt:   Date.now(),
+  };
+}
+
+function ingest(newRows, status) {
+  rows = newRows;
+  setStatus(status);
+  if (status === "sample") showBanner("sample");
+  render();
+  startTimers();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SAMPLE DATA  (spans the colour range; includes the two screenshot examples)
+════════════════════════════════════════════════════════════════════════ */
+function loadSample() {
+  const sample = [
+    { destination: "SBN1 (RFD2→SBN1)", trailerId: "YTF21313988237", payloadWeight: 36953.9, contentCount: 1760, liveRate: 772, targetWeight: 40000 },
+    { destination: "MKE2_CASE",        trailerId: "YTF44120097713", payloadWeight: 8200,    contentCount: 410,  liveRate: 772, targetWeight: 40000 },
+    { destination: "DET6",             trailerId: "YTF55013377420", payloadWeight: 22500,   contentCount: 1080, liveRate: 540, targetWeight: 40000 },
+    { destination: "ORD9",             trailerId: "YTF88820041190", payloadWeight: 39200,   contentCount: 2050, liveRate: 610, targetWeight: 40000 },
+    { destination: "MDW2",             trailerId: "YTF20391100245", payloadWeight: 0,       contentCount: 0,    liveRate: 480, targetWeight: 40000 },
+  ].map(normalizeRow);
+  ingest(sample, "sample");
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SIMULATE FLEET — realistic skewed bell curve (peak ~30-32k, tail to 40k+,
+   a couple light, one empty). Use this to test the heat map anywhere, no data
+   source needed. Each refresh keeps "running" via the simulated live rate.
+════════════════════════════════════════════════════════════════════════ */
+function simulateFleet() {
+  const dests = ["SBN1", "MKE2_CASE", "DET6", "ORD9", "CMH1", "IND9",
+                 "STL8", "RFD4", "ABE8", "MEM1", "BNA3", "MDW2"];
+  const fleet = dests.map((d, k) => {
+    // ~normal via 3-sample average, then skew toward the lower-middle
+    let g = (Math.random() + Math.random() + Math.random()) / 3;
+    g = Math.pow(g, 1.25);
+    let w = Math.round((18000 + g * 23000) / 10) * 10;   // ~18k–41k, peak low-middle
+    if (k === dests.length - 1) w = 0;                    // one empty / staged
+    if (k === 1)                w = 8200;                 // one clearly light
+    const wpu          = 18 + Math.random() * 6;          // 18–24 lb per unit
+    const contentCount = w > 0 ? Math.round(w / wpu) : 0;
+    const liveRate     = 380 + Math.round(Math.random() * 460);   // 380–840 jobs/hr
+    return {
+      destination:  d,
+      trailerId:    "YTF" + (10000000 + Math.floor(Math.random() * 89999999)),
+      payloadWeight: w, contentCount, liveRate, targetWeight: cfg.target,
+    };
+  }).map(normalizeRow);
+  ingest(fleet, "sample");
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER
+════════════════════════════════════════════════════════════════════════ */
+function render() {
+  renderLegend();
+  const grid = document.getElementById("heat-grid");
+  const body = document.getElementById("ht-body");
+
+  // sort fullest-first so hot trailers float to the top
+  const order = rows.map((r, i) => i).sort((a, b) => liveState(rows[b]).pct - liveState(rows[a]).pct);
+
+  grid.innerHTML = order.map(i => {
+    const r = rows[i], s = liveState(r);
+    return `<div class="tile" id="tile-${i}" style="background:${heatColor(s.pct, s.floorPct)}">
+      <div class="dest">${esc(r.destination)}</div>
+      <div class="sub">${esc(r.trailerId || "—")}</div>
+      <div class="pct" id="tpct-${i}">${Math.round(s.pct)}%</div>
+      <div class="eta" id="teta-${i}">${etaLabel(s)}</div>
+    </div>`;
+  }).join("");
+
+  body.innerHTML = rows.map((r, i) => {
+    const s = liveState(r);
+    return `<tr>
+      <td>${esc(r.destination)}</td>
+      <td class="muted">${esc(r.trailerId || "—")}</td>
+      <td class="num">${fmtN(r.liveRate)}</td>
+      <td class="num">${fmtN(r.contentCount)}</td>
+      <td class="num" id="pw-${i}">${fmtN(s.projWeight, 0)}</td>
+      <td class="num muted">${fmtN(s.target)}</td>
+      <td class="num"><span class="pct-pill" id="pill-${i}" style="background:${heatColor(s.pct, s.floorPct)}">${Math.round(s.pct)}%</span></td>
+      <td class="num muted">${fmtN(s.fillRateLbHr)}</td>
+      <td class="num" id="eta-${i}">${fmtEta(s.etaFullHr)}</td>
+      <td id="stat-${i}">${statusLabel(s)}</td>
+    </tr>`;
+  }).join("");
+
+  stamp();
+}
+
+function etaLabel(s) {
+  if (s.projWeight >= s.target) return "● at max — dispatch now";
+  if (s.dispatchReady)          return isFinite(s.etaFullHr) ? `✓ ready · max in ~${fmtEta(s.etaFullHr)}` : "✓ dispatch-ready";
+  if (s.fillRateLbHr > 0)       return `filling · ready in ~${fmtEta(s.etaReadyHr)}`;
+  return "no live rate";
+}
+
+/* short colour-coded status chip for the detail table */
+function statusLabel(s) {
+  const c = s.projWeight >= s.target ? ["OVER MAX", "#c53030"]
+          : s.dispatchReady          ? ["READY",    "#2f855a"]
+          : s.projWeight <= 0        ? ["EMPTY",    "#a0aec0"]
+          :                            ["FILLING",  "#dd6b20"];
+  return `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:800;background:${c[1]};color:#fff">${c[0]}</span>`;
+}
+
+function renderLegend() {
+  const sc = document.getElementById("legend-scale");
+  const fp = cfg.target > 0 ? (cfg.floor / cfg.target) * 100 : 70;
+  const stops = [0, 10, 35, 60, Math.round(fp), 85, 100];
+  sc.innerHTML = stops.map(p =>
+    `<div class="swatch" style="background:${heatColor(p, fp)}">${p}</div>`).join("");
+}
+
+/* per-second "running" update — no full re-render, just the live cells */
+function updateLive() {
+  rows.forEach((r, i) => {
+    const s = liveState(r);
+    const col = heatColor(s.pct, s.floorPct);
+    const pct = Math.round(s.pct) + "%";
+    const tile = document.getElementById(`tile-${i}`);
+    const tpct = document.getElementById(`tpct-${i}`);
+    const teta = document.getElementById(`teta-${i}`);
+    const pill = document.getElementById(`pill-${i}`);
+    const pw   = document.getElementById(`pw-${i}`);
+    const eta  = document.getElementById(`eta-${i}`);
+    const stat = document.getElementById(`stat-${i}`);
+    if (tile) tile.style.background = col;
+    if (tpct) tpct.textContent = pct;
+    if (teta) teta.textContent = etaLabel(s);
+    if (pill) { pill.style.background = col; pill.textContent = pct; }
+    if (pw)   pw.textContent = fmtN(s.projWeight, 0);
+    if (eta)  eta.textContent = fmtEta(s.etaFullHr);
+    if (stat) stat.innerHTML = statusLabel(s);
+  });
+}
+
+function stamp() {
+  const t = "Updated " + new Date().toLocaleTimeString();
+  document.getElementById("ts-tiles").textContent = t;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CSV EXPORT  (opens directly in Excel)
+════════════════════════════════════════════════════════════════════════ */
+function exportCSV() {
+  const head = ["destination", "trailerId", "liveRate_jobsHr", "contentCount", "payloadWeight_lb", "targetWeight_lb", "dispatchFloor_lb", "fillPct", "fillBucket5", "fillRate_lbHr", "etaToFull_hr", "status"];
+  const lines = [head.join(",")];
+  rows.forEach(r => {
+    const s = liveState(r);
+    lines.push([
+      `"${(r.destination || "").replace(/"/g, '""')}"`,
+      `"${(r.trailerId || "").replace(/"/g, '""')}"`,
+      r.liveRate, r.contentCount, Math.round(s.projWeight), Math.round(s.target), Math.round(s.floor),
+      s.pct.toFixed(1), bucket5(s.pct), Math.round(s.fillRateLbHr),
+      isFinite(s.etaFullHr) ? s.etaFullHr.toFixed(2) : "",
+      (s.projWeight >= s.target ? "OVER MAX" : s.dispatchReady ? "READY" : s.projWeight <= 0 ? "EMPTY" : "FILLING")
+    ].join(","));
+  });
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `weight-heatmap-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   CONFIG MODAL
+════════════════════════════════════════════════════════════════════════ */
+function showConfig() {
+  document.getElementById("cfg-url").value    = cfg.url;
+  document.getElementById("cfg-target").value = cfg.target;
+  document.getElementById("cfg-floor").value  = cfg.floor;
+  document.getElementById("cfg-data").value   = cfg.manual;
+  document.getElementById("config-modal").classList.add("show");
+}
+function hideConfig() { document.getElementById("config-modal").classList.remove("show"); }
+function saveConfig() {
+  cfg.url    = document.getElementById("cfg-url").value.trim();
+  cfg.target = parseFloat(document.getElementById("cfg-target").value) || 40000;
+  cfg.floor  = parseFloat(document.getElementById("cfg-floor").value)  || 28000;
+  cfg.manual = document.getElementById("cfg-data").value.trim();
+  localStorage.setItem("wh_url", cfg.url);
+  localStorage.setItem("wh_target", cfg.target);
+  localStorage.setItem("wh_floor", cfg.floor);
+  localStorage.setItem("wh_manual", cfg.manual);
+  hideConfig();
+  fetchData();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   TIMERS
+════════════════════════════════════════════════════════════════════════ */
+function startTimers() {
+  if (!liveTimer) liveTimer = setInterval(updateLive, 1000);   // running %
+  restartTimers();                                             // server poll
+}
+function restartTimers() {
+  cfg.refreshMs = parseInt(document.getElementById("refresh-select").value);
+  localStorage.setItem("wh_refresh", cfg.refreshMs);
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(fetchData, cfg.refreshMs);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════════════════════════════ */
+document.getElementById("refresh-select").value = String(cfg.refreshMs);
+renderLegend();
+fetchData();
+</script>
+</body>
+</html>

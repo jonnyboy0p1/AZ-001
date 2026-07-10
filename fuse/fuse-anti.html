@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FUSE-ANTI · Priority Queue</title>
+<style>
+:root{--ink:#14213d;--teal:#008891;--gold:#ffb703;--red:#d95d39;--green:#2a9d8f;--line:#d9e2ec;--field:#f0f4fa;--white:#fff;--ib:#1e3a8a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--field);color:var(--ink);font-family:Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.5}
+.fuse-nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:var(--ink);position:sticky;top:0;z-index:100}
+.brand{font-size:16px;font-weight:900;letter-spacing:.08em;color:var(--gold);text-decoration:none;flex-shrink:0}
+.brand em{color:rgba(255,255,255,.3);font-style:normal;font-weight:400;font-size:10px;margin-left:8px;letter-spacing:.12em}
+.pills{display:flex;gap:3px}
+.pills a{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-decoration:none;color:rgba(255,255,255,.45);transition:all .15s}
+.pills a:hover{background:rgba(255,255,255,.1);color:#fff}
+.pills a.p-ixd.active{background:var(--teal);color:#fff}
+.pills a.p-ib.active,.pills a.p-anti.active{background:#1d4ed8;color:#fff}
+.pills a.p-ob.active,.pills a.p-cdt.active{background:#b45309;color:#fff}
+.nclock{font-size:11px;color:rgba(255,255,255,.4);font-variant-numeric:tabular-nums;min-width:68px;text-align:right}
+.shell{max-width:1600px;margin:0 auto;padding:18px}
+.ph{margin-bottom:16px}.ph h1{font-size:21px;font-weight:900}.ph p{color:#64748b;font-size:12px;margin-top:3px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.mb16{margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 2px 8px rgba(20,33,61,.04)}
+.ct{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:12px}
+.card-ib{border-left:3px solid #1d4ed8}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kl{font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748b}
+.kv{font-size:28px;font-weight:900;line-height:1.1;margin-top:4px}
+.ks{font-size:12px;color:#64748b;margin-top:3px}
+/* FILTER ROW */
+.filter-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filter-row label{font-size:12px;color:#64748b;font-weight:600}
+.filter-row select,.filter-row input{height:30px;padding:0 8px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:12px;color:var(--ink);background:#fff}
+.filter-row select:focus,.filter-row input:focus{outline:1px solid var(--teal)}
+/* TABLE */
+.table-wrap{overflow-x:auto;margin-top:4px}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:900px}
+thead th{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#64748b;padding:8px 10px;text-align:left;border-bottom:2px solid var(--line);background:#f8fafc;position:sticky;top:52px}
+tbody td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:middle}
+tbody tr:hover td{background:#f8fafc}
+/* ACTION BADGES */
+.badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:5px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.badge-move{background:#dcfce7;color:#166534}
+.badge-hold{background:#fee2e2;color:#991b1b}
+.badge-review{background:#fef9c3;color:#92400e}
+.badge-live{background:#dbeafe;color:#1e3a8a}
+/* SCORE BAR */
+.score-bar{display:flex;align-items:center;gap:6px;min-width:90px}
+.score-bar-bg{flex:1;height:6px;border-radius:999px;background:#e2e8f0;overflow:hidden}
+.score-bar-bg span{display:block;height:100%;border-radius:999px}
+/* REASON PILLS */
+.reason-list{display:flex;flex-wrap:wrap;gap:3px}
+.rtag{display:inline-flex;align-items:center;height:17px;padding:0 5px;border-radius:3px;font-size:10px;font-weight:700;background:#f1f5f9;color:#475569}
+.rtag.hi{background:#dcfce7;color:#166534}
+.rtag.md{background:#fef9c3;color:#92400e}
+.rtag.lo{background:#fee2e2;color:#991b1b}
+/* LEGEND */
+.legend-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px}
+.legend-item{padding:8px 10px;border-radius:8px;background:#f8fafc;border:1px solid var(--line)}
+.legend-item strong{display:block;font-size:11px;margin-bottom:2px;color:var(--ink)}
+.legend-item span{color:#64748b;font-size:11px}
+.btn{display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 13px;border:1px solid var(--line);border-radius:7px;background:#fff;font:600 12px inherit;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.btn:hover{border-color:var(--teal);color:var(--teal)}
+.tg{color:#166534}.ta{color:#92400e}.tr{color:#991b1b}.tb{color:#1e3a8a}
+</style>
+</head>
+<body>
+
+<nav class="fuse-nav">
+  <a class="brand" href="fuse-ixd.html">FUSE <em>v001</em></a>
+  <div class="pills">
+    <a href="fuse-ixd.html" class="p-ixd">IXD</a>
+    <a href="fuse-ibd.html" class="p-ib">IBD</a>
+    <a href="fuse-anti.html" class="p-anti active">ANTI</a>
+    <a href="fuse-obd.html" class="p-ob">OBD</a>
+    <a href="fuse-cdt.html" class="p-cdt">CDT·WM</a>
+  </div>
+  <span class="nclock" id="clock">--:--:--</span>
+</nav>
+
+<div class="shell">
+  <div class="ph">
+    <h1>FUSE-ANTI · Priority Queue</h1>
+    <p>Anti-cherry-pick engine — trailers scored by dwell, goal gap, throwability, door compatibility, and live load urgency. The engine picks. Not the PA.</p>
+  </div>
+
+  <!-- Summary KPIs -->
+  <div class="g4 mb16" id="kpi-row"></div>
+
+  <!-- Filter row -->
+  <div class="card mb16">
+    <div class="ct">Filters</div>
+    <div class="filter-row">
+      <label>Freight type
+        <select id="f-type" onchange="renderTable()">
+          <option value="">All types</option>
+          <option>PR</option><option>LP</option><option>Eaches</option><option>Fluid</option>
+          <option>Rex</option><option>MP</option><option>RWC</option><option>Mixed</option>
+        </select>
+      </label>
+      <label>Min dwell (hrs)
+        <input type="number" id="f-dwell" value="0" min="0" onchange="renderTable()" style="width:60px">
+      </label>
+      <label>Action
+        <select id="f-action" onchange="renderTable()">
+          <option value="">All</option>
+          <option>Assign</option><option>Review</option><option>Hold</option>
+        </select>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+        <input type="checkbox" id="f-live" onchange="renderTable()"> Live loads only
+      </label>
+      <button class="btn" style="margin-left:auto" onclick="clearFilters()">✕ Clear filters</button>
+      <button class="btn" onclick="renderAll()">↺ Refresh</button>
+    </div>
+  </div>
+
+  <!-- Priority table -->
+  <div class="card mb16" id="queue-card">
+    <div class="ct">Trailer Priority Queue</div>
+    <div class="table-wrap" id="queue-table"></div>
+  </div>
+
+  <!-- Score legend -->
+  <div class="card">
+    <div class="ct">Score Factor Reference</div>
+    <div class="legend-grid">
+      <div class="legend-item"><strong>Dwell Time</strong><span>+5 (under 6h) → +35 (24h+). Aged freight scores highest.</span></div>
+      <div class="legend-item"><strong>Goal Gap Pressure</strong><span>+35 if goal below 70% · +25 if 70-99% · +5 if met · 0 if ahead</span></div>
+      <div class="legend-item"><strong>Freight Type Match</strong><span>PR / Fluid: +20 · LP / Eaches / Rex / MP: +18 · Mixed: up to +20</span></div>
+      <div class="legend-item"><strong>Door Availability</strong><span>Compatible door open: +20 · door soon: +10 · no door: −30</span></div>
+      <div class="legend-item"><strong>Live Load Urgency</strong><span>+40 if live load. Always floats to top of queue.</span></div>
+      <div class="legend-item"><strong>Congestion Penalty</strong><span>−20 if goal already exceeded · −15 if 3+ same type already assigned</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE={get:(k,fb)=>{try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb}catch{return fb}},set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+
+const sampleGoalsCsv=`department,subtype,goal,actual,period
+IBDock,RC Presort Cases,12500,9800,P1
+IBDock,Combined Cartons,85617,72400,P1
+IBDock,PID Cartons,63887,51200,P1
+IBDock,PR Pallets,227,198,P1
+OBDock,Fluid Load Jobs,61021,60236,P1
+OBDock,RWC Jobs,14509,17004,P1
+OBDock,Manual Palletize Jobs,4328,2618,P1
+OBDock,Pallets Loaded,900,849,P1`;
+
+const sampleTrailersCsv=`vrid,isa,yard_location,arrival_time,dwell_hours,freight_type,totes_pct,cases_pct,status,is_live_load
+VRID12345,ISA111,YD-41,2026-05-13 19:15,28,PR,10,90,Ready,false
+VRID88821,ISA222,YD-09,2026-05-13 20:40,14,LP,20,80,Ready,false
+VRID55291,ISA333,YD-22,2026-05-13 22:10,7,Eaches,70,30,Ready,false
+VRID77120,ISA444,YD-31,2026-05-14 01:30,5,Mixed,45,55,Waiting,false
+VRID99901,ISA555,YD-02,2026-05-14 02:00,1,Fluid,65,35,Arriving,true
+VRID44210,ISA556,YD-44,2026-05-12 23:20,31,Rex,40,60,Ready,false
+VRID66214,ISA557,YD-15,2026-05-13 10:00,19,MP,35,65,Ready,false
+VRID73009,ISA558,YD-36,2026-05-13 04:00,24,RWC,50,50,Ready,false`;
+
+const sampleDoorsCsv=`door,door_type,status,current_trailer,reserved_for_live,estimated_completion
+201,Receive Dock,Open,,false,
+202,Receive Dock,Occupied,VRID55291,false,2026-05-14 01:00
+203,Receive Dock,Open,,false,
+204,Receive Dock,Open,,false,
+205,LP,Open,,false,
+206,LP,Occupied,VRID88821,false,2026-05-14 01:30
+207,LP,Open,,false,
+208,LP,Open,,false,
+209,Prep,Open,,false,
+210,Prep,Open,,false,
+211,Prep,Open,,false,
+212,Prep,Maintenance,,false,
+213,PID Cartons,Open,,false,
+214,PID Cartons,Open,,false,
+215,PID Cartons,Occupied,VRID73009,false,2026-05-14 02:10
+216,PID Cartons,Open,,false,
+217,PR Pallets,Open,,false,
+218,PR Pallets,Open,,false,
+219,PR Pallets,Occupied,VRID12345,false,2026-05-14 01:45
+220,PR Pallets,Open,,false,
+221,East Fluid,Open,,false,
+222,East Fluid,Open,,false,
+223,East Fluid,Reserved,,false,
+224,East EOL,Open,,false,
+225,East EOL,Open,,false,
+226,East EOL,Open,,false,
+227,West Fluid,Open,,false,
+228,West Fluid,Open,,false,
+229,West Fluid,Reserved Live,,true,
+230,West EOL,Open,,false,
+231,West EOL,Reserved Live,,true,
+232,West EOL,Open,,false`;
+
+function parseCsv(text){if(!text)return[];const lines=text.trim().split(/\r?\n/).filter(Boolean);const delim=lines[0].includes('\t')?'\t':',';const headers=lines[0].split(delim).map(h=>h.trim());return lines.slice(1).map(line=>{const cols=line.split(delim);return headers.reduce((r,h,i)=>{r[h]=(cols[i]||'').trim();return r},{})});}
+
+function goals(){const csv=STORE.get('ff.goalsCsv',null)||sampleGoalsCsv;return parseCsv(csv).map(row=>{const g=Number(row.goal||0),a=Number(row.actual||0),p=g?Math.round((a/g)*100):0;return{department:row.department,subtype:row.subtype,goal:g,actual:a,gap:Math.max(g-a,0),percent:p}});}
+function trailers(){const csv=STORE.get('ff.trailersCsv',null)||sampleTrailersCsv;return parseCsv(csv).map(row=>({vrid:row.vrid,isa:row.isa||'—',yardLocation:row.yard_location||'—',dwellHours:Number(row.dwell_hours||0),freightType:row.freight_type||'Mixed',totesPct:Number(row.totes_pct||0),casesPct:Number(row.cases_pct||0),status:row.status||'Ready',isLiveLoad:String(row.is_live_load).toLowerCase()==='true'}));}
+function doors(){const csv=STORE.get('ff.doorsCsv',null)||sampleDoorsCsv;return parseCsv(csv).map(row=>({door:row.door,doorType:row.door_type,status:row.status||'Open',currentTrailer:row.current_trailer,reservedForLive:String(row.reserved_for_live).toLowerCase()==='true',estimatedCompletion:row.estimated_completion}));}
+
+function compatibleDoor(trailer,door){
+  if(['Closed','Maintenance'].includes(door.status))return false;
+  if(!trailer.isLiveLoad&&(door.reservedForLive||door.status==='Reserved Live'))return false;
+  if(trailer.isLiveLoad&&(door.reservedForLive||door.status==='Reserved Live'))return true;
+  const map={PR:['PR Pallets','IBDock'],LP:['LP','IBDock'],Eaches:['Fluid','IBDock','East Fluid','West Fluid'],Fluid:['East Fluid','West Fluid','Fluid'],Rex:['Rex','IBDock'],MP:['MP','IBDock'],RWC:['RWC','PID Cartons','IBDock'],Mixed:['IBDock','Fluid','LP','RWC','East Fluid','West Fluid']};
+  return(map[trailer.freightType]||['IBDock']).some(t=>door.doorType.includes(t));
+}
+
+function getGoalForFreight(type,goalRows){
+  if(type==='Mixed')return[...goalRows].sort((a,b)=>b.gap-a.gap)[0];
+  return goalRows.find(g=>g.subtype.toLowerCase().includes(type.toLowerCase()));
+}
+
+function scoreTrailer(trailer,goalRows,doorRows,allTrailers){
+  const goal=getGoalForFreight(trailer.freightType,goalRows);
+  const openDoor=doorRows.find(d=>d.status==='Open'&&!d.currentTrailer&&compatibleDoor(trailer,d));
+  const soonDoor=doorRows.find(d=>d.status==='Occupied'&&d.estimatedCompletion&&compatibleDoor(trailer,d));
+  const dwellScore=trailer.dwellHours<6?5:trailer.dwellHours<12?10:trailer.dwellHours<24?20:35;
+  const goalGapScore=!goal?0:goal.percent<70?35:goal.percent<100?25:goal.percent===100?5:0;
+  const fScores={PR:20,LP:18,Eaches:18,Fluid:20,Rex:18,MP:18,Mixed:goal&&goal.percent<70?20:10,RWC:18};
+  const matchScore=fScores[trailer.freightType]||12;
+  const doorScore=openDoor?20:soonDoor?10:-30;
+  const liveScore=trailer.isLiveLoad?40:0;
+  const laborScore=trailer.totesPct>=60||trailer.casesPct>=60?8:6;
+  const assignedSame=allTrailers.filter(t=>t.freightType===trailer.freightType&&t.status==='Assigned').length;
+  const congestionPenalty=goal&&goal.percent>100?-20:assignedSame>=3?-15:0;
+  const total=dwellScore+goalGapScore+matchScore+doorScore+liveScore+laborScore+congestionPenalty;
+  const reasons=[];
+  if(dwellScore>=20)reasons.push({text:`${trailer.dwellHours}h dwell`,cls:'hi'});
+  if(goalGapScore>=25)reasons.push({text:`Goal gap ${goal?goal.percent+'%':''}`,cls:'hi'});
+  if(goalGapScore>0&&goalGapScore<25)reasons.push({text:`Goal ${goal?goal.percent+'%':''}`,cls:'md'});
+  if(openDoor)reasons.push({text:`Door ${openDoor.door} open`,cls:'hi'});
+  if(!openDoor&&!soonDoor)reasons.push({text:'No door',cls:'lo'});
+  if(liveScore>0)reasons.push({text:'Live load',cls:'hi'});
+  if(congestionPenalty<0)reasons.push({text:'Congestion',cls:'lo'});
+  return{total,door:openDoor||soonDoor,goal,doorScore,reasons};
+}
+
+function recommendations(){
+  const goalRows=goals(),trailerRows=trailers(),doorRows=doors();
+  return trailerRows
+    .filter(t=>!['Assigned','Hold'].includes(t.status))
+    .map(trailer=>{
+      const scored=scoreTrailer(trailer,goalRows,doorRows,trailerRows);
+      const action=scored.door&&scored.total>=55?'Assign':scored.total>=40?'Review':'Hold';
+      const confidence=scored.total>=85?'High':scored.total>=60?'Medium':'Low';
+      return{trailer,vrid:trailer.vrid,isa:trailer.isa,yardLocation:trailer.yardLocation,recommendedDoor:scored.door?scored.door.door:'—',score:scored.total,confidence,action,risk:!scored.door||scored.total<45?'High':scored.total<75?'Medium':'Low',goal:scored.goal,reasons:scored.reasons};
+    })
+    .sort((a,b)=>b.score-a.score)
+    .map((rec,i)=>({...rec,rank:i+1}));
+}
+
+function renderTable(){
+  const typeF=document.getElementById('f-type').value;
+  const dwellF=Number(document.getElementById('f-dwell').value||0);
+  const actionF=document.getElementById('f-action').value;
+  const liveF=document.getElementById('f-live').checked;
+  let recs=recommendations();
+  if(typeF)recs=recs.filter(r=>r.trailer.freightType===typeF);
+  if(dwellF>0)recs=recs.filter(r=>r.trailer.dwellHours>=dwellF);
+  if(actionF)recs=recs.filter(r=>r.action===actionF);
+  if(liveF)recs=recs.filter(r=>r.trailer.isLiveLoad);
+  if(!recs.length){document.getElementById('queue-table').innerHTML='<p style="color:#64748b;font-size:12px;padding:12px">No trailers match these filters.</p>';return;}
+  document.getElementById('queue-table').innerHTML=`<table>
+    <thead><tr>
+      <th>#</th><th>VRID</th><th>ISA</th><th>Type</th><th>Dwell</th><th>Location</th>
+      <th>Score</th><th>Action</th><th>Door</th><th>Goal Impact</th><th>Reason Codes</th>
+    </tr></thead>
+    <tbody>${recs.map(r=>`<tr>
+      <td style="font-weight:900;color:#64748b">${r.rank}</td>
+      <td style="font-weight:700">${r.vrid}</td>
+      <td style="color:#64748b">${r.isa}</td>
+      <td><span style="font-size:11px;font-weight:700;background:#f1f5f9;padding:2px 6px;border-radius:4px">${r.trailer.freightType}</span>${r.trailer.isLiveLoad?'<span class="badge badge-live" style="margin-left:4px">LIVE</span>':''}</td>
+      <td class="${r.trailer.dwellHours>=24?'tr':r.trailer.dwellHours>=12?'ta':''}" style="font-weight:700">${r.trailer.dwellHours}h</td>
+      <td style="color:#64748b;font-size:11px">${r.yardLocation}</td>
+      <td>
+        <div class="score-bar">
+          <span style="font-weight:900;font-size:13px;min-width:28px">${r.score}</span>
+          <div class="score-bar-bg"><span style="width:${Math.min(r.score,100)}%;background:${r.score>=75?'#16a34a':r.score>=50?'#d97706':'#dc2626'}"></span></div>
+        </div>
+      </td>
+      <td><span class="badge ${r.action==='Assign'?'badge-move':r.action==='Hold'?'badge-hold':'badge-review'}">${r.action}</span></td>
+      <td style="font-weight:700;color:${r.recommendedDoor==='—'?'#991b1b':'#166534'}">${r.recommendedDoor}</td>
+      <td style="font-size:11px;color:#64748b">${r.goal?`${r.goal.subtype} (${r.goal.percent}%)`:'—'}</td>
+      <td><div class="reason-list">${r.reasons.map(x=>`<span class="rtag ${x.cls}">${x.text}</span>`).join('')}</div></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderAll(){
+  const recs=recommendations();
+  const move=recs.filter(r=>r.action==='Assign').length;
+  const review=recs.filter(r=>r.action==='Review').length;
+  const hold=recs.filter(r=>r.action==='Hold').length;
+  const top=recs[0];
+  document.getElementById('kpi-row').innerHTML=[
+    {label:'Move Now',value:move,tone:'tg',sub:'Assign recommended',color:'#16a34a'},
+    {label:'Review',value:review,tone:'ta',sub:'Needs manual check',color:'#d97706'},
+    {label:'Hold',value:hold,tone:'tr',sub:'No door / low priority',color:'#dc2626'},
+    {label:'Top Pick',value:top?top.vrid:'—',tone:'tb',sub:top?`Score ${top.score} · ${top.trailer.freightType}`:'No data',color:'#1d4ed8'},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.label}</div><div class="kv ${k.tone}" style="font-size:${typeof k.value==='string'&&k.value.length>8?'16px':'28px'}">${k.value}</div><div class="ks">${k.sub}</div></div>`).join('');
+  renderTable();
+}
+
+function clearFilters(){document.getElementById('f-type').value='';document.getElementById('f-dwell').value=0;document.getElementById('f-action').value='';document.getElementById('f-live').checked=false;renderTable();}
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+tick();setInterval(tick,1000);
+renderAll();
+</script>
+</body>
+</html>
