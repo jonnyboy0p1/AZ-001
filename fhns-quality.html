@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RFD2 — FHNs Quality</title>
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --ink: #1a222d; --muted: #5b6675;
+  --line: #e3e7ec; --head-bg: #eef1f5; --accent: #2563eb;
+  --good-bg: #e3f4e8; --good-ink: #14652f;
+  --ok-bg: #fff5db;  --ok-ink: #7a5a00;
+  --warn-bg: #ffe9d6; --warn-ink: #8a4200;
+  --bad-bg: #fde5e5;  --bad-ink: #971f1f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12161c; --card: #1a2029; --ink: #e6eaf0; --muted: #9aa5b2;
+    --line: #2b323d; --head-bg: #232a35; --accent: #7aa5f8;
+    --good-bg: #17321f; --good-ink: #8fd9a5;
+    --ok-bg: #3a3013;  --ok-ink: #e8c96a;
+    --warn-bg: #3d2712; --warn-ink: #f0a868;
+    --bad-bg: #3d1a1a;  --bad-ink: #f09a9a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+header {
+  position: sticky; top: 0; z-index: 5; background: var(--card);
+  border-bottom: 1px solid var(--line); padding: 14px 24px 0;
+}
+header h1 { margin: 0 0 2px; font-size: 20px; }
+header .sub { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+nav { display: flex; gap: 2px; flex-wrap: wrap; }
+nav button {
+  appearance: none; background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 13.5px; font-weight: 600; font-family: inherit;
+  padding: 9px 14px; border-radius: 8px 8px 0 0; border-bottom: 2px solid transparent;
+}
+nav button:hover { color: var(--accent); background: var(--head-bg); }
+nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+main { max-width: 1180px; margin: 0 auto; padding: 24px; }
+.panel { display: none; }
+.panel.active { display: block; }
+section {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 18px 20px 20px; margin-bottom: 26px;
+}
+section h2 { margin: 0 0 2px; font-size: 17px; }
+section h3 { margin: 22px 0 8px; font-size: 15px; }
+.note { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: right; white-space: nowrap; }
+th { background: var(--head-bg); font-weight: 700; }
+tr.head th:first-child, td.text, td:first-child { text-align: left; }
+th[colspan], td[colspan] { text-align: center; }
+th.empty, td.empty { background: transparent; border-color: var(--line); }
+td.num { font-variant-numeric: tabular-nums; }
+td.pct { font-variant-numeric: tabular-nums; font-weight: 600; }
+td.err { color: var(--muted); text-align: center; }
+td.date, th.date { color: var(--muted); }
+tr.spacer td { border: none; height: 14px; background: transparent; }
+.p-good { background: var(--good-bg); color: var(--good-ink); }
+.p-ok   { background: var(--ok-bg);   color: var(--ok-ink); }
+.p-warn { background: var(--warn-bg); color: var(--warn-ink); }
+.p-bad  { background: var(--bad-bg);  color: var(--bad-ink); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+  color: var(--muted); font-size: 12.5px; margin: 0 0 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 8px 0 28px; }
+
+/* controls */
+.dayctl { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 4px 0 16px; }
+.dayctl label, .ctl-label { font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.dayctl input, .dayctl select {
+  padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px;
+}
+.dayctl .note { margin: 0; }
+.bridgerow { border-top: 1px dashed var(--line); padding-top: 12px; }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--muted); font-size: 13px; }
+.chk input { width: auto; }
+.btn {
+  padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--head-bg); color: var(--ink); cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 600;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.danger:hover { border-color: #cc3333; color: #cc3333; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #9aa5b2; vertical-align: 1px; }
+.dot.on  { background: #34a853; }
+.dot.off { background: #d93025; }
+
+/* By Day table */
+#dayTable td.cellin { padding: 0; }
+#dayTable input {
+  width: 96px; border: 1px solid transparent; background: transparent; color: inherit;
+  text-align: right; font: inherit; font-size: 13.5px; padding: 5px 8px; border-radius: 6px;
+}
+#dayTable input:hover { border-color: var(--line); }
+#dayTable input:focus { outline: none; border-color: var(--accent); background: var(--bg); }
+#dayTable input::-webkit-outer-spin-button, #dayTable input::-webkit-inner-spin-button
+  { -webkit-appearance: none; margin: 0; }
+#dayTable input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+tr.totals td { background: var(--head-bg); font-weight: 700; }
+td.up   { color: var(--bad-ink);  font-weight: 600; }
+td.down { color: var(--good-ink); font-weight: 600; }
+td.rmcell { border-left: none; width: 30px; text-align: center; }
+.rmbtn {
+  border: none; background: none; color: var(--muted); cursor: pointer;
+  font-size: 15px; padding: 2px 6px; border-radius: 5px;
+}
+.rmbtn:hover { color: #cc3333; background: var(--head-bg); }
+td.pulled { animation: pulledFlash 1.6s ease-out; }
+@keyframes pulledFlash { 0% { background: var(--good-bg); } 100% { background: transparent; } }
+
+/* Live tab */
+.srccard { border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 0 0 14px; }
+.srccard h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.srccard .meta { color: var(--muted); font-size: 12.5px; margin: 0 0 10px; }
+.srccard .kpis { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; }
+.kpi { background: var(--head-bg); border-radius: 8px; padding: 8px 14px; }
+.kpi b { display: block; font-size: 18px; }
+.kpi span { color: var(--muted); font-size: 12px; }
+.srccard details { margin-top: 8px; }
+.srccard summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; }
+.srccard pre {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font-size: 12px; overflow-x: auto; max-height: 260px;
+}
+code { background: var(--head-bg); border-radius: 4px; padding: 1px 5px; font-size: 0.92em; }
+@media print {
+  header { position: static; }
+  nav, .dayctl { display: none; }
+  section { break-inside: avoid; border: none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>RFD2 — FHNs Quality</h1>
+  <p class="sub">Daily pile tracker + live Quality Bridge + all sheets from FHNs_Qualtiy.xlsx
+    · <span id="hdrShift"></span></p>
+  <nav id="tabs"><button data-tab="byday" type="button">By Day</button>
+<button data-tab="live" type="button">Live Bridge <span class="dot off" id="navDot"></span></button>
+<button data-tab="piles" type="button">Piles</button>
+<button data-tab="bymonth" type="button">By Month</button>
+<button data-tab="epp" type="button">EPP Coverage</button>
+<button data-tab="ppa" type="button">PPA by shift</button>
+<button data-tab="dcshift" type="button">DC by Shift</button>
+<button data-tab="network" type="button">in Network</button></nav>
+</header>
+<main>
+
+<section id="byday" class="panel">
+  <h2>Piles &mdash; By Day</h2>
+  <p class="note">Daily pile tracker. Pick a date and type counts &mdash; totals, change and rank
+  compute automatically. Entries save in this browser per date, so every new day starts blank.
+  Dates follow the <b>night-shift day</b> (Central Time): before 7:00&nbsp;AM the shift still counts
+  as the previous day. Pulling from the bridge auto-adds any new areas found on the report.</p>
+  <div class="dayctl">
+    <label>Date <input type="date" id="dayDate"></label>
+    <select id="savedDays" title="Jump to a day that already has entries"></select>
+    <button type="button" class="btn" id="addArea">+ Add area</button>
+    <button type="button" class="btn danger" id="resetDay">Reset this day</button>
+    <span class="note" id="dayStatus"></span>
+  </div>
+  <div class="dayctl bridgerow">
+    <span class="ctl-label"><span class="dot off" id="bydayDot"></span> Quality Bridge:</span>
+    <label>Count <select id="pullCount" title="Which audit count to pull"><option value="latest">Latest</option></select></label>
+    <label>into <select id="pullSlot">
+      <option>SOS</option><option>2nd</option><option>3rd</option><option>4th</option><option>EOS</option>
+    </select></label>
+    <button type="button" class="btn" id="pullBtn">Pull piles into slot</button>
+    <label class="chk"><input type="checkbox" id="autoAdd" checked> Auto-add areas from report</label>
+    <span class="note" id="pullStatus">Needs server.js running + the ont-base piles page open with Tampermonkey.</span>
+  </div>
+  <div class="tablewrap"><table id="dayTable"></table></div>
+  <h3>Start vs End of Shift</h3>
+  <div class="tablewrap"><table id="dayChange"></table></div>
+</section>
+
+<section id="live" class="panel">
+  <h2>Live Bridge</h2>
+  <p class="note">Live view of the RFD2 Quality Metrics Bridge (Tampermonkey userscript &rarr; local
+  <code>server.js</code>). Start the server, open the source pages with the userscript active, and
+  the latest scrape from each source appears here. Auto-refreshes every 15&nbsp;seconds.</p>
+  <div class="dayctl">
+    <label>Server <input type="text" id="bridgeUrl" size="28" spellcheck="false"></label>
+    <button type="button" class="btn" id="bridgeRefresh">Refresh now</button>
+    <span class="note" id="bridgeStatus">Not connected yet.</span>
+  </div>
+  <div id="liveContent"><p class="note">Waiting for first poll&hellip;</p></div>
+</section>
+
+<section id="piles" class="panel">
+  <h2>Piles</h2>
+  <p class="note">Imported snapshot from the workbook &mdash; pile counts by area across the shift (SOS &rarr; EOS), plus start-vs-end change and rank. For daily entry use the <b>By Day</b> tab.</p>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="text">Area</th><th class="text">SOS</th><th class="text">2nd</th><th class="text">3rd</th><th class="text">4th</th><th class="text">EOS</th><th class="text">Total</th></tr>
+<tr><td class="text">Fluid Load</td><td class="num">30</td><td class="num">90</td><td class="num">75</td><td class="num">125</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Inbound Dock</td><td class="num">750</td><td class="num">1,950</td><td class="num">1,060</td><td class="num">3,525</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Jackpot</td><td class="num">675</td><td class="num">1,055</td><td class="num">880</td><td class="num">1,500</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Amnesty Pallets</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">150</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">RPND</td><td class="num">300</td><td class="num">220</td><td class="num">300</td><td class="num">360</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Sort</td><td class="num">810</td><td class="num">1,055</td><td class="num">240</td><td class="num">1,965</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Transfer Out Dock</td><td class="num">1,600</td><td class="num">1,810</td><td class="num">1,710</td><td class="num">2,785</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Total</td><td class="num">4,165</td><td class="num">6,180</td><td class="num">4,265</td><td class="num">10,410</td><td class="num">0</td><td class="num">0</td></tr>
+<tr class="spacer"><td colspan="7"></td></tr>
+<tr class="spacer"><td colspan="7"></td></tr>
+<tr class="head"><th class="text">Area</th><th class="text">SOS</th><th class="text">EOS</th><th class="text">Change</th><th class="text">Rank</th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Fluid Load</td><td class="num">30</td><td class="num">0</td><td class="num">-30</td><td class="num">2</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Inbound Dock</td><td class="num">750</td><td class="num">0</td><td class="num">-750</td><td class="num">5</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Jackpot</td><td class="num">675</td><td class="num">0</td><td class="num">-675</td><td class="num">4</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Amnesty Pallets</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">1</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">RPND</td><td class="num">300</td><td class="num">0</td><td class="num">-300</td><td class="num">3</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Sort</td><td class="num">810</td><td class="num">0</td><td class="num">-810</td><td class="num">6</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Transfer Out Dock</td><td class="num">1,600</td><td class="num">0</td><td class="num">-1,600</td><td class="num">7</td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Total</td><td class="num">4,165</td><td class="num">0</td><td class="num">-4,165</td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+  </table></div>
+</section>
+
+<section id="bymonth" class="panel">
+  <h2>By Month</h2>
+  <p class="note">Weekly IMPT / PPA / Defect Capture with monthly and quarterly averages.</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="empty"></th><th class="empty"></th><th class="text" colspan="2">For FHNs</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr class="head"><th class="text">Jan</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 1</td><td class="pct p-good">98.90%</td><td class="pct p-good">99.46%</td><td class="pct p-good">100%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q1 Average</td></tr>
+<tr><td class="text">Week 2</td><td class="pct p-good">99.26%</td><td class="pct p-good">99.91%</td><td class="pct p-warn">71.43%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td></tr>
+<tr><td class="text">Week 3</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.90%</td><td class="pct p-ok">93.33%</td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-warn">89.09%</td><td class="pct p-ok">90.55%</td><td class="pct p-warn">84.94%</td></tr>
+<tr><td class="text">Week 4</td><td class="pct p-good">99.47%</td><td class="pct p-good">99.24%</td><td class="pct p-ok">92.86%</td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q2 Average</td></tr>
+<tr><td class="text">Week 5</td><td class="pct p-ok">91.40%</td><td class="pct p-good">99.23%</td><td class="pct p-ok">96%</td><td class="pct p-ok">97.80%</td><td class="pct p-good">99.55%</td><td class="pct p-ok">90.72%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td></tr>
+<tr class="head"><th class="text">Feb</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 6</td><td class="pct p-ok">90.91%</td><td class="pct p-ok">97.97%</td><td class="pct p-warn">83.33%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q3 Average</td></tr>
+<tr><td class="text">Week 7</td><td class="pct p-good">98.75%</td><td class="pct p-ok">97.89%</td><td class="pct p-good">100.00%</td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.C</td></tr>
+<tr><td class="text">Week 8</td><td class="pct p-ok">97.95%</td><td class="pct p-good">98.75%</td><td class="pct p-ok">92.86%</td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 9</td><td class="pct p-good">99.25%</td><td class="pct p-good">99.59%</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">96.71%</td><td class="pct p-good">98.55%</td><td class="pct p-ok">92.38%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Q4 Average</td></tr>
+<tr class="head"><th class="text">Mar</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">D.C</th></tr>
+<tr><td class="text">Week 10</td><td class="pct p-good">99.95%</td><td class="pct p-good">99.39%</td><td class="pct p-ok">95.24%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 11</td><td class="pct p-ok">96.91%</td><td class="pct p-ok">97.28%</td><td class="pct p-ok">91.67%</td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 12</td><td class="pct p-ok">94.17%</td><td class="pct p-ok">97.58%</td><td class="pct p-good">100.00%</td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 13</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-warn">72.76%</td><td class="pct p-warn">73.56%</td><td class="pct p-warn">71.73%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Apr</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 14</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 15</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 16</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 17</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">May</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 18</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 19</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 20</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 21</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Jun</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 22</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 23</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 24</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 25</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Jul</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 26</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 27</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 28</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 29</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Aug</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 30</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 31</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 32</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 33</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Sep</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 34</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 35</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 36</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 37</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Oct</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 38</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 39</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 40</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 41</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Nov</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 42</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 43</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 44</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 45</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr class="head"><th class="text">Dec</th><th class="text">IMPT</th><th class="text">PPA</th><th class="text">Defect Capture</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">Week 46</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 47</td><td class="pct p-bad">0.00%</td><td class="empty"></td><td class="empty"></td><td class="text" colspan="3">Monthly Avg</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 48</td><td class="pct p-bad">0%</td><td class="empty"></td><td class="empty"></td><td class="text">IMPT</td><td class="text">PPA</td><td class="text">D.c</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+<tr><td class="text">Week 49</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="err">–</td><td class="err">–</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td></tr>
+  </table></div>
+</section>
+
+<section id="epp" class="panel">
+  <h2>EPP Coverage</h2>
+  <p class="note">Daily EPP coverage for FHNs by week, with weekly average.</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="empty"></th><th class="text" colspan="4">EPP Coverage FHNs</th><th class="empty"></th></tr>
+<tr><td class="text">Wk1</td><td class="date">Jan&nbsp;4</td><td class="date">Jan&nbsp;5</td><td class="date">Jan&nbsp;6</td><td class="date">Jan&nbsp;7</td><td class="text">Avg</td></tr>
+<tr><td class="empty"></td><td class="pct p-good">98.83%</td><td class="pct p-ok">97.56%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.20%</td><td class="pct p-good">98.90%</td></tr>
+<tr><td class="text">Wk2</td><td class="date">Jan&nbsp;11</td><td class="date">Jan&nbsp;12</td><td class="date">Jan&nbsp;13</td><td class="date">Jan&nbsp;14</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">100.00%</td><td class="pct p-good">99.05%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">97.97%</td><td class="pct p-good">99.26%</td></tr>
+<tr><td class="text">Wk3</td><td class="date">Jan&nbsp;18</td><td class="date">Jan&nbsp;19</td><td class="date">Jan&nbsp;20</td><td class="date">Jan&nbsp;21</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td></tr>
+<tr><td class="text">Wk4</td><td class="date">Jan&nbsp;25</td><td class="date">Jan&nbsp;26</td><td class="date">Jan&nbsp;27</td><td class="date">Jan&nbsp;28</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">99.56%</td><td class="pct p-good">99.68%</td><td class="pct p-good">99.28%</td><td class="pct p-good">99.35%</td><td class="pct p-good">99.47%</td></tr>
+<tr><td class="text">Wk5</td><td class="date">Feb&nbsp;1</td><td class="date">Feb&nbsp;2</td><td class="date">Feb&nbsp;3</td><td class="date">Feb&nbsp;4</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-warn">77.26%</td><td class="pct p-ok">95.56%</td><td class="pct p-ok">93.32%</td><td class="pct p-good">99.45%</td><td class="pct p-ok">91.40%</td></tr>
+<tr><td class="text">Wk6</td><td class="date">Feb&nbsp;8</td><td class="date">Feb&nbsp;9</td><td class="date">Feb&nbsp;10</td><td class="date">Feb&nbsp;11</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-bad">66.38%</td><td class="pct p-good">99.69%</td><td class="pct p-good">99.36%</td><td class="pct p-good">98.21%</td><td class="pct p-ok">90.91%</td></tr>
+<tr><td class="text">Wk7</td><td class="date">Feb&nbsp;15</td><td class="date">Feb&nbsp;16</td><td class="date">Feb&nbsp;17</td><td class="date">Feb&nbsp;18</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">98.75%</td><td class="pct p-good">98.51%</td><td class="pct p-ok">97.74%</td><td class="pct p-good">100.00%</td><td class="pct p-good">98.75%</td></tr>
+<tr><td class="text">Wk8</td><td class="date">Feb&nbsp;22</td><td class="date">Feb&nbsp;23</td><td class="date">Feb&nbsp;24</td><td class="date">Feb&nbsp;25</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">99.68%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">92.77%</td><td class="pct p-good">99.35%</td><td class="pct p-ok">97.95%</td></tr>
+<tr><td class="text">Wk9</td><td class="date">Mar&nbsp;1</td><td class="date">Mar&nbsp;2</td><td class="date">Mar&nbsp;3</td><td class="date">Mar&nbsp;4</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">99.59%</td><td class="pct p-good">99.73%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">97.67%</td><td class="pct p-good">99.25%</td></tr>
+<tr><td class="text">Wk10</td><td class="date">Mar&nbsp;8</td><td class="date">Mar&nbsp;9</td><td class="date">Mar&nbsp;10</td><td class="date">Mar&nbsp;11</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.79%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.95%</td></tr>
+<tr><td class="text">Wk11</td><td class="date">Mar&nbsp;15</td><td class="date">Mar&nbsp;16</td><td class="date">Mar&nbsp;17</td><td class="date">Mar&nbsp;18</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-ok">97.48%</td><td class="pct p-ok">94.77%</td><td class="pct p-ok">95.80%</td><td class="pct p-good">99.59%</td><td class="pct p-ok">96.91%</td></tr>
+<tr><td class="text">Wk12</td><td class="date">Mar&nbsp;22</td><td class="date">Mar&nbsp;23</td><td class="date">Mar&nbsp;24</td><td class="date">Mar&nbsp;25</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-ok">93.07%</td><td class="pct p-warn">87.00%</td><td class="pct p-ok">97.53%</td><td class="pct p-good">99.09%</td><td class="pct p-ok">94.17%</td></tr>
+<tr><td class="text">Wk13</td><td class="date">Mar&nbsp;29</td><td class="date">Mar&nbsp;30</td><td class="date">Mar&nbsp;31</td><td class="date">Apr&nbsp;1</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td></tr>
+<tr><td class="text">Wk14</td><td class="date">Apr&nbsp;5</td><td class="date">Apr&nbsp;6</td><td class="date">Apr&nbsp;7</td><td class="date">Apr&nbsp;8</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td></tr>
+<tr><td class="text">Wk15</td><td class="date">Apr&nbsp;12</td><td class="date">Apr&nbsp;13</td><td class="date">Apr&nbsp;14</td><td class="date">Apr&nbsp;15</td><td class="empty"></td></tr>
+<tr><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td></tr>
+<tr><td class="text">Wk16</td><td class="date">Apr&nbsp;19</td><td class="date">Apr&nbsp;20</td><td class="date">Apr&nbsp;21</td><td class="date">Apr&nbsp;22</td><td class="empty"></td></tr>
+  </table></div>
+</section>
+
+<section id="ppa" class="panel">
+  <h2>PPA by shift</h2>
+  <p class="note">Weekly PPA compliance by shift (FHD / FHN / BHD / BHN).</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="text">PPA Compliance</th><th class="text">FHD</th><th class="text">FHN</th><th class="text">BHD</th><th class="text">BHN</th><th class="text">AVG</th></tr>
+<tr><td class="text">01/04 - 01/10</td><td class="pct p-good">99.87%</td><td class="pct p-good">99.46%</td><td class="pct p-good">99.37%</td><td class="pct p-good">98.57%</td><td class="pct p-good">99.32%</td></tr>
+<tr><td class="text">01/11 - 01/17</td><td class="pct p-good">99.65%</td><td class="pct p-good">99.91%</td><td class="pct p-good">99.02%</td><td class="pct p-good">99.81%</td><td class="pct p-good">99.60%</td></tr>
+<tr><td class="text">01/18 - 01/24</td><td class="pct p-good">99.89%</td><td class="pct p-good">99.90%</td><td class="pct p-good">99.37%</td><td class="pct p-good">99.48%</td><td class="pct p-good">99.66%</td></tr>
+<tr><td class="text">01/25 - 01/31</td><td class="pct p-good">99.48%</td><td class="pct p-good">99.24%</td><td class="pct p-good">99.47%</td><td class="pct p-good">99.79%</td><td class="pct p-good">99.50%</td></tr>
+<tr><td class="text">02/01 - 02/07</td><td class="pct p-good">99.57%</td><td class="pct p-good">99.23%</td><td class="pct p-good">99.88%</td><td class="pct p-good">99.28%</td><td class="pct p-good">99.49%</td></tr>
+<tr><td class="text">02/08 - 02/14</td><td class="pct p-good">98.90%</td><td class="pct p-ok">97.97%</td><td class="pct p-good">99.19%</td><td class="pct p-good">99.41%</td><td class="pct p-good">98.87%</td></tr>
+<tr><td class="text">02/15 - 02/21</td><td class="pct p-ok">96.26%</td><td class="pct p-ok">97.89%</td><td class="pct p-ok">97.19%</td><td class="pct p-good">98.98%</td><td class="pct p-ok">97.58%</td></tr>
+<tr><td class="text">02/22 - 02/28</td><td class="pct p-good">99.70%</td><td class="pct p-good">98.75%</td><td class="pct p-good">98.85%</td><td class="pct p-good">99.16%</td><td class="pct p-good">99.12%</td></tr>
+<tr><td class="text">03/01 - 03/07</td><td class="pct p-good">98.19%</td><td class="pct p-good">99.59%</td><td class="pct p-good">99.01%</td><td class="pct p-good">100.00%</td><td class="pct p-good">99.20%</td></tr>
+<tr><td class="text">03/08 - 03/14</td><td class="pct p-good">99.42%</td><td class="pct p-good">99.39%</td><td class="pct p-good">99.81%</td><td class="pct p-good">99.86%</td><td class="pct p-good">99.62%</td></tr>
+<tr><td class="text">03/15 - 03/21</td><td class="pct p-ok">97.82%</td><td class="pct p-ok">97.28%</td><td class="pct p-good">98.86%</td><td class="pct p-good">98.79%</td><td class="pct p-good">98.19%</td></tr>
+<tr><td class="text">03/22 - 03/28</td><td class="pct p-good">98.62%</td><td class="pct p-ok">97.58%</td><td class="pct p-good">98.98%</td><td class="pct p-ok">97.68%</td><td class="pct p-good">98.22%</td></tr>
+<tr><td class="text">03/29 - 04/04</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">0.00%</td></tr>
+  </table></div>
+</section>
+
+<section id="dcshift" class="panel">
+  <h2>DC by Shift</h2>
+  <p class="note">Weekly Defect Capture by shift (FHD / FHN / BHD / BHN).</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="text">Defect Capture</th><th class="text">FHD</th><th class="text">FHN</th><th class="text">BHD</th><th class="text">BHN</th><th class="text">AVG</th></tr>
+<tr><td class="text">01/04 - 01/10</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-warn">80.00%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">95.00%</td></tr>
+<tr><td class="text">01/11 - 01/17</td><td class="pct p-warn">71.43%</td><td class="pct p-warn">71.43%</td><td class="pct p-warn">70.00%</td><td class="pct p-bad">62.50%</td><td class="pct p-bad">68.84%</td></tr>
+<tr><td class="text">01/18 - 01/24</td><td class="pct p-good">100.00%</td><td class="pct p-ok">93.33%</td><td class="pct p-warn">78.57%</td><td class="pct p-warn">82.35%</td><td class="pct p-warn">88.56%</td></tr>
+<tr><td class="text">01/25 - 01/31</td><td class="pct p-warn">82.35%</td><td class="pct p-ok">92.86%</td><td class="pct p-warn">70.59%</td><td class="pct p-warn">75.00%</td><td class="pct p-warn">80.20%</td></tr>
+<tr><td class="text">02/01 - 02/07</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">96.00%</td><td class="pct p-warn">89.29%</td><td class="pct p-warn">76.46%</td><td class="pct p-warn">88.77%</td></tr>
+<tr><td class="text">02/08 - 02/14</td><td class="pct p-warn">80.00%</td><td class="pct p-warn">83.33%</td><td class="pct p-good">100.00%</td><td class="pct p-warn">88.89%</td><td class="pct p-warn">88.06%</td></tr>
+<tr><td class="text">02/15 - 02/21</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-warn">89.47%</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">95.70%</td></tr>
+<tr><td class="text">02/22 - 02/28</td><td class="pct p-good">100.00%</td><td class="pct p-ok">92.86%</td><td class="pct p-warn">88.89%</td><td class="pct p-ok">95.45%</td><td class="pct p-ok">94.30%</td></tr>
+<tr><td class="text">03/01 - 03/07</td><td class="pct p-good">100.00%</td><td class="pct p-ok">93.33%</td><td class="pct p-warn">80.00%</td><td class="pct p-ok">91.67%</td><td class="pct p-ok">91.25%</td></tr>
+<tr><td class="text">03/08 - 03/14</td><td class="pct p-ok">93.33%</td><td class="pct p-ok">95.24%</td><td class="pct p-warn">73.33%</td><td class="pct p-ok">90.91%</td><td class="pct p-warn">88.20%</td></tr>
+<tr><td class="text">03/15 - 03/21</td><td class="pct p-good">100.00%</td><td class="pct p-ok">91.67%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-ok">97.92%</td></tr>
+<tr><td class="text">03/22 - 03/28</td><td class="pct p-warn">85.71%</td><td class="pct p-good">100.00%</td><td class="pct p-good">100.00%</td><td class="pct p-bad">54.55%</td><td class="pct p-warn">85.06%</td></tr>
+<tr><td class="text">03/29 - 04/04</td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="empty"></td><td class="err">–</td></tr>
+  </table></div>
+</section>
+
+<section id="network" class="panel">
+  <h2>in Network</h2>
+  <p class="note">PPA compliance and Defect Capture vs. network sites (RFD2, MQJ1, ORF2, SCK4, SWF2).</p>
+  <div class="legend">
+    Percentage heat:
+    <span><i style="background:var(--good-bg)"></i>&ge; 98%</span>
+    <span><i style="background:var(--ok-bg)"></i>90&ndash;98%</span>
+    <span><i style="background:var(--warn-bg)"></i>70&ndash;90%</span>
+    <span><i style="background:var(--bad-bg)"></i>&lt; 70%</span>
+    <span>&ldquo;&ndash;&rdquo; = no data / formula error in the source sheet</span>
+  </div>
+  <div class="tablewrap"><table>
+<tr class="head"><th class="empty"></th><th class="text">RFD2</th><th class="text">MQJ1</th><th class="text">ORF2</th><th class="text">SCK4</th><th class="text">SWF2</th><th class="empty"></th><th class="text">RFD2</th><th class="text">MQJ1</th><th class="text">ORF2</th><th class="text">SCK4</th><th class="text">SWF2</th></tr>
+<tr class="head"><th class="empty"></th><th class="text" colspan="5">PPA COMPLIANCE</th><th class="empty"></th><th class="text" colspan="5">Defect Capture</th></tr>
+<tr><td class="text">JAN AVG</td><td class="pct p-good">99.55%</td><td class="pct p-ok">94.32%</td><td class="pct p-ok">92.01%</td><td class="pct p-good">98.23%</td><td class="pct p-ok">95.96%</td><td class="empty"></td><td class="pct p-warn">84.04%</td><td class="pct p-bad">10.58%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">50.72%</td><td class="pct p-bad">45.79%</td></tr>
+<tr><td class="text">Wk1</td><td class="pct p-good">99.37%</td><td class="pct p-ok">96.39%</td><td class="pct p-ok">91.55%</td><td class="pct p-good">98.12%</td><td class="pct p-ok">96.45%</td><td class="empty"></td><td class="pct p-ok">93.94%</td><td class="pct p-bad">3.70%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">23.57%</td><td class="pct p-bad">57.78%</td></tr>
+<tr><td class="text">Wk2</td><td class="pct p-good">99.65%</td><td class="pct p-ok">93.58%</td><td class="pct p-ok">94.26%</td><td class="pct p-good">98.88%</td><td class="pct p-ok">95.94%</td><td class="empty"></td><td class="pct p-warn">74.65%</td><td class="pct p-bad">26.12%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">60.00%</td><td class="pct p-bad">42.31%</td></tr>
+<tr><td class="text">Wk3</td><td class="pct p-good">99.61%</td><td class="pct p-ok">94.57%</td><td class="pct p-warn">89.94%</td><td class="pct p-good">98.48%</td><td class="pct p-ok">96.40%</td><td class="empty"></td><td class="pct p-warn">84.85%</td><td class="pct p-bad">9.42%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">56.82%</td><td class="pct p-bad">33.87%</td></tr>
+<tr><td class="text">Wk4</td><td class="pct p-good">99.57%</td><td class="pct p-ok">92.73%</td><td class="pct p-ok">92.28%</td><td class="pct p-ok">97.44%</td><td class="pct p-ok">95.05%</td><td class="empty"></td><td class="pct p-warn">82.72%</td><td class="pct p-bad">3.08%</td><td class="pct p-bad">0.00%</td><td class="pct p-bad">62.50%</td><td class="pct p-bad">49.21%</td></tr>
+<tr class="head"><th class="text">Wk5</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr><td class="text">FEB AVG</td><td class="pct p-good">98.80%</td><td class="pct p-ok">93.37%</td><td class="pct p-ok">94.72%</td><td class="pct p-ok">97.92%</td><td class="pct p-ok">93.37%</td><td class="empty"></td><td class="pct p-warn">88.52%</td><td class="pct p-bad">4.92%</td><td class="pct p-bad">3.46%</td><td class="pct p-bad">40.45%</td><td class="pct p-bad">32.58%</td></tr>
+<tr><td class="text">Wk6</td><td class="pct p-good">98.67%</td><td class="pct p-ok">91.89%</td><td class="pct p-ok">93.47%</td><td class="pct p-ok">97.92%</td><td class="pct p-ok">93.90%</td><td class="empty"></td><td class="pct p-warn">88.30%</td><td class="pct p-bad">1.89%</td><td class="pct p-bad">4.76%</td><td class="pct p-bad">41.67%</td><td class="pct p-bad">29.09%</td></tr>
+<tr><td class="text">Wk7</td><td class="pct p-good">98.92%</td><td class="pct p-ok">94.85%</td><td class="pct p-ok">95.97%</td><td class="pct p-ok">97.93%</td><td class="pct p-ok">92.84%</td><td class="empty"></td><td class="pct p-warn">88.73%</td><td class="pct p-bad">7.95%</td><td class="pct p-bad">2.17%</td><td class="pct p-bad">39.22%</td><td class="pct p-bad">36.08%</td></tr>
+<tr class="head"><th class="text">Wk8</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr class="head"><th class="text">Wk9</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+<tr class="head"><th class="text">MAR AVG</th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th><th class="empty"></th></tr>
+  </table></div>
+</section>
+</main>
+<footer>Generated from FHNs_Qualtiy.xlsx &mdash; By Day entries live only in this browser (localStorage).
+Live Bridge talks to the local Quality Bridge server (default <code>http://127.0.0.1:4800</code>).</footer>
+<script>
+(function () {
+  /* ---------- tabs ---------- */
+  var tabBtns = document.querySelectorAll('#tabs button');
+  function showTab(id) {
+    tabBtns.forEach(function (b) { b.classList.toggle('active', b.dataset.tab === id); });
+    document.querySelectorAll('.panel').forEach(function (p) { p.classList.toggle('active', p.id === id); });
+    try { localStorage.setItem('fhns-tab', id); } catch (e) {}
+    history.replaceState(null, '', '#' + id);
+  }
+  tabBtns.forEach(function (b) { b.addEventListener('click', function () { showTab(b.dataset.tab); }); });
+  var initial = (location.hash || '').slice(1);
+  if (!document.getElementById(initial)) {
+    initial = null;
+    try { initial = localStorage.getItem('fhns-tab'); } catch (e) {}
+    if (!initial || !document.getElementById(initial)) initial = 'byday';
+  }
+  showTab(initial);
+
+  /* ---------- shared utils ---------- */
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function fmt(n) { return Number(n).toLocaleString('en-US'); }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function shiftDayISO() {
+    // Night-shift day (matches the userscript): before 07:00 Central Time,
+    // the shift still belongs to the previous calendar day.
+    var ct = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    if (ct.getHours() < 7) ct.setDate(ct.getDate() - 1);
+    return ct.getFullYear() + '-' + String(ct.getMonth() + 1).padStart(2, '0') + '-' + String(ct.getDate()).padStart(2, '0');
+  }
+  function lsGet(k, fallback) {
+    try { var v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); }
+    catch (e) { return fallback; }
+  }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function normName(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+  function parseNum(s) {
+    if (typeof s === 'number') return s;
+    var m = String(s).replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+    return m ? Number(m[0]) : null;
+  }
+
+  /* ---------- By Day tracker ---------- */
+  var SLOTS = ['SOS', '2nd', '3rd', '4th', 'EOS'];
+  var DEFAULT_AREAS = ['Fluid Load', 'Inbound Dock', 'Jackpot', 'Amnesty Pallets', 'RPND', 'Sort', 'Transfer Out Dock'];
+  var PREFIX = 'fhns-piles-';
+
+  var curDate = todayISO();
+  var dayData = {};   // { area: { slot: number } }
+
+  function customAreas() { return lsGet('fhns-custom-areas', []); }
+  function allAreas() { return DEFAULT_AREAS.concat(customAreas()); }
+  function loadDay() { dayData = lsGet(PREFIX + curDate, {}); }
+  function saveDay() { lsSet(PREFIX + curDate, dayData); refreshSavedDays(); updateStatus(); }
+  function val(a, s) {
+    var row = dayData[a];
+    if (!row || row[s] === undefined || row[s] === null || row[s] === '') return null;
+    var n = Number(row[s]);
+    return isNaN(n) ? null : n;
+  }
+
+  var tbl = document.getElementById('dayTable');
+  var chg = document.getElementById('dayChange');
+  var dateInput = document.getElementById('dayDate');
+  var savedSel = document.getElementById('savedDays');
+  var statusEl = document.getElementById('dayStatus');
+
+  function buildTable() {
+    var custom = customAreas();
+    var h = '<tr class="head"><th>Area</th>';
+    SLOTS.forEach(function (s) { h += '<th>' + s + '</th>'; });
+    h += '<th>Total</th><th></th></tr>';
+    allAreas().forEach(function (a) {
+      h += '<tr data-area="' + esc(a) + '"><td class="text">' + esc(a) + '</td>';
+      SLOTS.forEach(function (s) {
+        var v = val(a, s);
+        h += '<td class="cellin"><input type="number" min="0" step="1" inputmode="numeric"' +
+             ' data-area="' + esc(a) + '" data-slot="' + s + '" value="' + (v === null ? '' : v) + '"></td>';
+      });
+      h += '<td class="num rowtotal"></td>';
+      h += '<td class="rmcell">' + (custom.indexOf(a) !== -1
+            ? '<button type="button" class="rmbtn" data-area="' + esc(a) + '" title="Remove area">&times;</button>'
+            : '') + '</td></tr>';
+    });
+    h += '<tr class="totals"><td class="text">Total</td>';
+    SLOTS.forEach(function (s) { h += '<td class="num coltotal" data-slot="' + s + '"></td>'; });
+    h += '<td class="num grandtotal"></td><td class="rmcell"></td></tr>';
+    tbl.innerHTML = h;
+
+    tbl.querySelectorAll('input').forEach(function (inp) { inp.addEventListener('input', onCell); });
+    tbl.querySelectorAll('.rmbtn').forEach(function (b) {
+      b.addEventListener('click', function () { removeArea(b.dataset.area); });
+    });
+    recompute();
+  }
+
+  function onCell(e) {
+    var a = e.target.dataset.area, s = e.target.dataset.slot, raw = e.target.value;
+    if (!dayData[a]) dayData[a] = {};
+    if (raw === '') { delete dayData[a][s]; if (Object.keys(dayData[a]).length === 0) delete dayData[a]; }
+    else dayData[a][s] = Number(raw);
+    saveDay();
+    recompute();
+  }
+
+  function recompute() {
+    var colT = {}, grand = 0;
+    SLOTS.forEach(function (s) { colT[s] = 0; });
+    tbl.querySelectorAll('tr[data-area]').forEach(function (tr) {
+      var a = tr.dataset.area, rt = 0, any = false;
+      SLOTS.forEach(function (s) {
+        var v = val(a, s);
+        if (v !== null) { rt += v; colT[s] += v; any = true; }
+      });
+      grand += rt;
+      tr.querySelector('.rowtotal').textContent = any ? fmt(rt) : '';
+    });
+    SLOTS.forEach(function (s) {
+      tbl.querySelector('.coltotal[data-slot="' + s + '"]').textContent = fmt(colT[s]);
+    });
+    tbl.querySelector('.grandtotal').textContent = fmt(grand);
+    buildChange();
+  }
+
+  function buildChange() {
+    var rows = allAreas().map(function (a) {
+      var sos = val(a, 'SOS'), eos = val(a, 'EOS');
+      var ch = (sos === null && eos === null) ? null : (eos || 0) - (sos || 0);
+      return { a: a, sos: sos, eos: eos, ch: ch };
+    });
+    var ranked = rows.filter(function (r) { return r.ch !== null; })
+                     .sort(function (x, y) { return y.ch - x.ch; });
+    var rank = {};
+    ranked.forEach(function (r, i) {
+      rank[r.a] = (i > 0 && r.ch === ranked[i - 1].ch) ? rank[ranked[i - 1].a] : i + 1;
+    });
+    var h = '<tr class="head"><th>Area</th><th>SOS</th><th>EOS</th><th>Change</th><th>Rank</th></tr>';
+    var tS = 0, tE = 0;
+    rows.forEach(function (r) {
+      tS += r.sos || 0; tE += r.eos || 0;
+      var chCls = r.ch === null ? '' : (r.ch < 0 ? ' down' : (r.ch > 0 ? ' up' : ''));
+      h += '<tr><td class="text">' + esc(r.a) + '</td>' +
+           '<td class="num">' + (r.sos === null ? '' : fmt(r.sos)) + '</td>' +
+           '<td class="num">' + (r.eos === null ? '' : fmt(r.eos)) + '</td>' +
+           '<td class="num' + chCls + '">' + (r.ch === null ? '' : fmt(r.ch)) + '</td>' +
+           '<td class="num">' + (rank[r.a] || '') + '</td></tr>';
+    });
+    h += '<tr class="totals"><td class="text">Total</td><td class="num">' + fmt(tS) +
+         '</td><td class="num">' + fmt(tE) + '</td><td class="num">' + fmt(tE - tS) + '</td><td></td></tr>';
+    chg.innerHTML = h;
+  }
+
+  function savedDates() {
+    var out = [];
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(PREFIX) === 0) {
+          var d = k.slice(PREFIX.length);
+          var data = lsGet(k, {});
+          if (Object.keys(data).length) out.push(d);
+        }
+      }
+    } catch (e) {}
+    return out.sort().reverse();
+  }
+
+  function refreshSavedDays() {
+    var days = savedDates();
+    var h = '<option value="">Saved days (' + days.length + ')&hellip;</option>';
+    days.forEach(function (d) { h += '<option value="' + d + '"' + (d === curDate ? ' selected' : '') + '>' + d + '</option>'; });
+    savedSel.innerHTML = h;
+  }
+
+  function updateStatus() {
+    var n = Object.keys(dayData).length;
+    statusEl.textContent = n ? 'Saved ✓ (' + n + ' area' + (n === 1 ? '' : 's') + ' with entries)'
+                             : 'Blank day — entries save automatically as you type.';
+  }
+
+  function setDate(d) {
+    curDate = d;
+    dateInput.value = d;
+    loadDay();
+    buildTable();
+    refreshSavedDays();
+    updateStatus();
+  }
+
+  function removeArea(a) {
+    if (!confirm('Remove area "' + a + '"? Its saved numbers stay attached to their dates but will no longer be shown.')) return;
+    lsSet('fhns-custom-areas', customAreas().filter(function (x) { return x !== a; }));
+    buildTable();
+  }
+
+  dateInput.addEventListener('change', function () { if (dateInput.value) setDate(dateInput.value); });
+  savedSel.addEventListener('change', function () { if (savedSel.value) setDate(savedSel.value); });
+  document.getElementById('resetDay').addEventListener('click', function () {
+    if (!confirm('Clear all entries for ' + curDate + '?')) return;
+    try { localStorage.removeItem(PREFIX + curDate); } catch (e) {}
+    loadDay(); buildTable(); refreshSavedDays(); updateStatus();
+  });
+  document.getElementById('addArea').addEventListener('click', function () {
+    var name = prompt('New area name:');
+    if (!name) return;
+    name = name.trim();
+    if (!name) return;
+    if (allAreas().indexOf(name) !== -1) { alert('"' + name + '" already exists.'); return; }
+    lsSet('fhns-custom-areas', customAreas().concat([name]));
+    buildTable();
+  });
+
+  setDate(shiftDayISO());
+
+  /* ==========================================================
+   * Quality Bridge integration (Tampermonkey -> server.js :4800)
+   * ========================================================== */
+  var bridgeUrlInput = document.getElementById('bridgeUrl');
+  var bridgeStatusEl = document.getElementById('bridgeStatus');
+  var liveContent = document.getElementById('liveContent');
+  var lastBridge = null;   // last successful /quality-data payload
+
+  function bridgeUrl() {
+    var u = lsGet('fhns-bridge-url', 'http://127.0.0.1:4800');
+    return String(u).replace(/\/+$/, '');
+  }
+  bridgeUrlInput.value = bridgeUrl();
+  bridgeUrlInput.addEventListener('change', function () {
+    lsSet('fhns-bridge-url', bridgeUrlInput.value.trim() || 'http://127.0.0.1:4800');
+    bridgeUrlInput.value = bridgeUrl();
+    pollBridge();
+  });
+
+  function setDots(on) {
+    ['navDot', 'bydayDot'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) { el.classList.toggle('on', on); el.classList.toggle('off', !on); }
+    });
+  }
+
+  function currentShift() {
+    // Mirrors the userscript: night shift 19:00-06:30 CT; before 07:00 counts as previous day.
+    var ct = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' }));
+    var day = ct.getDay(), hour = ct.getHours();
+    var sd = day; if (hour < 7) sd = (day + 6) % 7;
+    return sd <= 2 ? 'FH' : 'BH';
+  }
+
+  var hdrShiftEl = document.getElementById('hdrShift');
+  function updateHeaderShift() {
+    if (hdrShiftEl) hdrShiftEl.textContent = 'Shift: ' + currentShift() + ' · shift day ' + shiftDayISO();
+  }
+  updateHeaderShift();
+  setInterval(updateHeaderShift, 60000);
+
+  function ageStr(iso) {
+    if (!iso) return 'never';
+    var s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+    if (s < 90) return s + 's ago';
+    if (s < 5400) return Math.round(s / 60) + 'm ago';
+    return Math.round(s / 3600) + 'h ago';
+  }
+
+  function pollBridge(done) {
+    var ctl = new AbortController();
+    var t = setTimeout(function () { ctl.abort(); }, 4000);
+    fetch(bridgeUrl() + '/quality-data', { cache: 'no-store', signal: ctl.signal })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        clearTimeout(t);
+        lastBridge = d;
+        setDots(true);
+        bridgeStatusEl.textContent = 'Connected ✓ (' + bridgeUrl() + ') — shift ' + currentShift();
+        refreshCountOptions(d);
+        renderLive(d, null);
+        if (done) done(d, null);
+      })
+      .catch(function (err) {
+        clearTimeout(t);
+        setDots(false);
+        bridgeStatusEl.textContent = 'Not reachable — start server.js (node server.js), then Refresh.';
+        renderLive(null, err);
+        if (done) done(null, err);
+      });
+  }
+
+  function kpiHtml(label, value) {
+    return '<div class="kpi"><b>' + esc(value) + '</b><span>' + esc(label) + '</span></div>';
+  }
+
+  function scrapeTableHtml(t) {
+    var h = '<div class="tablewrap"><table>';
+    if (t.headers && t.headers.length) {
+      h += '<tr class="head">' + t.headers.map(function (x) { return '<th>' + esc(x) + '</th>'; }).join('') + '</tr>';
+    }
+    (t.rows || []).slice(0, 15).forEach(function (r) {
+      var cells = Array.isArray(r) ? r : Object.keys(r).map(function (k) { return r[k]; });
+      h += '<tr>' + cells.map(function (c) { return '<td class="text">' + esc(c) + '</td>'; }).join('') + '</tr>';
+    });
+    h += '</table></div>';
+    return h;
+  }
+
+  function sourceCard(name, entry, bodyFn) {
+    var on = !!entry;
+    var h = '<div class="srccard"><h3><span class="dot ' + (on ? 'on' : 'off') + '"></span>' + esc(name) + '</h3>';
+    if (!on) {
+      h += '<p class="meta">No data yet — open the source page with the Tampermonkey userscript active.</p></div>';
+      return h;
+    }
+    h += '<p class="meta">Scraped ' + ageStr(entry.timestamp) + ' · received ' + ageStr(entry.receivedAt) +
+         (entry.shift ? ' · shift ' + esc(entry.shift) : '') + '</p>';
+    h += bodyFn(entry.data || {});
+    h += '<details><summary>Raw JSON</summary><pre>' +
+         esc(JSON.stringify(entry.data, null, 2).substring(0, 4000)) + '</pre></details></div>';
+    return h;
+  }
+
+  function pilesCardBody(p) {
+    var b;
+    if (p.report) {
+      // v2 userscript: parsed Area Breakdown from /piles/report
+      b = '<div class="kpis">';
+      if (p.auditDate) {
+        b += kpiHtml('Audit', p.auditDate + (p.auditShift ? ' ' + p.auditShift : '') +
+                     (p.auditNumber ? ' #' + p.auditNumber : ''));
+      }
+      if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Piles total (page)', fmt(p.totalPiles));
+      if (p.adjustedTotal !== null && p.adjustedTotal !== undefined) b += kpiHtml('Adjusted total (page)', fmt(p.adjustedTotal));
+      if (p.computedSum !== null && p.computedSum !== undefined) {
+        b += kpiHtml('Sum of areas', fmt(p.computedSum) +
+                     (p.sumMatchesReported === false ? ' ⚠' : (p.sumMatchesReported ? ' ✓' : '')));
+      }
+      b += '</div>';
+      if (p.sumMatchesReported === false) {
+        b += '<p class="note" style="color:var(--bad-ink)">⚠ The per-area sum does not match the page total — ' +
+             'a column may be misdetected. Check the diagnostics in Raw JSON below.</p>';
+      }
+      var areaNames = Object.keys(p.areaTotals || {});
+      if (areaNames.length) {
+        b += scrapeTableHtml({ headers: ['Area', 'Total', 'Adjusted'], rows: areaNames.map(function (a) {
+          return [a, fmt(p.areaTotals[a]),
+                  (p.areaAdjusted && p.areaAdjusted[a] !== null && p.areaAdjusted[a] !== undefined)
+                    ? fmt(p.areaAdjusted[a]) : ''];
+        }) });
+      }
+      return b;
+    }
+    b = '<div class="kpis">';
+    if (p.totalPiles !== null && p.totalPiles !== undefined) b += kpiHtml('Total piles', fmt(p.totalPiles));
+    if (p.pilesOver48h !== null && p.pilesOver48h !== undefined) b += kpiHtml('Over 48h', fmt(p.pilesOver48h));
+    if (p.pilesOver24h !== null && p.pilesOver24h !== undefined) b += kpiHtml('Over 24h', fmt(p.pilesOver24h));
+    b += kpiHtml('Table rows', (p.tableRows || []).length);
+    b += '</div>';
+    if ((p.tableRows || []).length) {
+      var headers = Object.keys(p.tableRows[0]);
+      b += scrapeTableHtml({ headers: headers, rows: p.tableRows.map(function (r) {
+        return headers.map(function (k) { return r[k]; });
+      }) });
+    } else if (p.summary && Object.keys(p.summary).length) {
+      b += scrapeTableHtml({ headers: ['Label', 'Value'], rows: Object.keys(p.summary).map(function (k) {
+        return [k, p.summary[k]];
+      }) });
+    }
+    return b;
+  }
+
+  function renderLive(d, err) {
+    if (!document.getElementById('live')) return;
+    if (!d) {
+      liveContent.innerHTML =
+        '<div class="srccard"><h3><span class="dot off"></span>Bridge server offline</h3>' +
+        '<p class="meta">Could not reach <code>' + esc(bridgeUrl()) + '/quality-data</code>' +
+        (err && err.name === 'AbortError' ? ' (timed out)' : '') + '.</p>' +
+        '<p class="note">1. <code>node server.js</code> in the Quality folder&ensp;2. keep the ont-base / QuickSight ' +
+        'tabs open with Tampermonkey&ensp;3. hit Refresh.</p></div>';
+      return;
+    }
+
+    var h = '';
+
+    var pcounts = pilesCountsFrom(d);
+    if (pcounts.length) {
+      pcounts.forEach(function (e) {
+        var pp = e.data || {};
+        var label = 'Piles (ont-base)';
+        if (pp.auditNumber !== null && pp.auditNumber !== undefined) {
+          label += ' — Audit #' + pp.auditNumber + (pp.auditShift ? ' ' + pp.auditShift : '') +
+                   (pp.auditDate ? ' ' + pp.auditDate : '');
+        }
+        h += sourceCard(label, e, pilesCardBody);
+      });
+    } else {
+      h += sourceCard('Piles (ont-base)', d.piles, pilesCardBody);
+    }
+
+    h += sourceCard('EPP Compliance (QuickSight)', d.epp, function (e) {
+      var b = '<div class="kpis">';
+      if (e.kpis && e.kpis.eppCompliance) b += kpiHtml('EPP Compliance', e.kpis.eppCompliance);
+      if (e.kpis && e.kpis.allPercentages) b += kpiHtml('Percentages seen', e.kpis.allPercentages.slice(0, 4).join('  '));
+      b += '</div>';
+      (e.tables || []).slice(0, 2).forEach(function (t) { b += scrapeTableHtml(t); });
+      return b;
+    });
+
+    h += sourceCard('PPA Compliance (QuickSight)', d.ppa, function (a) {
+      var b = '<div class="kpis">';
+      if (a.kpis && a.kpis.targetShift) b += kpiHtml('Target shift', a.kpis.targetShift);
+      if (a.kpis && a.kpis.ppaCompliance) b += kpiHtml('PPA Compliance', a.kpis.ppaCompliance);
+      if (a.kpis && a.kpis.allPercentages) b += kpiHtml('Percentages seen', a.kpis.allPercentages.slice(0, 4).join('  '));
+      b += '</div>';
+      (a.tables || []).slice(0, 2).forEach(function (t) { b += scrapeTableHtml(t); });
+      return b;
+    });
+
+    liveContent.innerHTML = h;
+  }
+
+  /* ----- Piles counts: enumerate, select, and pull accurately ----- */
+  var pullStatusEl = document.getElementById('pullStatus');
+  var pullCountSel = document.getElementById('pullCount');
+  var autoAddChk = document.getElementById('autoAdd');
+
+  autoAddChk.checked = lsGet('fhns-autoadd', true) !== false;
+  autoAddChk.addEventListener('change', function () { lsSet('fhns-autoadd', autoAddChk.checked); });
+
+  // Every distinct piles audit count in a bridge payload, newest audit first.
+  function pilesCountsFrom(d) {
+    var out = [];
+    if (d && d.pilesCounts) {
+      Object.keys(d.pilesCounts).forEach(function (k) {
+        var e = d.pilesCounts[k];
+        if (e) out.push(Object.assign({ key: k }, e));
+      });
+    }
+    // Back-compat: a bridge without pilesCounts still exposes the latest scrape.
+    if (!out.length && d && d.piles) out.push(Object.assign({ key: 'latest' }, d.piles));
+    out.sort(function (a, b) {
+      var pa = a.data || {}, pb = b.data || {};
+      if (String(pa.auditDate) !== String(pb.auditDate)) return String(pb.auditDate) < String(pa.auditDate) ? -1 : 1;
+      return (Number(pb.auditNumber) || 0) - (Number(pa.auditNumber) || 0);
+    });
+    return out;
+  }
+
+  function countLabel(e) {
+    var p = e.data || {};
+    var t = (p.totalPiles !== null && p.totalPiles !== undefined) ? fmt(p.totalPiles) : '?';
+    var n = (p.auditNumber !== null && p.auditNumber !== undefined) ? ('#' + p.auditNumber) : e.key;
+    return 'Audit ' + n + (p.auditShift ? ' ' + p.auditShift : '') + ' — ' + t + ' piles';
+  }
+
+  // Rebuild the count dropdown, keeping the current pick when it still exists.
+  function refreshCountOptions(d) {
+    if (!pullCountSel) return;
+    var counts = pilesCountsFrom(d).filter(function (e) { return e.key !== 'latest'; });
+    var prev = pullCountSel.value;
+    var html = '<option value="latest">Latest received</option>';
+    counts.forEach(function (e) {
+      html += '<option value="' + esc(e.key) + '">' + esc(countLabel(e)) + '</option>';
+    });
+    pullCountSel.innerHTML = html;
+    var keys = counts.map(function (e) { return e.key; });
+    pullCountSel.value = (prev && (prev === 'latest' || keys.indexOf(prev) !== -1)) ? prev
+                        : (keys.length ? keys[0] : 'latest');
+  }
+
+  // The count entry the user chose to pull (or newest / latest as fallback).
+  function selectedCountEntry(d) {
+    var v = pullCountSel ? pullCountSel.value : 'latest';
+    if (v && v !== 'latest' && d && d.pilesCounts && d.pilesCounts[v]) {
+      return Object.assign({ key: v }, d.pilesCounts[v]);
+    }
+    var counts = pilesCountsFrom(d);
+    return counts.length ? counts[0] : null;
+  }
+
+  // Map a report area name to an existing row. Exact (normalized) match wins;
+  // a substring match is used ONLY when exactly one existing area is involved,
+  // so an ambiguous name can never be mis-assigned (that scrambled counts before).
+  function resolveArea(reportName) {
+    var n = normName(reportName);
+    if (!n) return null;
+    var areas = allAreas();
+    for (var i = 0; i < areas.length; i++) if (normName(areas[i]) === n) return areas[i];
+    var hits = areas.filter(function (a) {
+      var k = normName(a);
+      return k && (n.indexOf(k) !== -1 || k.indexOf(n) !== -1);
+    });
+    return hits.length === 1 ? hits[0] : null;
+  }
+
+  // Exact area -> value map from a report payload (adjusted total preferred).
+  function reportAreaValues(p) {
+    var out = {};
+    if (p.areaTotals) {
+      Object.keys(p.areaTotals).forEach(function (k) {
+        var v = (p.areaAdjusted && p.areaAdjusted[k] !== null && p.areaAdjusted[k] !== undefined)
+          ? p.areaAdjusted[k] : p.areaTotals[k];
+        if (v !== null && v !== undefined) out[k] = Number(v);
+      });
+    }
+    return out;
+  }
+
+  document.getElementById('pullBtn').addEventListener('click', function () {
+    var slot = document.getElementById('pullSlot').value;
+    pullStatusEl.textContent = 'Contacting bridge…';
+    pollBridge(function (d, err) {
+      if (!d) { pullStatusEl.textContent = 'Bridge offline — is server.js running on ' + bridgeUrl() + '?'; return; }
+      var entry = selectedCountEntry(d);
+      if (!entry) { pullStatusEl.textContent = 'Server is up but has no piles data yet — open the ont-base piles page (or its report) with Tampermonkey.'; return; }
+
+      var p = entry.data || {};
+      if (!p.report || !p.areaTotals || !Object.keys(p.areaTotals).length) {
+        pullStatusEl.textContent = 'That count has no Area Breakdown yet — open its /piles/report page or wait for the watcher. See the Live Bridge tab.';
+        return;
+      }
+
+      var values = reportAreaValues(p);
+      var autoAdd = autoAddChk.checked;
+      var filled = [], added = [], unmatched = [], toAdd = [];
+
+      Object.keys(values).forEach(function (rn) {
+        var hit = resolveArea(rn);
+        if (!hit) {
+          if (autoAdd && allAreas().indexOf(rn) === -1 && String(rn).length <= 60) {
+            toAdd.push(rn); added.push(rn); hit = rn;
+          } else { unmatched.push(rn); return; }
+        }
+        filled.push([hit, values[rn]]);
+      });
+      if (toAdd.length) lsSet('fhns-custom-areas', customAreas().concat(toAdd));
+
+      if (!filled.length) {
+        pullStatusEl.textContent = 'No areas placed from Audit #' + p.auditNumber + ' — turn on “Auto-add areas” or add them with “+ Add area”.';
+        return;
+      }
+
+      // Clear this slot on rows not in the report so a re-pull can't leave stale
+      // values behind (e.g. an area that dropped out of the newer count).
+      var keepKeys = {};
+      filled.forEach(function (pr) { keepKeys[pr[0]] = true; });
+      allAreas().forEach(function (a) {
+        if (!keepKeys[a] && dayData[a] && dayData[a][slot] !== undefined) {
+          delete dayData[a][slot];
+          if (Object.keys(dayData[a]).length === 0) delete dayData[a];
+        }
+      });
+
+      var placedSum = 0;
+      filled.forEach(function (pr) {
+        if (!dayData[pr[0]]) dayData[pr[0]] = {};
+        dayData[pr[0]][slot] = pr[1];
+        placedSum += pr[1];
+      });
+      saveDay();
+      buildTable();
+      filled.forEach(function (pr) {
+        var inp = tbl.querySelector('input[data-area="' + String(pr[0]).replace(/"/g, '\\"') + '"][data-slot="' + slot + '"]');
+        if (inp) inp.parentElement.classList.add('pulled');
+      });
+
+      var cn = (p.auditNumber !== null && p.auditNumber !== undefined) ? ('#' + p.auditNumber) : '';
+      var msg = 'Filled ' + slot + ' from Audit ' + cn + ' — ' + filled.length + ' area' +
+                (filled.length === 1 ? '' : 's') + ', total ' + fmt(placedSum) +
+                ' (scraped ' + ageStr(entry.timestamp) + ')';
+      if (added.length) {
+        msg += ' · added ' + added.length + ' new: ' + added.slice(0, 5).join(', ') + (added.length > 5 ? '…' : '');
+      }
+      if (p.totalPiles !== null && p.totalPiles !== undefined) {
+        msg += (placedSum === p.totalPiles)
+          ? ' · matches page total ✓'
+          : ' · ⚠ page total ' + fmt(p.totalPiles) + (unmatched.length ? ' — unplaced: ' + unmatched.join(', ') : '');
+      }
+      pullStatusEl.textContent = msg;
+    });
+  });
+
+  document.getElementById('bridgeRefresh').addEventListener('click', function () { pollBridge(); });
+  pollBridge();
+  setInterval(pollBridge, 15000);
+})();
+</script>
+</body>
+</html>
