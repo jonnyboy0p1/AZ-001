@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hand-off Note Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue-dark:   #1a1a2e;
+      --blue-mid:    #1e3a5f;
+      --blue-bright: #2d6a9f;
+      --blue-light:  #ebf8ff;
+      --green:       #38a169;
+      --red:         #e53e3e;
+      --orange:      #dd6b20;
+      --grey-50:     #f8f9fb;
+      --grey-100:    #edf2f7;
+      --grey-200:    #e2e8f0;
+      --grey-300:    #cbd5e0;
+      --grey-400:    #a0aec0;
+      --grey-600:    #718096;
+      --grey-800:    #2d3748;
+      --text:        #1a202c;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      background: #f0f2f5;
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      background: var(--blue-dark);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .page-header h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 200px; }
+    .page-header .sub { font-size: 11px; color: var(--grey-400); width: 100%; }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 18px;
+      padding: 18px;
+      max-width: 1280px;
+      margin: 0 auto;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .preview-col { position: static !important; }
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .card-head {
+      background: var(--grey-50);
+      border-bottom: 1px solid var(--grey-200);
+      padding: 9px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      color: var(--blue-mid);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-head .hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--grey-600); font-size: 11px; }
+    .card-body { padding: 14px; }
+
+    /* ── Form fields ── */
+    .field { margin-bottom: 12px; }
+    .field:last-child { margin-bottom: 0; }
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--grey-800);
+      margin-bottom: 4px;
+    }
+    .field .desc { font-weight: 400; color: var(--grey-600); }
+    input[type="text"], input[type="number"], input[type="date"], input[type="time"], textarea, select {
+      width: 100%;
+      padding: 7px 9px;
+      border: 1px solid var(--grey-300);
+      border-radius: 5px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text);
+      background: #fff;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--blue-bright);
+      box-shadow: 0 0 0 3px rgba(45,106,159,.15);
+    }
+    textarea { resize: vertical; min-height: 70px; line-height: 1.4; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 520px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+    /* ── Segmented toggle ── */
+    .seg { display: inline-flex; border: 1px solid var(--grey-300); border-radius: 6px; overflow: hidden; }
+    .seg button {
+      border: none;
+      background: #fff;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--grey-600);
+      border-right: 1px solid var(--grey-300);
+    }
+    .seg button:last-child { border-right: none; }
+    .seg button.active { background: var(--blue-bright); color: #fff; }
+
+    /* ── Repeatable rows ── */
+    .rows { display: flex; flex-direction: column; gap: 8px; }
+    .row {
+      display: grid;
+      align-items: center;
+      gap: 8px;
+    }
+    .row.trailer { grid-template-columns: 1.1fr 1fr 0.9fr 1.4fr auto; }
+    .row.paused  { grid-template-columns: 0.8fr 1.4fr 1fr auto; }
+    @media (max-width: 640px) {
+      .row.trailer, .row.paused { grid-template-columns: 1fr 1fr; }
+    }
+    .row input { padding: 6px 8px; }
+    .row-x {
+      border: none;
+      background: var(--grey-100);
+      color: var(--red);
+      width: 28px; height: 28px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .row-x:hover { background: #fed7d7; }
+    .row-head { font-size: 10px; font-weight: 700; color: var(--grey-600); text-transform: uppercase; letter-spacing: .03em; padding: 0 2px; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity .15s, background .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn-primary { background: var(--blue-bright); color: #fff; }
+    .btn-add { background: var(--blue-light); color: var(--blue-mid); margin-top: 10px; }
+    .btn-ghost { background: var(--grey-100); color: var(--grey-800); }
+    .btn-green { background: var(--green); color: #fff; }
+
+    /* ── Preview column ── */
+    .preview-col { position: sticky; top: 70px; }
+    .preview-actions { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    #output {
+      width: 100%;
+      min-height: 460px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+      white-space: pre;
+      overflow-x: auto;
+      background: #0f1117;
+      color: #e2e8f0;
+      border: none;
+      border-radius: 8px;
+      padding: 16px;
+      tab-size: 2;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--grey-800);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s, transform .2s;
+      z-index: 100;
+      box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <header class="page-header">
+    <h1>🚛 Hand-off Note Generator</h1>
+    <button class="btn btn-ghost" id="resetBtn" title="Clear every field">Reset form</button>
+    <div class="sub">Fill in what you know — the formatted note builds itself on the right. Everything auto-saves in this browser.</div>
+  </header>
+
+  <div class="layout">
+    <!-- ══════════ FORM ══════════ -->
+    <div class="form-col">
+
+      <!-- Shift / header -->
+      <section class="card">
+        <div class="card-head">Shift &amp; Greeting</div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="field">
+              <label>Side / Title</label>
+              <input type="text" id="title" placeholder="WEST SIDE" />
+            </div>
+            <div class="field">
+              <label>Title suffix</label>
+              <input type="text" id="titleSuffix" placeholder="Hand-off notes" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Shift</label>
+            <div class="seg" id="shiftSeg">
+              <button type="button" data-shift="day" class="active">☀️ Day</button>
+              <button type="button" data-shift="night">🌙 Night</button>
+            </div>
+            <label style="margin-top:10px;"><input type="checkbox" id="slackEmoji" style="width:auto;vertical-align:middle;margin-right:5px;" /> Use Slack/Chime emoji codes (<code>:mostly_sunny:</code>)</label>
+          </div>
+          <div class="field">
+            <label>Greeting line <span class="desc">(auto-fills from shift — edit freely)</span></label>
+            <input type="text" id="greeting" placeholder="Good Morning Day Shift" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Door status -->
+      <section class="card">
+        <div class="card-head">Door &amp; Dock Status</div>
+        <div class="card-body">
+          <div class="field">
+            <label>Busy DD <span class="desc">(comma separated)</span></label>
+            <input type="text" id="busyDD" placeholder="DET6, QXX6, STL8, DSM5" />
+          </div>
+          <div class="field">
+            <label>Next door to close</label>
+            <input type="text" id="nextClose" placeholder="DD121 IGQ1, DD122 LUK2" />
+          </div>
+          <div class="field">
+            <label>Next SDT due</label>
+            <input type="text" id="nextSDT" placeholder="DD119 DET6 @ 15-Jun-26 15:53" />
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Door % status</label>
+              <input type="text" id="doorPct" placeholder="All doors are 80% and below" />
+            </div>
+            <div class="field">
+              <label>Smart locks</label>
+              <input type="text" id="smartLocks" placeholder="7" />
+            </div>
+          </div>
+          <div class="field">
+            <label>Available carrier EOS</label>
+            <input type="text" id="eos" placeholder="900+" />
+          </div>
+        </div>
+      </section>
+
+      <!-- U-Boats -->
+      <section class="card">
+        <div class="card-head">U-Boats</div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="field">
+              <label>Number of U-Boat</label>
+              <input type="text" id="uboat" placeholder="37" />
+            </div>
+            <div class="field">
+              <label>U-Boat downstock</label>
+              <input type="text" id="downstock" placeholder="3" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Line / TDR -->
+      <section class="card">
+        <div class="card-head">Line Status &amp; TDR</div>
+        <div class="card-body">
+          <div class="field">
+            <label>Line status</label>
+            <input type="text" id="lineStatus" placeholder="DD117 Upper divert disabled" />
+          </div>
+          <div class="field">
+            <label>Next door for TDR</label>
+            <input type="text" id="tdrNext" placeholder="ALL DOORS OPEN" />
+          </div>
+          <div class="field">
+            <label>Overflow door</label>
+            <input type="text" id="overflow" placeholder="DD118 is overflow" />
+          </div>
+          <div class="field">
+            <label>TDR notes</label>
+            <textarea id="tdrNotes" placeholder="DD119 will need to be TDR in ( DET6 )"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5's area -->
+      <section class="card">
+        <div class="card-head">5's Area <span class="hint">— pre-filled with the usual notes</span></div>
+        <div class="card-body">
+          <div class="field">
+            <textarea id="fivesArea" style="min-height:90px;"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Paused loads -->
+      <section class="card">
+        <div class="card-head">Paused Loads</div>
+        <div class="card-body">
+          <div class="row paused row-head">
+            <div>PS #</div><div>Load ID</div><div>FC</div><div></div>
+          </div>
+          <div class="rows" id="pausedRows"></div>
+          <button type="button" class="btn btn-add" id="addPaused">+ Add paused load</button>
+        </div>
+      </section>
+
+      <!-- Trailer pool -->
+      <section class="card">
+        <div class="card-head">Trailer Pool</div>
+        <div class="card-body">
+          <div class="row trailer row-head">
+            <div>Carrier</div><div>Count</div><div>Yellow tag</div><div>Note</div><div></div>
+          </div>
+          <div class="rows" id="trailerRows"></div>
+          <button type="button" class="btn btn-add" id="addTrailer">+ Add carrier</button>
+        </div>
+      </section>
+
+      <!-- Extra -->
+      <section class="card">
+        <div class="card-head">Extra Notes</div>
+        <div class="card-body">
+          <div class="field">
+            <label>Jam issue / ticket</label>
+            <input type="text" id="jam" placeholder="NA" />
+          </div>
+          <div class="field">
+            <label>Additional notes</label>
+            <textarea id="addNotes" placeholder="Have a good night! ..."></textarea>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ══════════ PREVIEW ══════════ -->
+    <div class="preview-col">
+      <div class="card" style="margin-bottom:0;">
+        <div class="card-head">
+          Live Preview
+          <span class="hint" style="margin-left:auto;">ready to paste</span>
+        </div>
+        <div class="card-body" style="padding:12px;">
+          <div class="preview-actions">
+            <button class="btn btn-primary" id="copyBtn">📋 Copy</button>
+            <button class="btn btn-green" id="downloadBtn">⬇ Download .txt</button>
+          </div>
+          <textarea id="output" readonly spellcheck="false"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    var STORE_KEY = "handoff-generator-v1";
+
+    /* ---- Emoji handling (unicode vs Slack code) ---- */
+    var EMOJI = {
+      day:   { uni: "☀️", code: ":mostly_sunny:" },   // ☀️
+      night: { uni: "🌙", code: ":crescent_moon:" }   // 🌙
+    };
+
+    var state = {
+      shift: "day",
+      slackEmoji: false,
+      trailers: [],
+      paused: []
+    };
+
+    var DEFAULT_FIVES =
+      "- all totes and down stacks should be with in the that area.\n" +
+      "- all U-BOAT and totes are in the 5's area.\n" +
+      "- step stools are in 5's area's.";
+
+    var DEFAULT_TRAILERS = [
+      { carrier: "AZNG",  count: "", yellow: "", note: "" },
+      { carrier: "AZNU",  count: "", yellow: "", note: "" },
+      { carrier: "JBHU",  count: "", yellow: "", note: "" },
+      { carrier: "AWDJA", count: "", yellow: "", note: "" }
+    ];
+
+    var $ = function (id) { return document.getElementById(id); };
+
+    /* ---------- Greeting helper ---------- */
+    function emoji() {
+      var e = EMOJI[state.shift];
+      return state.slackEmoji ? e.code : e.uni;
+    }
+    function defaultGreeting() {
+      var word = state.shift === "day" ? "Good Morning Day Shift" : "Good Evening Night Shift";
+      return word + " " + emoji();
+    }
+    // Has the user manually edited the greeting away from a generated value?
+    var greetingTouched = false;
+    function refreshGreeting() {
+      if (!greetingTouched || $("greeting").value.trim() === "") {
+        $("greeting").value = defaultGreeting();
+      }
+    }
+
+    /* ---------- Repeatable rows: Trailers ---------- */
+    function trailerRowEl(data) {
+      var wrap = document.createElement("div");
+      wrap.className = "row trailer";
+      wrap.innerHTML =
+        '<input type="text" data-k="carrier" placeholder="AZNG" />' +
+        '<input type="text" data-k="count"   placeholder="9 or 20+" />' +
+        '<input type="text" data-k="yellow"  placeholder="5" />' +
+        '<input type="text" data-k="note"    placeholder="with removal ticket" />' +
+        '<button type="button" class="row-x" title="Remove">×</button>';
+      var inputs = wrap.querySelectorAll("input");
+      inputs.forEach(function (inp) {
+        inp.value = data[inp.getAttribute("data-k")] || "";
+        inp.addEventListener("input", function () { collect(); render(); save(); });
+      });
+      wrap.querySelector(".row-x").addEventListener("click", function () {
+        wrap.remove(); collect(); render(); save();
+      });
+      return wrap;
+    }
+
+    /* ---------- Repeatable rows: Paused ---------- */
+    function pausedRowEl(data) {
+      var wrap = document.createElement("div");
+      wrap.className = "row paused";
+      wrap.innerHTML =
+        '<input type="text" data-k="ps"     placeholder="786" />' +
+        '<input type="text" data-k="load"   placeholder="114WDR2V3" />' +
+        '<input type="text" data-k="fc"     placeholder="FSD1" />' +
+        '<button type="button" class="row-x" title="Remove">×</button>';
+      var inputs = wrap.querySelectorAll("input");
+      inputs.forEach(function (inp) {
+        inp.value = data[inp.getAttribute("data-k")] || "";
+        inp.addEventListener("input", function () { collect(); render(); save(); });
+      });
+      wrap.querySelector(".row-x").addEventListener("click", function () {
+        wrap.remove(); collect(); render(); save();
+      });
+      return wrap;
+    }
+
+    function addTrailer(data) { $("trailerRows").appendChild(trailerRowEl(data || {})); }
+    function addPaused(data)  { $("pausedRows").appendChild(pausedRowEl(data || {})); }
+
+    /* ---------- Collect rows from DOM into state ---------- */
+    function collect() {
+      state.trailers = [];
+      $("trailerRows").querySelectorAll(".row.trailer").forEach(function (r) {
+        var o = {};
+        r.querySelectorAll("input").forEach(function (i) { o[i.getAttribute("data-k")] = i.value.trim(); });
+        state.trailers.push(o);
+      });
+      state.paused = [];
+      $("pausedRows").querySelectorAll(".row.paused").forEach(function (r) {
+        var o = {};
+        r.querySelectorAll("input").forEach(function (i) { o[i.getAttribute("data-k")] = i.value.trim(); });
+        state.paused.push(o);
+      });
+    }
+
+    /* ---------- Build the note text ---------- */
+    function v(id) { return ($(id).value || "").trim(); }
+
+    function buildNote() {
+      var sections = [];
+
+      /* Header block */
+      var header = [];
+      var title = v("title") || "WEST SIDE";
+      var suffix = v("titleSuffix") || "Hand-off notes";
+      header.push(title + " " + suffix);
+      if (v("greeting")) header.push(v("greeting"));
+      sections.push(header.join("\n"));
+
+      /* Status block */
+      var status = [];
+      function line(label, id) { if (v(id)) status.push(label + v(id)); }
+      if (v("busyDD")) status.push("Busy DD:  " + v("busyDD"));
+      line("Next door to close: ", "nextClose");
+      line("Next SDT due: ", "nextSDT");
+      line("Available carrier EOS: ", "eos");
+      if (v("doorPct")) status.push(v("doorPct"));
+      line("Smart locks: ", "smartLocks");
+      line("Number of U-Boat: ", "uboat");
+      line("U-BOAT Downstock: ", "downstock");
+      if (status.length) sections.push(status.join("\n"));
+
+      /* Line status */
+      if (v("lineStatus")) sections.push("LINE STATUS: " + v("lineStatus"));
+
+      /* TDR block */
+      var tdr = [];
+      if (v("tdrNext"))  tdr.push("NEXT DOOR FOR TDR: " + v("tdrNext"));
+      if (v("overflow")) tdr.push(v("overflow"));
+      if (v("tdrNotes")) tdr.push("TDR notes: " + v("tdrNotes"));
+      if (tdr.length) sections.push(tdr.join("\n"));
+
+      /* 5's area */
+      if (v("fivesArea")) sections.push("5's AREA:\n" + v("fivesArea"));
+
+      /* Paused loads */
+      var pausedLines = [];
+      state.paused.forEach(function (p) {
+        if (!p.ps && !p.load && !p.fc) return;
+        var ps = p.ps ? (/^ps/i.test(p.ps) ? p.ps.toUpperCase() : "PS" + p.ps) : "PS";
+        var str = ps;
+        if (p.load) str += " - " + p.load;
+        if (p.fc)   str += " (" + p.fc + ")";
+        pausedLines.push(str);
+      });
+      if (pausedLines.length) sections.push("PAUSED LOADS:\n" + pausedLines.join("\n"));
+
+      /* Trailer pool */
+      var trailerLines = [];
+      state.trailers.forEach(function (t) {
+        if (!t.carrier && !t.count && !t.yellow && !t.note) return;
+        var str = (t.carrier || "?") + ": " + (t.count || "0");
+        if (t.yellow) str += " and " + t.yellow + " yellow tag";
+        if (t.note)   str += " " + t.note;
+        trailerLines.push(str);
+      });
+      if (trailerLines.length) sections.push("TRAILER POOL\n" + trailerLines.join("\n"));
+
+      /* Extra */
+      var extra = [];
+      if (v("jam"))      extra.push("Jam issue/ticket: " + v("jam"));
+      if (v("addNotes")) extra.push("Additional Notes: " + v("addNotes"));
+      if (extra.length) sections.push(extra.join("\n"));
+
+      return sections.join("\n\n");
+    }
+
+    function render() { $("output").value = buildNote(); }
+
+    /* ---------- Persistence ---------- */
+    var FIELD_IDS = ["title","titleSuffix","greeting","busyDD","nextClose","nextSDT",
+      "doorPct","smartLocks","eos","uboat","downstock","lineStatus","tdrNext",
+      "overflow","tdrNotes","fivesArea","jam","addNotes"];
+
+    function save() {
+      var data = { shift: state.shift, slackEmoji: state.slackEmoji,
+                   greetingTouched: greetingTouched,
+                   trailers: state.trailers, paused: state.paused, fields: {} };
+      FIELD_IDS.forEach(function (id) { data.fields[id] = $(id).value; });
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch (e) {}
+    }
+
+    function load() {
+      var raw;
+      try { raw = localStorage.getItem(STORE_KEY); } catch (e) { raw = null; }
+      if (!raw) return false;
+      try {
+        var data = JSON.parse(raw);
+        state.shift = data.shift || "day";
+        state.slackEmoji = !!data.slackEmoji;
+        greetingTouched = !!data.greetingTouched;
+        FIELD_IDS.forEach(function (id) { if (data.fields && data.fields[id] != null) $(id).value = data.fields[id]; });
+        (data.trailers && data.trailers.length ? data.trailers : DEFAULT_TRAILERS).forEach(addTrailer);
+        (data.paused || []).forEach(addPaused);
+        return true;
+      } catch (e) { return false; }
+    }
+
+    /* ---------- Toast ---------- */
+    var toastT;
+    function toast(msg) {
+      var t = $("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toastT);
+      toastT = setTimeout(function () { t.classList.remove("show"); }, 1800);
+    }
+
+    /* ---------- Wire up ---------- */
+    function syncShiftSeg() {
+      $("shiftSeg").querySelectorAll("button").forEach(function (b) {
+        b.classList.toggle("active", b.getAttribute("data-shift") === state.shift);
+      });
+    }
+
+    function init() {
+      var hadSaved = load();
+
+      if (!hadSaved) {
+        $("fivesArea").value = DEFAULT_FIVES;
+        DEFAULT_TRAILERS.forEach(addTrailer);
+      }
+
+      syncShiftSeg();
+      $("slackEmoji").checked = state.slackEmoji;
+      refreshGreeting();
+
+      // Shift toggle
+      $("shiftSeg").querySelectorAll("button").forEach(function (b) {
+        b.addEventListener("click", function () {
+          state.shift = b.getAttribute("data-shift");
+          syncShiftSeg();
+          greetingTouched = false;     // regenerate greeting on shift change
+          refreshGreeting();
+          render(); save();
+        });
+      });
+
+      // Slack emoji toggle
+      $("slackEmoji").addEventListener("change", function () {
+        state.slackEmoji = this.checked;
+        // re-apply greeting emoji if it still looks generated
+        if (!greetingTouched) refreshGreeting();
+        render(); save();
+      });
+
+      // Greeting manual edit tracking
+      $("greeting").addEventListener("input", function () {
+        greetingTouched = true; render(); save();
+      });
+
+      // Generic field listeners
+      FIELD_IDS.forEach(function (id) {
+        if (id === "greeting") return;
+        $(id).addEventListener("input", function () { render(); save(); });
+      });
+
+      // Add-row buttons
+      $("addTrailer").addEventListener("click", function () { addTrailer({}); collect(); save(); });
+      $("addPaused").addEventListener("click", function () { addPaused({}); collect(); save(); });
+
+      // Copy
+      $("copyBtn").addEventListener("click", function () {
+        var txt = $("output").value;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(function () { toast("Copied to clipboard ✓"); },
+                                                   function () { fallbackCopy(); });
+        } else { fallbackCopy(); }
+        function fallbackCopy() {
+          $("output").removeAttribute("readonly");
+          $("output").select();
+          try { document.execCommand("copy"); toast("Copied to clipboard ✓"); }
+          catch (e) { toast("Press Ctrl/Cmd+C to copy"); }
+          $("output").setAttribute("readonly", "readonly");
+          window.getSelection().removeAllRanges();
+        }
+      });
+
+      // Download
+      $("downloadBtn").addEventListener("click", function () {
+        var blob = new Blob([$("output").value], { type: "text/plain" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        var stamp = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = "handoff-" + stamp + ".txt";
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        toast("Downloaded");
+      });
+
+      // Reset
+      $("resetBtn").addEventListener("click", function () {
+        if (!confirm("Clear every field and start a fresh hand-off?")) return;
+        try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+        location.reload();
+      });
+
+      collect();
+      render();
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else { init(); }
+  })();
+  </script>
+</body>
+</html>
