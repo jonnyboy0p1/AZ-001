@@ -362,22 +362,23 @@ function toNum(v) {
 
 function parseWhen(v) {
   // → {dateISO, hour} from a timestamp/date-ish value, or null.
+  // A bare "YYYY-MM-DD" yields hour:null (and is NOT timezone-shifted); an hour
+  // is only returned when a time component is actually present.
   if (v == null) return null;
-  let d;
-  if (typeof v === "number" || /^\d+$/.test(String(v))) {
+  const s = String(v);
+  const dm = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}))?/);
+  if (dm && !/^\d+$/.test(s)) {
+    return { dateISO: `${dm[1]}-${dm[2]}-${dm[3]}`, hour: dm[4] != null ? parseInt(dm[4], 10) : null };
+  }
+  if (typeof v === "number" || /^\d+$/.test(s)) {
     let n = Number(v);
     if (n < 1e11) n *= 1000;            // seconds → ms
-    d = new Date(n);
-  } else {
-    const p = Date.parse(v);
-    if (isNaN(p)) {
-      // maybe a bare "YYYY-MM-DD" — no hour
-      const m = String(v).match(/^(\d{4}-\d{2}-\d{2})/);
-      return m ? { dateISO: m[1], hour: null } : null;
-    }
-    d = new Date(p);
+    const d = new Date(n);
+    return isNaN(d.getTime()) ? null : { dateISO: isoDate(d), hour: d.getHours() };
   }
-  if (isNaN(d.getTime())) return null;
+  const p = Date.parse(s);
+  if (isNaN(p)) return null;
+  const d = new Date(p);
   return { dateISO: isoDate(d), hour: d.getHours() };
 }
 
@@ -432,13 +433,14 @@ function normalizeArcRecords(json, node, fallbackStartISO) {
     const dRaw = firstKey(row, DATE_KEYS);
     const hRaw = firstKey(row, HOUR_KEYS);
     const tRaw = firstKey(row, TIME_KEYS);
+    const wd = dRaw != null ? parseWhen(dRaw) : null;
+    const wt = tRaw != null ? parseWhen(tRaw) : null;
 
-    if (dRaw != null) { const w = parseWhen(dRaw); if (w) { dateISO = w.dateISO; if (w.hour != null) hour = w.hour; } }
-    if (hour == null && hRaw != null) hour = toNum(hRaw);
-    if ((dateISO == null || hour == null) && tRaw != null) {
-      const w = parseWhen(tRaw);
-      if (w) { dateISO = dateISO || w.dateISO; if (hour == null) hour = w.hour; }
-    }
+    if (wd) dateISO = wd.dateISO;
+    if (dateISO == null && wt) dateISO = wt.dateISO;
+    if (hRaw != null) hour = toNum(hRaw);                 // explicit hour field wins
+    if (hour == null && wt && wt.hour != null) hour = wt.hour;
+    if (hour == null && wd && wd.hour != null) hour = wd.hour;
     if (dateISO == null) dateISO = fallbackStartISO || isoDate(new Date());
     if (hour == null) hour = idx % 24;
 

@@ -13,10 +13,38 @@ node (e.g. RFD2) into two views:
 Plus a summary (peak load hour, peak heaviness, hours over capacity, busiest
 day) and a full data table.
 
-Same local-proxy pattern as the RC Sort dashboard in this repo — nothing leaves
-your machine except the authenticated request to the internal endpoint.
+Nothing leaves your machine except the authenticated request to the internal
+endpoint.
 
-## Quick start
+## Two ways to run it
+
+| | Best for | Setup |
+|---|---|---|
+| **Tampermonkey userscript** (`arc-capacity.user.js`) | **Recommended.** Runs right on the Crossdock Manager page, auto-captures the data, no proxy/cookie work. | Install once in Tampermonkey. |
+| **Standalone page + proxy** (`arc-capacity.html` + `arc_proxy.py`) | Viewing/analyzing outside the Crossdock Manager tab, or scripting. | Run the proxy, open the page. |
+
+Both share the exact same analysis (hourly median + heaviness) and the same
+tolerant field normalizer.
+
+## Option A — Tampermonkey userscript (recommended)
+
+1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
+2. Open `arc-capacity.user.js` → Tampermonkey will offer to install it (or
+   create a new script and paste the file contents).
+3. Go to Crossdock Manager and open the **arc-capacity** view for your node
+   (e.g. `…/#/dice/na/arc-capacity?...&nodes=RFD2&startDate=…&endDate=…`).
+4. Click the floating **📊 ARC** button (bottom-right). A badge appears once it
+   has captured the load/capacity data from the page's own network calls.
+
+Because it runs inside your logged-in session, there's no Midway cookie handling
+and no need to know the data API — it watches `fetch`/`XHR` and picks up the
+arc-capacity response automatically. Node and dates are read from the page URL.
+There's a **📋 Paste JSON** fallback, and **↗ Dashboard** posts the captured
+data to the local `server.py` bridge (port 5220) if you're running it.
+
+## Option B — Standalone page + proxy
+
+### Quick start
 
 ```bash
 # 1. (optional) refresh your Midway session
