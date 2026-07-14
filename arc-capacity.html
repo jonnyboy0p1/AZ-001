@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ARC Capacity — Load Median &amp; Heaviness</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Palette (validated data-viz reference: blue series + sequential blue
+          ramp for the heatmap + reserved critical-red for over-capacity) ── */
+    :root {
+      --surface-1:    #fcfcfb;
+      --page-plane:   #f9f9f7;
+      --text-primary: #0b0b0b;
+      --text-secondary:#52514e;
+      --muted:        #898781;
+      --gridline:     #e1e0d9;
+      --baseline:     #c3c2b7;
+      --series-1:     #2a78d6;
+      --series-band:  rgba(42,120,214,.16);
+      --critical:     #d03b3b;
+      --good:         #0ca30c;
+      --border:       rgba(11,11,11,.10);
+      --hdr-bg:       #1a1a2e;
+      --card:         #ffffff;
+      --chip-bg:      #eef1f5;
+      --chip-border:  #d9dee6;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface-1:    #1a1a19;
+        --page-plane:   #0d0d0d;
+        --text-primary: #ffffff;
+        --text-secondary:#c3c2b7;
+        --muted:        #898781;
+        --gridline:     #2c2c2a;
+        --baseline:     #383835;
+        --series-1:     #3987e5;
+        --series-band:  rgba(57,135,229,.20);
+        --critical:     #e05555;
+        --good:         #0ca30c;
+        --border:       rgba(255,255,255,.12);
+        --hdr-bg:       #101019;
+        --card:         #201f1e;
+        --chip-bg:      #2a2a28;
+        --chip-border:  #3a3a37;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-size: 13px;
+      background: var(--page-plane);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .page-header {
+      background: var(--hdr-bg);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .page-header h1 { font-size: 16px; font-weight: 600; flex: 1; min-width: 220px; }
+    .page-header .sub { font-size: 11px; color: #b7c0d0; font-weight: 400; }
+
+    #proxy-status {
+      display: flex; align-items: center; gap: 6px; font-size: 11px;
+      background: rgba(255,255,255,.08); border-radius: 20px; padding: 4px 10px; white-space: nowrap;
+    }
+    #proxy-status .dot { width: 7px; height: 7px; border-radius: 50%; background: #a0aec0; flex-shrink: 0; }
+    #proxy-status[data-state="connected"]     .dot { background: #38a169; }
+    #proxy-status[data-state="auth-required"] .dot { background: #dd6b20; }
+    #proxy-status[data-state="stale"]         .dot { background: #dd6b20; }
+    #proxy-status[data-state="offline"]       .dot { background: #a0aec0; }
+    #proxy-status[data-state="error"]         .dot { background: #e53e3e; }
+
+    /* ── Controls bar ── */
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: flex-end;
+      padding: 14px 20px; background: var(--card); border-bottom: 1px solid var(--border);
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 700; }
+    .field input, .field select {
+      font: inherit; font-size: 12px; padding: 5px 8px; border-radius: 5px;
+      border: 1px solid var(--chip-border); background: var(--surface-1); color: var(--text-primary);
+      min-width: 110px;
+    }
+    .field input.wide { min-width: 320px; }
+
+    .btn {
+      padding: 6px 14px; border-radius: 5px; border: none; cursor: pointer;
+      font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary   { background: var(--series-1); color: #fff; }
+    .btn-secondary { background: var(--chip-bg); color: var(--text-primary); border: 1px solid var(--chip-border); }
+
+    .spinner {
+      display: none; width: 12px; height: 12px;
+      border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    .loading .spinner { display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Banner ── */
+    .banner { display: none; padding: 10px 20px; font-size: 12px; font-weight: 500; }
+    .banner.show { display: block; }
+    .banner-warn  { background: #fefcbf; color: #744210; border-bottom: 1px solid #f6e05e; }
+    .banner-error { background: #fff5f5; color: #742a2a; border-bottom: 1px solid #feb2b2; }
+    .banner-info  { background: #ebf8ff; color: #2c5282; border-bottom: 1px solid #bee3f8; }
+
+    /* ── Layout ── */
+    .wrap { padding: 16px; max-width: 1180px; margin: 0 auto; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06); margin-bottom: 16px; overflow: hidden;
+    }
+    .card-head { padding: 14px 16px 4px; }
+    .card-head h2 { font-size: 14px; font-weight: 700; }
+    .card-head p  { font-size: 11.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.5; }
+    .card-body { padding: 8px 16px 16px; }
+
+    /* ── KPI row ── */
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; }
+    .kpi {
+      background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+    }
+    .kpi .k-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 700; }
+    .kpi .k-val { font-size: 26px; font-weight: 650; margin-top: 4px; letter-spacing: -.5px; }
+    .kpi .k-val small { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+    .kpi .k-note { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .kpi.hot .k-val { color: var(--critical); }
+
+    /* ── SVG chart ── */
+    svg { display: block; width: 100%; height: auto; overflow: visible; }
+    .axis-label { fill: var(--muted); font-size: 10px; }
+    .axis-title { fill: var(--text-secondary); font-size: 11px; font-weight: 600; }
+    .gridline { stroke: var(--gridline); stroke-width: 1; }
+    .baseline { stroke: var(--baseline); stroke-width: 1.5; }
+
+    /* Heatmap legend */
+    .legend { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 11px; color: var(--text-secondary); }
+    .legend .scale { display: flex; align-items: center; gap: 6px; }
+    .legend .ramp { width: 140px; height: 12px; border-radius: 3px; border: 1px solid var(--border);
+      background: linear-gradient(90deg,#cde2fb,#9ec5f4,#5598e7,#2a78d6,#1c5cab,#104281); }
+    .legend .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); display: inline-block; vertical-align: -2px; }
+
+    /* ── Table view ── */
+    table.data { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.data th, table.data td { padding: 5px 9px; border-bottom: 1px solid var(--gridline); text-align: right; white-space: nowrap; }
+    table.data th { color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; font-weight: 700; }
+    table.data td:first-child, table.data th:first-child { text-align: left; }
+    table.data tbody tr:hover td { background: var(--surface-1); }
+    .num { font-variant-numeric: tabular-nums; }
+
+    .toggle-link { font-size: 11.5px; color: var(--series-1); cursor: pointer; user-select: none; font-weight: 600; }
+    .toggle-link:hover { text-decoration: underline; }
+    .hidden { display: none; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align: center; padding: 44px 20px; color: var(--text-secondary); }
+    .empty-state .icon { font-size: 34px; margin-bottom: 10px; }
+    .empty-state h2 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text-primary); }
+    .empty-state p { font-size: 12px; line-height: 1.7; max-width: 480px; margin: 0 auto; }
+    code { background: var(--chip-bg); border: 1px solid var(--chip-border); border-radius: 3px; padding: 1px 5px; font-size: 11px; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed; pointer-events: none; z-index: 50; opacity: 0; transition: opacity .08s;
+      background: var(--text-primary); color: var(--page-plane); font-size: 11.5px; line-height: 1.45;
+      padding: 7px 9px; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.25); max-width: 220px;
+    }
+    #tooltip.show { opacity: 1; }
+    #tooltip b { font-weight: 700; }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal-card { background: var(--card); border-radius: 10px; padding: 22px; width: 560px; max-width: 95vw; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    .modal-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .modal-card p  { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 10px; }
+    .modal-card ol { font-size: 12px; color: var(--text-secondary); line-height: 1.75; margin: 0 0 14px 18px; }
+    .modal-card textarea {
+      width: 100%; height: 150px; font-size: 11px; font-family: ui-monospace, monospace;
+      border: 1px solid var(--chip-border); border-radius: 6px; padding: 8px; resize: vertical;
+      outline: none; background: var(--surface-1); color: var(--text-primary);
+    }
+    .modal-card textarea:focus { border-color: var(--series-1); }
+    .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="page-header">
+  <h1>ARC Capacity <span class="sub" id="scope-label">— load median &amp; heaviness by hour</span></h1>
+  <div id="proxy-status" data-state="unknown"><span class="dot"></span><span id="proxy-status-label">Checking proxy…</span></div>
+  <button class="btn btn-secondary" onclick="showJsonModal()">📋 Paste JSON</button>
+  <button class="btn btn-secondary" onclick="loadDemo()">✨ Demo data</button>
+  <button class="btn btn-primary" id="btn-fetch" onclick="fetchLive()"><span class="spinner"></span>⟳ Fetch live</button>
+</div>
+
+<!-- ═══ CONTROLS ═══ -->
+<div class="controls">
+  <div class="field"><label>Node</label><input id="in-node" value="RFD2" /></div>
+  <div class="field"><label>Context</label>
+    <select id="in-context"><option>Prod</option><option>Test</option></select>
+  </div>
+  <div class="field"><label>Start date</label><input id="in-start" type="date" value="2026-07-13" /></div>
+  <div class="field"><label>End date</label><input id="in-end" type="date" value="2026-07-14" /></div>
+  <div class="field" style="flex:1;min-width:320px;">
+    <label>Data request URL (from browser Network tab) — optional</label>
+    <input id="in-url" class="wide" placeholder="https://crossdock-manager.harmony.a2z.com/api/…  (paste the arc-capacity data request)" />
+  </div>
+</div>
+
+<!-- ═══ BANNERS ═══ -->
+<div id="banner-stale"   class="banner banner-warn">⚠ Your Midway cookie may be expired (older than 12 h). Run <strong>mwinit</strong>, then Fetch again.</div>
+<div id="banner-noproxy" class="banner banner-error">✗ Proxy not running. In a terminal: <strong>python arc_proxy.py</strong> — then click Fetch live.</div>
+<div id="banner-auth"    class="banner banner-error">✗ Authentication failed. Run <strong>mwinit</strong> or paste a session cookie.</div>
+<div id="banner-nourl"   class="banner banner-info">ℹ To fetch live, paste the arc-capacity <strong>data request URL</strong> from your browser's Network tab into the field above. (Or use <strong>Paste JSON</strong> / <strong>Demo data</strong>.)</div>
+<div id="banner-parse"   class="banner banner-warn">⚠ Data loaded, but I couldn't find load/capacity/hour fields. Open <strong>Paste JSON</strong>, share one record's shape, and I'll map it.</div>
+
+<!-- ═══ CONTENT ═══ -->
+<div class="wrap">
+
+  <!-- Empty state -->
+  <div id="empty-state" class="card">
+    <div class="empty-state">
+      <div class="icon">📦</div>
+      <h2>No ARC data loaded yet</h2>
+      <p>
+        Three ways to load data:<br/><br/>
+        <strong>1. Demo data</strong> — click <strong>✨ Demo data</strong> to see the charts with a realistic RFD2-style load curve.<br/>
+        <strong>2. Paste JSON</strong> — copy the arc-capacity response from your browser and paste it in.<br/>
+        <strong>3. Fetch live</strong> — run <code>python arc_proxy.py</code>, paste the data-request URL above, and click <strong>⟳ Fetch live</strong>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results" class="hidden">
+
+    <div class="card">
+      <div class="card-head">
+        <h2 id="kpi-title">Summary</h2>
+        <p id="kpi-sub"></p>
+      </div>
+      <div class="card-body"><div class="kpi-row" id="kpi-row"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>ARC load median, hour by hour</h2>
+        <p>Median load across the selected days for each hour of day (line), with the day-to-day spread (band = min→max). This is the typical hourly ARC load profile.</p>
+      </div>
+      <div class="card-body">
+        <div id="trend-chart"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>How heavy is the ARC — by day &amp; hour</h2>
+        <p>Heaviness = load ÷ capacity for each hour. Darker blue = closer to capacity; <span style="color:var(--critical);font-weight:700">red = over capacity (&gt;100%)</span>. Read across a row for one day, down a column for one hour.</p>
+      </div>
+      <div class="card-body">
+        <div id="heat-chart"></div>
+        <div class="legend">
+          <div class="scale"><span>0%</span><span class="ramp"></span><span>100%</span></div>
+          <div><span class="swatch" style="background:var(--critical)"></span> Over capacity (&gt;100%)</div>
+          <div style="margin-left:auto"><span class="toggle-link" onclick="toggleTable()" id="tbl-toggle">Show data table ▾</span></div>
+        </div>
+        <div id="table-view" class="hidden" style="margin-top:14px;overflow-x:auto;"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- ═══ JSON MODAL ═══ -->
+<div id="json-modal" class="modal-overlay">
+  <div class="modal-card">
+    <h2>📋 Paste arc-capacity JSON</h2>
+    <p>Paste the JSON response from the Crossdock Manager arc-capacity view (DevTools → Network → click the data request → Response). I'll find the hour / load / capacity fields automatically.</p>
+    <textarea id="json-input" placeholder='{ "data": [ { "date": "2026-07-13", "hour": 0, "load": 420, "capacity": 1200 }, … ] }'></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="hideJsonModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="applyPastedJson()">Analyze</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ COOKIE MODAL ═══ -->
+<div id="cookie-modal" class="modal-overlay">
+  <div class="modal-card">
+    <h2>🔑 Paste session cookie</h2>
+    <p>Use this if <code>mwinit</code> isn't available. Open Crossdock Manager while logged in → DevTools → Network → any request → copy the full <code>Cookie:</code> request header.</p>
+    <textarea id="cookie-input" placeholder="Paste your Midway session cookie string…"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="hideCookieModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCookie()">Save &amp; Fetch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ── Config ─────────────────────────────────────────────────────────────────
+const PROXY_BASE = "http://localhost:8770";
+
+// ── Sequential blue ramp (validated) for the heaviness heatmap ──────────────
+const BLUE_RAMP = ["#cde2fb","#b7d3f6","#9ec5f4","#86b6ef","#6da7ec","#5598e7",
+                   "#3987e5","#2a78d6","#256abf","#1c5cab","#184f95","#104281","#0d366b"];
+const CRITICAL  = getCss("--critical") || "#d03b3b";
+
+// ── State ──────────────────────────────────────────────────────────────────
+let RECORDS = [];   // [{dateISO, hour, load, capacity}]
+let SOURCE  = "";
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const el = id => document.getElementById(id);
+const banners = {
+  stale:   el("banner-stale"),  noProxy: el("banner-noproxy"), auth: el("banner-auth"),
+  noUrl:   el("banner-nourl"),  parse:   el("banner-parse"),
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+//  DATA NORMALIZATION
+//  Turns whatever the arc-capacity API returns into a flat list of
+//  {dateISO, hour, load, capacity}. Written tolerantly; if the real payload
+//  uses field names not listed here, add them to the *_KEYS arrays below.
+// ══════════════════════════════════════════════════════════════════════════
+const DATE_KEYS = ["date","day","dateString","businessDate","planDate","localDate","dateLocal"];
+const TIME_KEYS = ["timestamp","time","startTime","intervalStart","dateTime","datetime","epoch","epochMillis","start","periodStart"];
+const HOUR_KEYS = ["hour","hourOfDay","hr","hourStart","intervalHour"];
+const LOAD_KEYS = ["load","arcLoad","arcLoadUnits","actualLoad","projectedLoad","forecastLoad","volume","units","value","loadUnits","demand"];
+const CAP_KEYS  = ["capacity","arcCapacity","maxCapacity","plannedCapacity","cap","capacityUnits","effectiveCapacity","targetCapacity"];
+const NODE_KEYS = ["nodes","warehouses","stations","byNode","data"];
+
+function firstKey(obj, keys) {
+  for (const k of keys) if (obj != null && obj[k] != null && obj[k] !== "") return obj[k];
+  return undefined;
+}
+
+function toNum(v) {
+  if (v == null) return null;
+  if (typeof v === "number") return isFinite(v) ? v : null;
+  const n = parseFloat(String(v).replace(/[, ]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
+function parseWhen(v) {
+  // → {dateISO, hour} from a timestamp/date-ish value, or null.
+  if (v == null) return null;
+  let d;
+  if (typeof v === "number" || /^\d+$/.test(String(v))) {
+    let n = Number(v);
+    if (n < 1e11) n *= 1000;            // seconds → ms
+    d = new Date(n);
+  } else {
+    const p = Date.parse(v);
+    if (isNaN(p)) {
+      // maybe a bare "YYYY-MM-DD" — no hour
+      const m = String(v).match(/^(\d{4}-\d{2}-\d{2})/);
+      return m ? { dateISO: m[1], hour: null } : null;
+    }
+    d = new Date(p);
+  }
+  if (isNaN(d.getTime())) return null;
+  return { dateISO: isoDate(d), hour: d.getHours() };
+}
+
+function isoDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+
+function unwrap(json, node) {
+  // Descend through common wrappers / node maps to reach the array of intervals.
+  let cur = json;
+  for (let i = 0; i < 6 && cur && !Array.isArray(cur); i++) {
+    // node-keyed map?  {RFD2:{...}} or {nodes:{RFD2:{...}}}
+    if (node && cur[node] != null) { cur = cur[node]; continue; }
+    const nodeMap = NODE_KEYS.map(k => cur[k]).find(v => v && typeof v === "object");
+    if (nodeMap && node && nodeMap[node] != null) { cur = nodeMap[node]; continue; }
+    // generic wrappers
+    const wrap = ["data","rows","records","items","results","intervals","buckets","series","hours","points","content","payload"]
+      .map(k => cur[k]).find(v => v != null);
+    if (wrap != null) { cur = wrap; continue; }
+    break;
+  }
+  return cur;
+}
+
+function normalizeArcRecords(json, node, fallbackStartISO) {
+  const out = [];
+  let cur = unwrap(json, node);
+
+  // Case A: parallel arrays  { load:[…24], capacity:[…24] }
+  if (cur && !Array.isArray(cur) && typeof cur === "object") {
+    const loadArr = firstKey(cur, LOAD_KEYS);
+    const capArr  = firstKey(cur, CAP_KEYS);
+    if (Array.isArray(loadArr)) {
+      const day = fallbackStartISO || isoDate(new Date());
+      loadArr.forEach((lv, h) => {
+        out.push({ dateISO: day, hour: h % 24,
+          load: toNum(lv), capacity: Array.isArray(capArr) ? toNum(capArr[h]) : toNum(capArr) });
+      });
+      return out;
+    }
+  }
+
+  if (!Array.isArray(cur)) return out;
+
+  cur.forEach((row, idx) => {
+    if (row == null) return;
+    if (typeof row === "number") {           // bare numeric series → hour = index
+      out.push({ dateISO: fallbackStartISO || isoDate(new Date()), hour: idx % 24, load: row, capacity: null });
+      return;
+    }
+    let dateISO = null, hour = null;
+    const dRaw = firstKey(row, DATE_KEYS);
+    const hRaw = firstKey(row, HOUR_KEYS);
+    const tRaw = firstKey(row, TIME_KEYS);
+
+    if (dRaw != null) { const w = parseWhen(dRaw); if (w) { dateISO = w.dateISO; if (w.hour != null) hour = w.hour; } }
+    if (hour == null && hRaw != null) hour = toNum(hRaw);
+    if ((dateISO == null || hour == null) && tRaw != null) {
+      const w = parseWhen(tRaw);
+      if (w) { dateISO = dateISO || w.dateISO; if (hour == null) hour = w.hour; }
+    }
+    if (dateISO == null) dateISO = fallbackStartISO || isoDate(new Date());
+    if (hour == null) hour = idx % 24;
+
+    out.push({
+      dateISO, hour: ((toNum(hour) || 0) % 24 + 24) % 24,
+      load: toNum(firstKey(row, LOAD_KEYS)),
+      capacity: toNum(firstKey(row, CAP_KEYS)),
+    });
+  });
+  return out;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════════════════════════════════════
+function quantile(sortedArr, q) {
+  if (!sortedArr.length) return null;
+  const pos = (sortedArr.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  if (lo === hi) return sortedArr[lo];
+  return sortedArr[lo] + (sortedArr[hi] - sortedArr[lo]) * (pos - lo);
+}
+const median = a => quantile(a, 0.5);
+
+function hourlyStats(records) {
+  // For each hour 0..23: median/min/max load across days + median capacity.
+  const byHour = Array.from({length:24}, () => ({ loads: [], caps: [] }));
+  for (const r of records) {
+    if (r.load != null) byHour[r.hour].loads.push(r.load);
+    if (r.capacity != null) byHour[r.hour].caps.push(r.capacity);
+  }
+  return byHour.map((h, hour) => {
+    const loads = h.loads.slice().sort((a,b)=>a-b);
+    const caps  = h.caps.slice().sort((a,b)=>a-b);
+    const medLoad = median(loads);
+    const medCap  = median(caps);
+    return {
+      hour,
+      medLoad, minLoad: loads[0] ?? null, maxLoad: loads[loads.length-1] ?? null,
+      q1: quantile(loads,0.25), q3: quantile(loads,0.75),
+      medCap,
+      medUtil: (medLoad != null && medCap) ? medLoad / medCap : null,
+      n: loads.length,
+    };
+  });
+}
+
+function grid(records) {
+  const dates = [...new Set(records.map(r => r.dateISO))].sort();
+  const map = new Map();   // date|hour -> {load, capacity, util}
+  for (const r of records) {
+    const key = r.dateISO + "|" + r.hour;
+    const cell = map.get(key) || { load: 0, capacity: null, n: 0 };
+    if (r.load != null) { cell.load += r.load; cell.n++; }
+    if (r.capacity != null) cell.capacity = (cell.capacity || 0) + r.capacity;
+    map.set(key, cell);
+  }
+  for (const cell of map.values()) {
+    cell.util = (cell.capacity && cell.n) ? cell.load / cell.capacity : null;
+  }
+  return { dates, cell: (d,h) => map.get(d+"|"+h) || null };
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════════════════════
+function renderAll() {
+  if (!RECORDS.length) return;
+  el("empty-state").classList.add("hidden");
+  el("results").classList.remove("hidden");
+
+  const stats = hourlyStats(RECORDS);
+  const g = grid(RECORDS);
+
+  el("scope-label").textContent =
+    `— ${el("in-node").value} · ${g.dates[0]}→${g.dates[g.dates.length-1]} · ${g.dates.length} day(s)`;
+
+  renderKpis(stats, g);
+  renderTrend(stats);
+  renderHeatmap(stats, g);
+  renderTable(stats, g);
+}
+
+function fmt(n, d=0) {
+  if (n == null || isNaN(n)) return "—";
+  return Number(n).toLocaleString(undefined, {maximumFractionDigits:d, minimumFractionDigits:d});
+}
+function pct(u) { return u == null ? "—" : Math.round(u*100) + "%"; }
+
+function renderKpis(stats, g) {
+  const withLoad = stats.filter(s => s.medLoad != null);
+  const peak = withLoad.reduce((a,b)=> (b.medLoad > (a?.medLoad ?? -1) ? b : a), null);
+  const withUtil = stats.filter(s => s.medUtil != null);
+  const peakU = withUtil.reduce((a,b)=> (b.medUtil > (a?.medUtil ?? -1) ? b : a), null);
+  const avgU = withUtil.length ? withUtil.reduce((s,x)=>s+x.medUtil,0)/withUtil.length : null;
+  const overHours = withUtil.filter(s => s.medUtil > 1).length;
+
+  // busiest single day by total load
+  const dayTotals = g.dates.map(d => ({ d, t: sumDay(g,d) }));
+  const busiest = dayTotals.reduce((a,b)=> b.t > (a?.t ?? -1) ? b : a, null);
+
+  el("kpi-title").textContent = "Summary — median hourly profile";
+  el("kpi-sub").textContent = peakU
+    ? `Heaviest hour (by median utilization) is ${hh(peakU.hour)} at ${pct(peakU.medUtil)} of capacity.`
+    : "Capacity not present in the data — utilization/heaviness needs a capacity field.";
+
+  const tiles = [];
+  tiles.push(kpi("Peak median load", peak ? fmt(peak.medLoad) : "—",
+    peak ? `at ${hh(peak.hour)}` : "no load field"));
+  tiles.push(kpi("Peak median heaviness", peakU ? pct(peakU.medUtil) : "—",
+    peakU ? `at ${hh(peakU.hour)}` : "no capacity field", peakU && peakU.medUtil > 1));
+  tiles.push(kpi("Avg heaviness (all hrs)", avgU != null ? pct(avgU) : "—",
+    withUtil.length ? `${withUtil.length} hrs measured` : "—"));
+  tiles.push(kpi("Hours over capacity", overHours + "", overHours ? "median &gt;100%" : "none at median", overHours>0));
+  tiles.push(kpi("Busiest day", busiest ? busiest.d.slice(5) : "—",
+    busiest ? `${fmt(busiest.t)} total load` : "—"));
+
+  el("kpi-row").innerHTML = tiles.join("");
+}
+function sumDay(g, d) { let s=0; for (let h=0;h<24;h++){ const c=g.cell(d,h); if(c) s+=c.load; } return s; }
+function kpi(label, val, note, hot=false) {
+  return `<div class="kpi ${hot?'hot':''}"><div class="k-label">${label}</div>
+    <div class="k-val">${val}</div><div class="k-note">${note}</div></div>`;
+}
+function hh(h) { return String(h).padStart(2,"0") + ":00"; }
+
+// ── Trend: median load line + min→max band ──────────────────────────────────
+function renderTrend(stats) {
+  const W = 1100, H = 340, m = { t: 16, r: 16, b: 42, l: 60 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const pts = stats.filter(s => s.medLoad != null);
+  if (!pts.length) { el("trend-chart").innerHTML = note("No load values found."); return; }
+
+  const maxY = Math.max(...stats.map(s => s.maxLoad ?? s.medLoad ?? 0), 1) * 1.08;
+  const x = h => m.l + (h/23) * iw;
+  const y = v => m.t + ih - (v/maxY) * ih;
+
+  // gridlines + y labels
+  let g = "";
+  const ticks = niceTicks(maxY, 5);
+  for (const t of ticks) {
+    g += `<line class="gridline" x1="${m.l}" y1="${y(t)}" x2="${m.l+iw}" y2="${y(t)}"/>`;
+    g += `<text class="axis-label" x="${m.l-8}" y="${y(t)+3}" text-anchor="end">${fmt(t)}</text>`;
+  }
+  // x labels every 2h
+  let xl = "";
+  for (let h=0; h<24; h+=2) xl += `<text class="axis-label" x="${x(h)}" y="${m.t+ih+16}" text-anchor="middle">${String(h).padStart(2,"0")}</text>`;
+  xl += `<text class="axis-title" x="${m.l+iw/2}" y="${H-4}" text-anchor="middle">Hour of day</text>`;
+  xl += `<text class="axis-title" transform="translate(14,${m.t+ih/2}) rotate(-90)" text-anchor="middle">Load (units)</text>`;
+
+  // band (min→max) — only where we have >1 day of spread
+  const haveBand = stats.some(s => s.maxLoad != null && s.minLoad != null && s.maxLoad !== s.minLoad);
+  let band = "";
+  if (haveBand) {
+    const top = stats.map(s => s.medLoad!=null ? `${x(s.hour)},${y(s.maxLoad ?? s.medLoad)}` : null).filter(Boolean);
+    const bot = stats.map(s => s.medLoad!=null ? `${x(s.hour)},${y(s.minLoad ?? s.medLoad)}` : null).filter(Boolean).reverse();
+    band = `<polygon points="${top.concat(bot).join(" ")}" fill="var(--series-band)" stroke="none"/>`;
+  }
+
+  // median line
+  const line = pts.map((s,i)=> `${i?'L':'M'}${x(s.hour)},${y(s.medLoad)}`).join(" ");
+  let dots = "";
+  for (const s of pts) dots += `<circle cx="${x(s.hour)}" cy="${y(s.medLoad)}" r="3.4" fill="var(--series-1)"
+      data-h="${s.hour}" data-med="${s.medLoad}" data-min="${s.minLoad}" data-max="${s.maxLoad}" data-util="${s.medUtil ?? ''}"/>`;
+
+  el("trend-chart").innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Median ARC load by hour of day">
+      ${g}${band}
+      <line class="baseline" x1="${m.l}" y1="${m.t+ih}" x2="${m.l+iw}" y2="${m.t+ih}"/>
+      <path d="${line}" fill="none" stroke="var(--series-1)" stroke-width="2" stroke-linejoin="round"/>
+      ${dots}${xl}
+    </svg>`;
+
+  attachTrendHover();
+}
+
+// ── Heatmap: day (rows) × hour (cols), heaviness = load/capacity ────────────
+function renderHeatmap(stats, g) {
+  const rows = g.dates.length;
+  const cellW = 40, cellH = 30, labelW = 92, top = 24, gap = 2;
+  const W = labelW + 24*cellW + 12;
+  const H = top + rows*cellH + 34;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ARC heaviness by day and hour">`;
+  // hour headers
+  for (let h=0; h<24; h++) if (h%2===0)
+    svg += `<text class="axis-label" x="${labelW + h*cellW + cellW/2}" y="${top-8}" text-anchor="middle">${String(h).padStart(2,"0")}</text>`;
+  svg += `<text class="axis-title" x="${labelW + 24*cellW/2}" y="${H-6}" text-anchor="middle">Hour of day →</text>`;
+
+  g.dates.forEach((d, ri) => {
+    const yy = top + ri*cellH;
+    svg += `<text class="axis-label" x="${labelW-10}" y="${yy+cellH/2+3}" text-anchor="end">${dowLabel(d)}</text>`;
+    for (let h=0; h<24; h++) {
+      const c = g.cell(d,h);
+      const xx = labelW + h*cellW;
+      let fill = "var(--surface-1)", stroke = "var(--gridline)", tip = "no data";
+      if (c && c.util != null) {
+        fill = heavinessColor(c.util);
+        if (c.util > 1) stroke = CRITICAL;
+        tip = `${pct(c.util)} · load ${fmt(c.load)} / cap ${fmt(c.capacity)}`;
+      } else if (c && c.load) {
+        fill = "var(--chip-bg)"; tip = `load ${fmt(c.load)} · no capacity`;
+      }
+      svg += `<rect x="${xx+gap/2}" y="${yy+gap/2}" width="${cellW-gap}" height="${cellH-gap}" rx="3"
+        fill="${fill}" stroke="${stroke}" stroke-width="${(c&&c.util>1)?1.6:1}"
+        data-tip="${d} ${hh(h)} — ${tip}"></rect>`;
+    }
+  });
+  svg += `</svg>`;
+  el("heat-chart").innerHTML = svg;
+  attachHeatHover();
+}
+
+function heavinessColor(u) {
+  // 0..1 → blue ramp (light→dark). >1 → critical red, deepening.
+  if (u > 1) {
+    const t = Math.min((u - 1) / 0.5, 1);           // 100%→150%+ deepen
+    return mix(CRITICAL, "#7a1414", t);
+  }
+  const idx = Math.min(u, 1) * (BLUE_RAMP.length - 1);
+  const lo = Math.floor(idx), hi = Math.min(lo+1, BLUE_RAMP.length-1);
+  return mix(BLUE_RAMP[lo], BLUE_RAMP[hi], idx - lo);
+}
+
+// ── Table view ──────────────────────────────────────────────────────────────
+function renderTable(stats, g) {
+  let h = `<table class="data"><thead><tr>
+    <th>Hour</th><th>Median load</th><th>Min</th><th>Max</th><th>Median cap</th><th>Median heaviness</th>`;
+  h += g.dates.map(d => `<th>${dowLabel(d)}</th>`).join("");
+  h += `</tr></thead><tbody>`;
+  for (const s of stats) {
+    h += `<tr><td>${hh(s.hour)}</td>
+      <td class="num">${fmt(s.medLoad)}</td><td class="num">${fmt(s.minLoad)}</td><td class="num">${fmt(s.maxLoad)}</td>
+      <td class="num">${fmt(s.medCap)}</td>
+      <td class="num" style="${s.medUtil>1?'color:var(--critical);font-weight:700':''}">${pct(s.medUtil)}</td>`;
+    h += g.dates.map(d => { const c=g.cell(d,s.hour);
+      return `<td class="num" style="${c&&c.util>1?'color:var(--critical);font-weight:700':''}">${c?pct(c.util):'—'}</td>`; }).join("");
+    h += `</tr>`;
+  }
+  h += `</tbody></table>`;
+  el("table-view").innerHTML = h;
+}
+function toggleTable() {
+  const t = el("table-view"); const open = t.classList.toggle("hidden");
+  el("tbl-toggle").textContent = open ? "Show data table ▾" : "Hide data table ▴";
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  HOVER / TOOLTIP
+// ══════════════════════════════════════════════════════════════════════════
+const tip = el("tooltip");
+function moveTip(e, html) {
+  tip.innerHTML = html; tip.classList.add("show");
+  let x = e.clientX + 14, y = e.clientY + 14;
+  const r = tip.getBoundingClientRect();
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+function hideTip() { tip.classList.remove("show"); }
+
+function attachTrendHover() {
+  el("trend-chart").querySelectorAll("circle").forEach(c => {
+    c.addEventListener("mousemove", e => {
+      const h = c.dataset, u = h.util ? ` · <b>${pct(+h.util)}</b> of cap` : "";
+      moveTip(e, `<b>${hh(+h.h)}</b><br>median <b>${fmt(+h.med)}</b>${u}<br>range ${fmt(+h.min)}–${fmt(+h.max)}`);
+    });
+    c.addEventListener("mouseleave", hideTip);
+    c.setAttribute("r","5"); c.style.cursor = "crosshair";
+    c.addEventListener("mouseleave", () => c.setAttribute("r","3.4"));
+    c.addEventListener("mousemove", () => c.setAttribute("r","5"));
+  });
+}
+function attachHeatHover() {
+  el("heat-chart").querySelectorAll("rect").forEach(r => {
+    r.style.cursor = "crosshair";
+    r.addEventListener("mousemove", e => moveTip(e, r.dataset.tip.replace(" — ", "<br>")));
+    r.addEventListener("mouseleave", hideTip);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  DATA SOURCES
+// ══════════════════════════════════════════════════════════════════════════
+function ingest(json, sourceLabel) {
+  const node = el("in-node").value.trim();
+  const recs = normalizeArcRecords(json, node, el("in-start").value);
+  const usable = recs.filter(r => r.load != null);
+  if (!usable.length) { showBanner("parse"); return false; }
+  RECORDS = recs; SOURCE = sourceLabel; clearBanners();
+  renderAll();
+  return true;
+}
+
+// -- Paste JSON --
+function showJsonModal(){ el("json-modal").classList.add("show"); }
+function hideJsonModal(){ el("json-modal").classList.remove("show"); }
+function applyPastedJson() {
+  const raw = el("json-input").value.trim();
+  if (!raw) return;
+  let json; try { json = JSON.parse(raw); } catch (e) { alert("That isn't valid JSON:\n" + e.message); return; }
+  if (ingest(json, "pasted JSON")) hideJsonModal();
+}
+
+// -- Live fetch via proxy --
+async function fetchLive() {
+  clearBanners();
+  const url = el("in-url").value.trim();
+  if (!url) { showBanner("noUrl"); return; }
+  const btn = el("btn-fetch"); btn.classList.add("loading"); btn.disabled = true;
+  try {
+    const healthy = await checkHealth();
+    if (el("proxy-status").dataset.state === "offline") return;
+    const r = await fetch(`${PROXY_BASE}/fetch?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(30000) });
+    if (r.headers.get("X-Proxy-Auth-Error") === "true") {
+      const b = await r.json().catch(()=>({}));
+      if (b.error === "host_not_allowed") { alert(b.message); }
+      else { setStatus("auth-required"); showBanner("auth"); }
+      return;
+    }
+    const json = await r.json();
+    if (ingest(json, "live")) setStatus("connected");
+  } catch (err) {
+    if (err.name === "TimeoutError") { showBanner("noProxy"); setStatus("offline"); }
+    else { setStatus("error"); alert("Fetch failed: " + err.message); }
+  } finally { btn.classList.remove("loading"); btn.disabled = false; }
+}
+
+// -- Demo data (deterministic; realistic double-peak curve) --
+function loadDemo() {
+  const start = el("in-start").value || "2026-07-13";
+  let end = el("in-end").value || start;
+  // widen demo to >=5 days so the median has substance
+  const days = expandDates(start, end, 5);
+  const CAP = 1250;
+  const recs = [];
+  days.forEach((d, di) => {
+    const seed = hashStr(d);
+    for (let h=0; h<24; h++) {
+      // two humps: ~10:00 and ~20:00
+      const hump = Math.exp(-((h-10)**2)/12) * 0.85 + Math.exp(-((h-20)**2)/9) * 1.0;
+      const base = 0.10 + hump;                      // 0.10..~1.15 of capacity
+      const jitter = 0.9 + rand(seed + h*7) * 0.25;  // day-to-day variation
+      const dow = (new Date(d).getDay()===0||new Date(d).getDay()===6) ? 0.82 : 1.0; // lighter weekends
+      const load = Math.round(CAP * base * jitter * dow);
+      const cap  = CAP + Math.round((rand(seed+h)-0.5)*80);
+      recs.push({ dateISO: d, hour: h, load, capacity: cap });
+    }
+  });
+  RECORDS = recs; SOURCE = "demo";
+  clearBanners();
+  renderAll();
+  showBanner("info-demo");
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  PROXY HEALTH / COOKIE
+// ══════════════════════════════════════════════════════════════════════════
+const STATUS = { unknown:"Checking proxy…", connected:"Connected", "auth-required":"Auth required",
+  stale:"Session stale", offline:"Proxy offline", error:"Error" };
+function setStatus(s){ el("proxy-status").dataset.state = s; el("proxy-status-label").textContent = STATUS[s] ?? s; }
+function clearBanners(){ Object.values(banners).forEach(b=>b&&b.classList.remove("show")); }
+function showBanner(k){ clearBanners(); banners[k]?.classList.add("show"); }
+
+async function checkHealth() {
+  try {
+    const r = await fetch(`${PROXY_BASE}/health`, { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    if (d.status === "ok" || d.manualCookie) { setStatus("connected"); return true; }
+    if (d.status === "stale") { setStatus("stale"); showBanner("stale"); return true; }
+    setStatus("auth-required"); showBanner("auth"); return false;
+  } catch { setStatus("offline"); showBanner("noProxy"); return false; }
+}
+function showCookieModal(){ el("cookie-modal").classList.add("show"); }
+function hideCookieModal(){ el("cookie-modal").classList.remove("show"); }
+async function saveCookie() {
+  const v = el("cookie-input").value.trim(); if (!v) return;
+  try { await fetch(`${PROXY_BASE}/set-cookie`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({cookie:v}) });
+    hideCookieModal(); fetchLive();
+  } catch { alert("Could not reach proxy. Is python arc_proxy.py running?"); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  UTILITIES
+// ══════════════════════════════════════════════════════════════════════════
+function getCss(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function note(t){ return `<div class="empty-state"><p>${t}</p></div>`; }
+function niceTicks(max, n){ const step = niceNum(max/n); const out=[]; for(let v=0; v<=max; v+=step) out.push(v); return out; }
+function niceNum(x){ const e=Math.pow(10,Math.floor(Math.log10(x))); const f=x/e; const nf = f<1.5?1:f<3?2:f<7?5:10; return nf*e; }
+function dowLabel(iso){ const d=new Date(iso+"T00:00:00"); return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()] + " " + iso.slice(5); }
+function expandDates(start, end, minDays){
+  const s=new Date(start+"T00:00:00"); let e=new Date(end+"T00:00:00");
+  const out=[]; let cur=new Date(s);
+  while (cur <= e) { out.push(isoDate(cur)); cur.setDate(cur.getDate()+1); }
+  while (out.length < minDays) { const d=new Date(out[0]+"T00:00:00"); d.setDate(d.getDate()-1); out.unshift(isoDate(d)); }
+  return out;
+}
+function hashStr(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return (h>>>0); }
+function rand(seed){ let t = seed + 0x6D2B79F5; t = Math.imul(t ^ t>>>15, t|1); t ^= t + Math.imul(t ^ t>>>7, t|61); return ((t ^ t>>>14)>>>0)/4294967296; }
+function mix(a,b,t){ const ca=hex(a), cb=hex(b);
+  const r=Math.round(ca[0]+(cb[0]-ca[0])*t), g=Math.round(ca[1]+(cb[1]-ca[1])*t), bl=Math.round(ca[2]+(cb[2]-ca[2])*t);
+  return `rgb(${r},${g},${bl})`; }
+function hex(h){ h=h.replace("#",""); if(h.length===3) h=h.split("").map(c=>c+c).join(""); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+
+// info-demo banner is created on the fly
+banners["info-demo"] = (() => {
+  const b = document.createElement("div"); b.className = "banner banner-info";
+  b.innerHTML = "ℹ Showing <strong>demo data</strong> (synthetic double-peak load curve). Use <strong>Paste JSON</strong> or <strong>Fetch live</strong> for real RFD2 numbers.";
+  el("banner-parse").after(b); return b;
+})();
+
+// ── Init ────────────────────────────────────────────────────────────────────
+checkHealth();
+</script>
+</body>
+</html>
