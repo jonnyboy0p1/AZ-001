@@ -1,7 +1,7 @@
-# ARC Capacity — load median & heaviness by hour
+# ARC Capacity — load median & heaviness (Crossdock + DockFlow)
 
 A local tool that turns Crossdock Manager (Harmony) **arc-capacity** data for a
-node (e.g. RFD2) into two views:
+node (e.g. RFD2) into:
 
 - **ARC load median, hour by hour** — the median load across the selected days
   for each hour of day, with the day-to-day spread (min→max band). This is the
@@ -13,8 +13,29 @@ node (e.g. RFD2) into two views:
 Plus a summary (peak load hour, peak heaviness, hours over capacity, busiest
 day) and a full data table.
 
-Nothing leaves your machine except the authenticated request to the internal
-endpoint.
+## Blending in DockFlow (userscript v2)
+
+The Tampermonkey userscript also runs on **DockFlow**
+(`*.dockflow.robotics.a2z.com`) and blends live sortation data into the same
+view:
+
+- **Sorter Arc utilization** (MainSorter/Sorter) — per-Arc Utilization + Recircs,
+  overlaid as **live actual** on the current hour's cell in the heaviness grid
+  (marked with a gold ring), with an *actual − plan* delta. Also shown as a
+  per-Arc bar list.
+- **Allocation plan by destination** (IxdOutbound) — planned outbound allocation
+  per destination.
+- **Routing profiles & load doors** (IxdOutbound) — top routing profiles by PID
+  total and fluid load doors by recircs.
+
+Captures are shared across the Crossdock and DockFlow tabs via Tampermonkey
+storage, so the panel fuses everything regardless of which tab you open it on.
+The Summary KPIs become **plan vs. live**: live Arc utilization, planned
+heaviness for the current hour, the actual−plan delta, the peak live Arc, and
+total live recircs.
+
+Nothing leaves your machine except the authenticated requests the pages already
+make in your session.
 
 ## Two ways to run it
 
@@ -31,16 +52,27 @@ tolerant field normalizer.
 1. Install the [Tampermonkey](https://www.tampermonkey.net/) browser extension.
 2. Open `arc-capacity.user.js` → Tampermonkey will offer to install it (or
    create a new script and paste the file contents).
-3. Go to Crossdock Manager and open the **arc-capacity** view for your node
-   (e.g. `…/#/dice/na/arc-capacity?...&nodes=RFD2&startDate=…&endDate=…`).
-4. Click the floating **📊 ARC** button (bottom-right). A badge appears once it
-   has captured the load/capacity data from the page's own network calls.
+3. Open the views you want blended, for your node:
+   - Crossdock Manager **arc-capacity**
+     (`…/#/dice/na/arc-capacity?...&nodes=RFD2&startDate=…&endDate=…`)
+   - DockFlow **MainSorter/Sorter** (`…/RFD2/wc/MainSorter/Sorter`)
+   - DockFlow **IxdOutbound** (`…/RFD2/ap/IxdOutbound/IxdOutbound`)
+4. Click the floating **📊 ARC** button (bottom-right). The badge shows how many
+   of the five sources have been captured; the Summary lists which
+   (`Crossdock ✓ · Sorter ✓ · Alloc ✓ · Profiles ✓ · Doors ✓`).
 
 Because it runs inside your logged-in session, there's no Midway cookie handling
-and no need to know the data API — it watches `fetch`/`XHR` and picks up the
-arc-capacity response automatically. Node and dates are read from the page URL.
-There's a **📋 Paste JSON** fallback, and **↗ Dashboard** posts the captured
-data to the local `server.py` bridge (port 5220) if you're running it.
+and no need to know the data APIs — it watches `fetch`/`XHR` and routes each
+response to the right source by its fields. Node and dates are read from the
+page URL. **✨ Demo** previews the whole blended layout with synthetic data,
+**📋 Paste JSON** analyzes a response you copied, and **↗ Dashboard** posts the
+captured data to the local `server.py` bridge (port 5220).
+
+> **Field mapping:** each source has a tolerant normalizer that matches common
+> column names case/whitespace-insensitively (`Utilization`, `PID Total`,
+> `Recircs\n15min`, `arcLoad`/`arcCapacity`, `Destination`, …). If a live
+> response uses a name it doesn't know, Paste JSON will say so — the fix is
+> adding the name to the relevant `*_KEYS` array near the top of the script.
 
 ## Option B — Standalone page + proxy
 
