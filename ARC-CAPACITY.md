@@ -13,27 +13,54 @@ node (e.g. RFD2) into:
 Plus a summary (peak load hour, peak heaviness, hours over capacity, busiest
 day) and a full data table.
 
-## Blending in DockFlow (userscript v2)
+## Predictive Arc heaviness (userscript v3)
 
-The Tampermonkey userscript also runs on **DockFlow**
-(`*.dockflow.robotics.a2z.com`) and blends live sortation data into the same
-view:
+The unit of analysis is the **destination Arc** (`DTW1`, `LUK2`, `KRB6`,
+`MSP1`, …) — the shared key across Crossdock Manager, DockFlow, and the DDs.
+The userscript runs on Crossdock **and** DockFlow (`*.dockflow.robotics.a2z.com`)
+and forecasts **which Arc will be extremely heavy in which upcoming hour**,
+using the live **inbound throw** as the leading signal.
 
-- **Sorter Arc utilization** (MainSorter/Sorter) — per-Arc Utilization + Recircs,
-  overlaid as **live actual** on the current hour's cell in the heaviness grid
-  (marked with a gold ring), with an *actual − plan* delta. Also shown as a
-  per-Arc bar list.
-- **Allocation plan by destination** (IxdOutbound) — planned outbound allocation
-  per destination.
-- **Routing profiles & load doors** (IxdOutbound) — top routing profiles by PID
-  total and fluid load doors by recircs.
+### The model
+
+For each Arc and each upcoming hour:
+
+```
+predicted heaviness = plan heaviness × inbound-surge   (lead-time shifted)
+plan heaviness      = Crossdock arc-capacity  load ÷ capacity   (per Arc, per hour)
+inbound-surge       = this Arc's live inbound share ÷ its planned share
+```
+
+- **Plan** comes from Crossdock Manager `arc-capacity` (per-Arc load & capacity).
+- **Inbound throw** is blended from DockFlow **IXDInbound** routing profiles +
+  fluid load doors and the **Command Center (cc)** per-Arc counts. An Arc pulling
+  a bigger share of inbound than its plan expects gets a surge multiplier > 1.
+- **Lead time** shifts that surge forward — inbound now lands on the outbound Arc
+  ~N minutes later — so it's applied to the hours *after* the lead.
+- **Current backlog** = live outbound Arc utilization + recircs from the
+  **Sorter** (IxdOutbound), used as the floor for the current hour.
+
+### The view
+
+- **Predicted heaviness — Arc × upcoming hour** grid: rows = Arcs (sorted by peak
+  predicted heaviness), columns = the next *N* hours. Darker = heavier;
+  **red = over capacity**; a **gold border** marks the hours the surge is applied.
+- **Predicted hotspots** — the Arc/hours expected to exceed the threshold, worst
+  first (e.g. `Arc ATL6 · 15:00 · 126% (plan 100%, surge ×1.26)`).
+- **Forecast KPIs** — hottest Arc/period, Arc-hours over capacity, biggest inbound
+  surge, live inbound total.
+- Supporting cards: live inbound throw by Arc, live outbound Arc utilization,
+  allocation by destination, routing profiles & load doors.
+
+### Tunable (in-panel sliders)
+
+- **Lead** — inbound → outbound lag (default 90 min).
+- **Horizon** — how many hours ahead to project (default 6).
+- **Heavy ≥** — the "extremely heavy" threshold (default 100% of capacity).
+- **Top arcs** — how many Arc rows to show (default 15).
 
 Captures are shared across the Crossdock and DockFlow tabs via Tampermonkey
-storage, so the panel fuses everything regardless of which tab you open it on.
-The Summary KPIs become **plan vs. live**: live Arc utilization, planned
-heaviness for the current hour, the actual−plan delta, the peak live Arc, and
-total live recircs.
-
+storage, so the forecast fuses everything regardless of which tab you open it on.
 Nothing leaves your machine except the authenticated requests the pages already
 make in your session.
 
@@ -53,13 +80,16 @@ tolerant field normalizer.
 2. Open `arc-capacity.user.js` → Tampermonkey will offer to install it (or
    create a new script and paste the file contents).
 3. Open the views you want blended, for your node:
-   - Crossdock Manager **arc-capacity**
+   - Crossdock Manager **arc-capacity** — per-Arc plan
      (`…/#/dice/na/arc-capacity?...&nodes=RFD2&startDate=…&endDate=…`)
-   - DockFlow **MainSorter/Sorter** (`…/RFD2/wc/MainSorter/Sorter`)
-   - DockFlow **IxdOutbound** (`…/RFD2/ap/IxdOutbound/IxdOutbound`)
+   - DockFlow **IXDInbound** — inbound throw (`…/RFD2/ap/IXDInbound/IXDInbound`)
+   - DockFlow **Command Center** — per-Arc counts (`…/RFD2/cc`)
+   - DockFlow **MainSorter/Sorter** — live outbound (`…/RFD2/wc/MainSorter/Sorter`)
+   - DockFlow **IxdOutbound** — allocation & routing (`…/RFD2/ap/IxdOutbound/IxdOutbound`)
 4. Click the floating **📊 ARC** button (bottom-right). The badge shows how many
-   of the five sources have been captured; the Summary lists which
-   (`Crossdock ✓ · Sorter ✓ · Alloc ✓ · Profiles ✓ · Doors ✓`).
+   sources have been captured; the Summary groups them
+   (`Plan ✓ · Inbound ✓ · CC ✓ · Live out ✓ · Alloc/Routing ✓`). It captures
+   inbound vs. outbound routing/doors automatically by which page they came from.
 
 Because it runs inside your logged-in session, there's no Midway cookie handling
 and no need to know the data APIs — it watches `fetch`/`XHR` and routes each
