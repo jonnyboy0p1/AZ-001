@@ -40,17 +40,21 @@ inbound-surge       = this Arc's live inbound share ÷ its planned share
 - **Current backlog** = live outbound Arc utilization + recircs from the
   **Sorter** (IxdOutbound), used as the floor for the current hour.
 
-### The view
+### The view (three tabs)
 
-- **Predicted heaviness — Arc × upcoming hour** grid: rows = Arcs (sorted by peak
-  predicted heaviness), columns = the next *N* hours. Darker = heavier;
-  **red = over capacity**; a **gold border** marks the hours the surge is applied.
-- **Predicted hotspots** — the Arc/hours expected to exceed the threshold, worst
-  first (e.g. `Arc ATL6 · 15:00 · 126% (plan 100%, surge ×1.26)`).
-- **Forecast KPIs** — hottest Arc/period, Arc-hours over capacity, biggest inbound
-  surge, live inbound total.
-- Supporting cards: live inbound throw by Arc, live outbound Arc utilization,
-  allocation by destination, routing profiles & load doors.
+- **Forecast**
+  - **Predicted heaviness — Arc × upcoming hour** grid: rows = Arcs (sorted by
+    peak predicted heaviness), columns = the next *N* hours. Darker = heavier;
+    **red = over capacity**; a **gold border** marks the hours the surge is applied.
+  - **Predicted hotspots** — the Arc/hours expected to exceed the threshold, worst
+    first (e.g. `Arc ATL6 · 15:00 · 126% (plan 100%, surge ×1.26)`).
+  - **Forecast KPIs** — hottest Arc/period, Arc-hours over capacity, biggest
+    inbound surge, live inbound total.
+- **By Arc** — a line chart per Arc (small multiples, sorted heaviest-first)
+  showing that Arc's *gravity*: **plan vs. predicted** heaviness across the day,
+  the inbound-surge band, a 100%-capacity reference, and a "now" marker.
+- **Signals** — the supporting cards: live inbound throw by Arc, live outbound
+  Arc utilization, allocation by destination, routing profiles & load doors.
 
 ### Tunable (in-panel sliders)
 

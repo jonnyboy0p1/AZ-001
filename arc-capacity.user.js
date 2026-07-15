@@ -48,7 +48,7 @@
   const INBOUND_KEYS  = ["inbound","inboundunits","received","receivedunits","arriving","arrivals","throw","thrown","incoming","backlog"];
 
   const STORE = {}; SOURCES.forEach(s => STORE[s] = null);
-  let DEMO = false, shadow = null;
+  let DEMO = false, shadow = null, SELECTED_ARC = null, TAB = "forecast";
   const PARAMS = { leadMin: 90, horizon: 6, threshold: 1.0, topN: 15 };
   const q  = s => shadow && shadow.querySelector(s);
   const qa = s => shadow ? [...shadow.querySelectorAll(s)] : [];
@@ -285,8 +285,11 @@
     q("#arc-paste-go").addEventListener("click",applyPaste);
     q("#arc-bridge").addEventListener("click",sendToBridge);
     ["lead","horizon","thr","topn"].forEach(id=> q("#arc-"+id).addEventListener("input",onParam));
+    qa(".arc-tab").forEach(t=> t.addEventListener("click",()=>setTab(t.dataset.tab)));
     loadFromGM(); watchGM(); updateBadge();
   }
+  function setTab(name){ TAB=name; qa(".arc-tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
+    ["forecast","byarc","signals"].forEach(p=>{ const el=q("#pane-"+p); if(el) el.hidden = p!==name; }); }
   function openDrawer(){ q(".arc-drawer").hidden=false; } function closeDrawer(){ q(".arc-drawer").hidden=true; }
   function isOpen(){ return shadow && !q(".arc-drawer").hidden; }
   function onCaptured(){ if(!shadow) return; updateBadge(); if(isOpen()) render(); }
@@ -304,7 +307,7 @@
     q("#arc-empty").hidden=true; q("#arc-results").hidden=false;
     const model=predict();
     q("#arc-scope").textContent = `${currentNode()} · ${model.arcs.length} arcs · lead ${PARAMS.leadMin}m · +${PARAMS.horizon}h`;
-    renderKpis(model); renderPredGrid(model); renderHotspots(model); renderInbound(model); renderLiveArcs(); renderAlloc(); renderRouting();
+    renderKpis(model); renderPredGrid(model); renderHotspots(model); renderByArc(model); renderInbound(model); renderLiveArcs(); renderAlloc(); renderRouting();
     updateBadge();
   }
   function show(sel,on){ const e=q(sel); if(e) e.hidden=!on; }
@@ -352,6 +355,36 @@
     const hs=hotspots(model).slice(0,10);
     if (!hs.length){ q("#arc-hotspots").innerHTML=`<div class="src-hint">No predicted hotspots over ${Math.round(PARAMS.threshold*100)}% in the window. Lower the threshold or extend the horizon.</div>`; return; }
     q("#arc-hotspots").innerHTML = `<div class="hs-list">`+hs.map(h=>`<div class="hs-row"><span class="hs-dot" style="background:${heavinessColor(h.pred)}"></span><b>Arc ${esc(h.arc)}</b><span class="hs-hr">${hh(h.hour)}</span><span class="hs-pred" style="color:${h.pred>=1?CRITICAL:'var(--ink)'}">${pct(h.pred)}</span><span class="hs-meta">plan ${pct(h.plan)} · surge ${fmtX(h.pressure)}</span></div>`).join("")+`</div>`;
+  }
+
+  // ── By Arc: gravity line chart (plan vs predicted heaviness over the day) ──
+  function globalMaxHeaviness(model){ let m=1.15;
+    for (const a of model.arcs){ const row=model.grid.get(a); for(let h=0;h<24;h++){ const p=row[h].pred, pl=row[h].plan; if(p!=null&&p>m)m=p; if(pl!=null&&pl>m)m=pl; } }
+    return m*1.05; }
+  function arcLineSVG(arc, model, o){
+    const {W,H,mini,maxY}=o, m=mini?{t:6,r:6,b:6,l:6}:{t:14,r:16,b:28,l:42}, iw=W-m.l-m.r, ih=H-m.t-m.b;
+    const row=model.grid.get(arc)||[], x=h=>m.l+(h/23)*iw, y=v=>m.t+ih-(Math.min(v,maxY)/maxY)*ih;
+    let g="";
+    if (!mini){
+      [0.5,1.0].concat(maxY>1.5?[1.5]:[]).forEach(t=>{ if(t<=maxY){ g+=`<line class="lc-ref" x1="${m.l}" y1="${y(t)}" x2="${m.l+iw}" y2="${y(t)}" stroke-dasharray="${t===1?'4 3':'2 4'}" opacity="${t===1?0.85:0.4}"/>`; g+=`<text class="ax" x="${m.l-6}" y="${y(t)+3}" text-anchor="end">${Math.round(t*100)}%</text>`; } });
+      for (let h=0;h<24;h+=4) g+=`<text class="ax" x="${x(h)}" y="${m.t+ih+15}" text-anchor="middle">${String(h).padStart(2,"0")}</text>`;
+    } else g+=`<line class="lc-ref" x1="${m.l}" y1="${y(1)}" x2="${m.l+iw}" y2="${y(1)}"/>`;
+    g+=`<line class="lc-now" x1="${x(model.nowHour)}" y1="${m.t}" x2="${x(model.nowHour)}" y2="${m.t+ih}" stroke-width="${mini?1:1.5}"/>`;
+    let band=""; const pts=[]; for(let h=0;h<24;h++){ const c=row[h]; if(c&&c.pred!=null&&c.plan!=null) pts.push(h); }
+    if (pts.length){ const top=pts.map(h=>`${x(h)},${y(Math.max(row[h].pred,row[h].plan))}`); const bot=pts.map(h=>`${x(h)},${y(Math.min(row[h].pred,row[h].plan))}`).reverse(); band=`<polygon points="${top.concat(bot).join(" ")}" fill="var(--band)" stroke="none"/>`; }
+    const linePath=(key,cls,wd)=>{ let d="",st=false; for(let h=0;h<24;h++){ const v=row[h]&&row[h][key]; if(v==null){st=false;continue;} d+=(st?"L":"M")+x(h)+","+y(v); st=true; } return d?`<path class="${cls}" d="${d}" stroke-width="${wd}"/>`:""; };
+    const planLine=linePath("plan","lc-plan",mini?1:1.5), predLine=linePath("pred","lc-pred",mini?1.5:2.4);
+    let dots=""; if(!mini) for(let h=0;h<24;h++){ const c=row[h]; if(c&&c.pred!=null&&c.pred>=1) dots+=`<circle cx="${x(h)}" cy="${y(c.pred)}" r="3" fill="${CRITICAL}"/>`; }
+    return `<svg viewBox="0 0 ${W} ${H}" role="img">${g}${band}${planLine}${predLine}${dots}</svg>`;
+  }
+  function renderByArc(model){
+    if (!model.arcs.length){ q("#arc-multiples").innerHTML=`<div class="src-hint">No per-Arc plan yet — open the Crossdock arc-capacity view.</div>`; return; }
+    const maxY=globalMaxHeaviness(model), win=windowHours(model.nowHour,PARAMS.horizon);
+    const arcPeak=a=>{ const row=model.grid.get(a); let m=-1,ph=null; for(const h of win){ const p=row[h].pred; if(p!=null&&p>m){m=p;ph=h;} } return {peak:m,hour:ph}; };
+    const arcs=model.arcs.slice().sort((a,b)=>arcPeak(b).peak-arcPeak(a).peak);
+    q("#arc-multiples").innerHTML=arcs.map(a=>{ const {peak,hour}=arcPeak(a), over=peak>=PARAMS.threshold, pr=model.pressure.get(a);
+      const meta=`${peak<0?'—':`<b style="color:${over?CRITICAL:'var(--ink)'}">${pct(peak)}</b>`}${hour!=null?` @ ${hh(hour)}`:''}${pr>1.05?` · ${fmtX(pr)}`:''}`;
+      return `<div class="mini"><div class="mini-hd"><b>${esc(a)}</b><span>${meta}</span></div>${arcLineSVG(a,model,{W:480,H:150,mini:false,maxY})}</div>`; }).join("");
   }
 
   function hbars(items,{max,color,valFmt}){ const mx=max??Math.max(...items.map(i=>i.value||0),1);
@@ -463,6 +496,15 @@
     #arc-paste-box{ padding:0 16px 14px; } #arc-paste-input{ width:100%; height:110px; font:11px/1.4 ui-monospace,monospace; padding:8px; border:1px solid var(--chipb); border-radius:6px; background:var(--surf); color:var(--ink); resize:vertical; }
     .arc-paste-row{ display:flex; gap:8px; justify-content:flex-end; margin-top:8px; }
     #arc-tip{ position:fixed; z-index:2147483002; pointer-events:none; opacity:0; transition:opacity .08s; background:var(--ink); color:var(--plane); font-size:11.5px; line-height:1.45; padding:7px 9px; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.3); max-width:240px; } #arc-tip.show{ opacity:1; }
+    .arc-tabs{ display:flex; gap:4px; margin-bottom:14px; border-bottom:1px solid var(--border); }
+    .arc-tab{ background:none; border:none; border-bottom:2px solid transparent; color:var(--ink2); font:600 13px system-ui; padding:8px 14px; cursor:pointer; }
+    .arc-tab:hover{ color:var(--ink); } .arc-tab.active{ color:var(--s1); border-bottom-color:var(--s1); }
+    #arc-multiples{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; } @media (max-width:660px){ #arc-multiples{ grid-template-columns:minmax(0,1fr); } }
+    .mini{ min-width:0; background:var(--plane); border:1px solid var(--border); border-radius:8px; padding:9px 12px 6px; }
+    .mini-hd{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:2px; }
+    .mini-hd b{ font-size:13px; } .mini-hd span{ font-size:11.5px; font-variant-numeric:tabular-nums; color:var(--ink2); }
+    .lc-plan{ stroke:var(--muted); fill:none; } .lc-pred{ stroke:var(--s1); fill:none; } .lc-ref{ stroke:${CRITICAL}; stroke-dasharray:4 3; opacity:.85; } .lc-now{ stroke:${GOLD}; opacity:.9; }
+    .lc-lab{ fill:var(--ink2); font-size:11px; font-weight:600; }
     code{ background:var(--chip); border:1px solid var(--chipb); border-radius:3px; padding:1px 5px; font-size:11px; }
   </style>`;
 
@@ -494,17 +536,32 @@
         <div id="arc-empty" class="arc-empty"><div class="i">🔮</div><h3>Waiting for ARC data</h3>
           <p>Open, for your node: Crossdock <b>arc-capacity</b> (per-Arc plan), DockFlow <b>IXDInbound</b> (inbound throw), <b>IxdOutbound / Sorter</b> (live outbound), and <b>cc</b> (command center). This script captures each and forecasts which Arc goes heavy when. Or click <b>✨ Demo</b>.</p></div>
         <div id="arc-results" hidden>
-          <div class="arc-card"><h2>Forecast summary</h2><p id="arc-kpi-sub"></p><div class="arc-kpis" id="arc-kpi"></div></div>
-          <div class="arc-card"><h2>Predicted heaviness — Arc × upcoming hour</h2>
-            <p>Each cell = <b>predicted</b> heaviness (load ÷ capacity) for that Arc in that hour = Crossdock plan × lead-shifted live inbound surge. Darker = heavier; <b style="color:${CRITICAL}">red = over capacity</b>; <b style="color:${GOLD}">gold border</b> = hours the inbound surge is applied (after lead time).</p>
-            <div id="arc-grid"></div>
-            <div class="legend"><span>0%</span><span class="ramp"></span><span>100%</span><span><span class="swatch sw-red"></span> over cap</span><span><span class="swatch sw-gold"></span> surge applied</span></div>
+          <div class="arc-tabs">
+            <button class="arc-tab active" data-tab="forecast">Forecast</button>
+            <button class="arc-tab" data-tab="byarc">By Arc</button>
+            <button class="arc-tab" data-tab="signals">Signals</button>
           </div>
-          <div class="arc-card"><h2>Predicted hotspots</h2><p>Arc/hours predicted to exceed the threshold, worst first.</p><div id="arc-hotspots"></div></div>
-          <div class="arc-card" id="card-inbound"><h2>Live inbound throw by Arc</h2><p>Blended inbound signal per Arc (IXDInbound routing profiles + load doors + Command Center). Orange = surging vs plan.</p><div id="arc-dock-inbound"></div></div>
-          <div class="arc-card" id="card-arcs"><h2>Live outbound Arc utilization</h2><p>Per-Arc utilization + recircs from DockFlow Sorter (the current backlog the forecast builds on).</p><div id="arc-dock-arcs"></div></div>
-          <div class="arc-card" id="card-alloc"><h2>Allocation plan by destination</h2><p>Planned outbound allocation per destination (IxdOutbound).</p><div id="arc-dock-alloc"></div></div>
-          <div class="arc-card" id="card-routing"><h2>Routing profiles &amp; load doors</h2><p>Outbound routing profiles by PID total and fluid load doors by recircs.</p><div id="arc-dock-routing"></div></div>
+
+          <div id="pane-forecast" class="arc-pane">
+            <div class="arc-card"><h2>Forecast summary</h2><p id="arc-kpi-sub"></p><div class="arc-kpis" id="arc-kpi"></div></div>
+            <div class="arc-card"><h2>Predicted heaviness — Arc × upcoming hour</h2>
+              <p>Each cell = <b>predicted</b> heaviness (load ÷ capacity) for that Arc in that hour = Crossdock plan × lead-shifted live inbound surge. Darker = heavier; <b style="color:${CRITICAL}">red = over capacity</b>; <b style="color:${GOLD}">gold border</b> = hours the inbound surge is applied (after lead time).</p>
+              <div id="arc-grid"></div>
+              <div class="legend"><span>0%</span><span class="ramp"></span><span>100%</span><span><span class="swatch sw-red"></span> over cap</span><span><span class="swatch sw-gold"></span> surge applied</span></div>
+            </div>
+            <div class="arc-card"><h2>Predicted hotspots</h2><p>Arc/hours predicted to exceed the threshold, worst first.</p><div id="arc-hotspots"></div></div>
+          </div>
+
+          <div id="pane-byarc" class="arc-pane" hidden>
+            <div class="arc-card"><h2>Gravity by Arc</h2><p>One line per Arc — <b style="color:var(--s1)">predicted</b> vs <b style="color:var(--muted)">plan</b> heaviness across the day. Band = the inbound-surge lift; <b style="color:${CRITICAL}">red dashed = 100% capacity</b>; <b style="color:${GOLD}">gold = now</b>. Shared scale, so a taller curve = a heavier Arc.</p><div id="arc-multiples"></div></div>
+          </div>
+
+          <div id="pane-signals" class="arc-pane" hidden>
+            <div class="arc-card" id="card-inbound"><h2>Live inbound throw by Arc</h2><p>Blended inbound signal per Arc (IXDInbound routing profiles + load doors + Command Center). Orange = surging vs plan.</p><div id="arc-dock-inbound"></div></div>
+            <div class="arc-card" id="card-arcs"><h2>Live outbound Arc utilization</h2><p>Per-Arc utilization + recircs from DockFlow Sorter (the current backlog the forecast builds on).</p><div id="arc-dock-arcs"></div></div>
+            <div class="arc-card" id="card-alloc"><h2>Allocation plan by destination</h2><p>Planned outbound allocation per destination (IxdOutbound).</p><div id="arc-dock-alloc"></div></div>
+            <div class="arc-card" id="card-routing"><h2>Routing profiles &amp; load doors</h2><p>Outbound routing profiles by PID total and fluid load doors by recircs.</p><div id="arc-dock-routing"></div></div>
+          </div>
         </div>
       </div>
     </section>
