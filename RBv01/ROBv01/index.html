@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Marks this page as the OB Report Card so the bridge userscript recognizes it. -->
+  <meta name="ob-report-card" content="v2.1" />
+  <title>OB Period Report Card</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#020817; --panel:#0b1220; --panel2:#0f1b30; --line:rgba(148,163,184,.22);
+      --text:#e5edf8; --muted:#94a3b8; --blue:#2563eb; --blue2:#3b82f6;
+      --green:#22c55e; --amber:#f59e0b; --red:#ef4444; --grey:#64748b;
+    }
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.4;padding-bottom:40px}
+
+    /* Header */
+    .top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 18px;background:linear-gradient(180deg,#0f1b30,#0b1220);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+    .top h1{font-size:16px;font-weight:800;letter-spacing:.3px;margin-right:auto}
+    .top h1 small{color:var(--muted);font-weight:600;font-size:11px;display:block}
+    .ctrl{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+    .ctrl input,.ctrl select{background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:12px}
+    .pill{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:11px;white-space:nowrap}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--grey);flex-shrink:0}
+    .pill[data-state="live"] .dot{background:var(--green);box-shadow:0 0 8px var(--green)}
+    .pill[data-state="stale"] .dot{background:var(--amber)}
+    .pill[data-state="off"] .dot{background:var(--grey)}
+
+    .btn{border:0;border-radius:8px;background:#1e293b;color:#fff;font-weight:700;font-size:12px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+    .btn:hover{filter:brightness(1.18)}
+    .btn.blue{background:var(--blue)}
+
+    /* Layout */
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:14px;padding:16px 18px;max-width:1500px;margin:0 auto}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 8px 22px rgba(0,0,0,.3)}
+    .card.span2{grid-column:1/-1}
+    .card-h{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--panel2);border-bottom:1px solid var(--line)}
+    .card-h h2{font-size:13px;font-weight:800;letter-spacing:.4px;text-transform:uppercase}
+    .card-h .age{margin-left:auto;font-size:10px;color:var(--muted);font-weight:600}
+    .card-b{padding:12px 14px}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:7px 9px;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+    th:first-child,td:first-child{text-align:left}
+    thead th{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#9fb4d6;border-bottom:1px solid var(--line)}
+    tbody tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+    tbody tr.total td{background:rgba(37,99,235,.16);font-weight:800;border-top:1px solid rgba(59,130,246,.4)}
+    td.k{color:var(--muted)}
+    .big{font-weight:800;font-size:15px}
+    .pos{color:var(--green)} .neg{color:var(--red)}
+
+    /* Stat tiles */
+    .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+    .tile{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
+    .tile .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+    .tile .val{font-size:20px;font-weight:800;margin-top:3px}
+    .tile .sub{font-size:10px;color:var(--muted);margin-top:2px}
+
+    .bar{height:9px;border-radius:6px;background:#1e293b;overflow:hidden;display:flex;margin-top:8px}
+    .bar > span{height:100%}
+
+    .empty{padding:34px 18px;text-align:center;color:var(--muted)}
+    .empty code{background:#0b1220;border:1px solid var(--line);border-radius:4px;padding:1px 6px}
+    .muted{color:var(--muted)}
+    .foot{padding:10px 18px;color:var(--muted);font-size:11px;text-align:center}
+    a{color:var(--blue2)}
+  </style>
+</head>
+<body>
+
+<div class="top">
+  <h1>OB Period Report Card <small>RFD2 &middot; Outbound</small></h1>
+
+  <div class="ctrl">Shift
+    <input type="date" id="shiftDate" />
+  </div>
+  <div class="ctrl">MET?
+    <select id="useMET">
+      <option value="false">No</option>
+      <option value="true">Yes</option>
+    </select>
+  </div>
+
+  <div class="pill" id="bridge-pill" data-state="off">
+    <span class="dot"></span><span id="bridge-label">Waiting for bridge…</span>
+  </div>
+
+  <button class="btn" id="btn-fclm">Pull FCLM</button>
+  <button class="btn" id="btn-flutil">Open FL Util tabs</button>
+  <button class="btn" id="btn-belt">Open Belt tabs</button>
+  <button class="btn blue" id="btn-refresh">⟳ Refresh</button>
+</div>
+
+<div id="empty" class="empty">
+  <h2 style="color:var(--text);font-size:15px;margin-bottom:8px;">Waiting for data from the bridge…</h2>
+  <p>Install / enable the <code>OB Period Report Card Bridge</code> Tampermonkey script, then click
+  <strong>Open FL Util tabs</strong> + <strong>Open Belt tabs</strong> above (or use the bridge panel).
+  Leave those graph tabs open — they self-collect every ~60s and feed this page automatically.</p>
+</div>
+
+<div id="board" class="grid" style="display:none">
+
+  <!-- NEO GOALS -->
+  <div class="card">
+    <div class="card-h"><h2>NEO Shift Goals</h2><span class="age" id="age-neo">—</span></div>
+    <div class="card-b">
+      <div class="tiles">
+        <div class="tile"><div class="lbl">Fluid Load Jobs</div><div class="val" id="neo-fl">--</div></div>
+        <div class="tile"><div class="lbl">Manual Palletize</div><div class="val" id="neo-mp">--</div></div>
+        <div class="tile"><div class="lbl">RWC Jobs</div><div class="val" id="neo-rwc">--</div></div>
+        <div class="tile"><div class="lbl">FL Rate</div><div class="val" id="neo-rate">--</div></div>
+        <div class="tile"><div class="lbl">FL + WB HC</div><div class="val" id="neo-hc">--</div></div>
+        <div class="tile"><div class="lbl">Ship Sort Diverts</div><div class="val" id="neo-ssd">--</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLUID ROSTER -->
+  <div class="card">
+    <div class="card-h"><h2>Fluid Roster HC</h2><span class="age" id="age-roster">—</span></div>
+    <div class="card-b">
+      <div class="tiles" style="margin-bottom:10px">
+        <div class="tile"><div class="lbl">Headcount</div><div class="val" id="r-hc">--</div><div class="sub" id="r-target"></div></div>
+        <div class="tile"><div class="lbl">Gap to Target</div><div class="val" id="r-gap">--</div></div>
+      </div>
+      <table><thead><tr><th>Group</th><th>Current</th><th>Target</th><th>Gap</th></tr></thead>
+        <tbody id="r-rows"><tr><td colspan="4" class="muted">No roster data yet.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FCLM JPLH -->
+  <div class="card span2">
+    <div class="card-h"><h2>FCLM — Fluid Load JPLH by Period</h2><span class="age" id="age-fclm">—</span></div>
+    <div class="card-b">
+      <table>
+        <thead><tr><th>Period</th><th>Tote Jobs</th><th>Case Jobs</th><th>Total Jobs</th><th>WB Rate (hrs)</th><th>JPLH</th><th>Updated</th></tr></thead>
+        <tbody id="fclm-rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FL UTILIZATION -->
+  <div class="card span2">
+    <div class="card-h"><h2>FL Utilization — MP / FL / RWC</h2><span class="age" id="age-flutil">—</span></div>
+    <div class="card-b">
+      <table>
+        <thead><tr><th>Period</th><th>MP</th><th>FL</th><th>RWC</th><th>Total</th><th>FL %</th><th>Updated</th></tr></thead>
+        <tbody id="flutil-rows"></tbody>
+      </table>
+      <div class="bar" id="flutil-bar" style="display:none"></div>
+      <div class="muted" id="flutil-legend" style="font-size:10px;margin-top:6px"></div>
+    </div>
+  </div>
+
+  <!-- BATTLE OF THE BELT -->
+  <div class="card span2">
+    <div class="card-h"><h2>Battle of the Belt — East vs West</h2><span class="age" id="age-belt">—</span></div>
+    <div class="card-b">
+      <table>
+        <thead><tr><th>Period</th><th>West Side</th><th>East Side</th><th>Total</th><th>Leader</th><th>Updated</th></tr></thead>
+        <tbody id="belt-rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="foot">
+  Last bridge push: <span id="last-pull">never</span> &middot;
+  This page reads the OB Report Card bridge (Tampermonkey). Numbers come from NEO, FCLM, and the live monitorportal graph tabs.
+</div>
+
+<script>
+"use strict";
+
+/* ─── Bridge wiring ─────────────────────────────────────────────────────────
+   The Tampermonkey userscript writes one shared object and pushes it here two ways:
+     1. window.postMessage({type:'PRC_V2_HYBRID_DATA', payload})
+     2. localStorage[BRIDGE_KEY] = JSON(payload)        (fallback we poll)
+   It also announces PRC_V2_LIVE_BRIDGE_READY when its CORS fetch bridge is up.   */
+
+const BRIDGE_KEYS = ['OB_PERIOD_REPORT_CARD_V2_HYBRID_BRIDGE','OB_PERIOD_REPORT_CARD_BRIDGE'];
+const PERIOD_ORDER = ['p1','p2','p3','met'];
+const PERIOD_LABEL = {p1:'P1',p2:'P2',p3:'P3',met:'MET',full:'Full'};
+
+let lastUpdatedAt = 0;
+let bridgeSeen = false;
+
+const $ = (id)=>document.getElementById(id);
+const num = (v)=> (v===null||v===undefined||v==='' || !isFinite(Number(v))) ? NaN : Number(v);
+const fmt = (v,d=0)=>{ const n=num(v); return isFinite(n)? n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}) : '--'; };
+
+function ageStr(ts){
+  if(!ts) return 'waiting';
+  const s = Math.max(0, Math.round((Date.now()-Number(ts))/1000));
+  if(s<60) return s+'s ago';
+  const m = Math.floor(s/60);
+  return m<60 ? `${m}m ago` : `${Math.floor(m/60)}h ${m%60}m ago`;
+}
+function freshClass(ts){
+  if(!ts) return 'muted';
+  const m=(Date.now()-Number(ts))/60000;
+  return m<16 ? 'pos' : (m<35 ? '' : 'neg');
+}
+
+/* ─── Receive data ─────────────────────────────────────────────────────────── */
+window.addEventListener('message', (e)=>{
+  const d = e.data;
+  if(!d || typeof d!=='object') return;
+  if(d.type==='PRC_V2_HYBRID_DATA' && d.payload){ ingest(d.payload, 'message'); }
+  if(d.type==='PRC_V2_LIVE_BRIDGE_READY'){ markBridge('live','Bridge live'); }
+});
+
+function readLocal(){
+  for(const k of BRIDGE_KEYS){
+    try{ const raw=localStorage.getItem(k); if(raw){ const o=JSON.parse(raw); if(o && typeof o==='object') return o; } }catch{}
+  }
+  return null;
+}
+
+function ingest(payload, via){
+  if(!payload) return;
+  const stamp = Number(payload.updatedAt||payload.lastPull?.updatedAt||0);
+  // Always accept message pushes; for localStorage polling only accept newer data.
+  if(via==='poll' && stamp && stamp<=lastUpdatedAt) { refreshClocks(); return; }
+  lastUpdatedAt = Math.max(lastUpdatedAt, stamp);
+  bridgeSeen = true;
+  render(payload);
+  markBridge('live', payload.lastPull?.label ? ('Bridge: '+payload.lastPull.label) : 'Bridge connected');
+}
+
+/* Poll localStorage as a fallback in case postMessage is missed (file:// quirks). */
+setInterval(()=>{ const o=readLocal(); if(o) ingest(o,'poll'); else refreshClocks(); }, 5000);
+setInterval(refreshClocks, 15000);
+
+function markBridge(state, label){
+  const pill=$('bridge-pill'); pill.dataset.state=state; $('bridge-label').textContent=label;
+}
+
+/* If no data within 8s, hint that the bridge isn't pushing yet. */
+setTimeout(()=>{ if(!bridgeSeen){ const o=readLocal(); if(o){ ingest(o,'poll'); } else { markBridge('off','Bridge not detected'); } } }, 8000);
+
+/* ─── Render ────────────────────────────────────────────────────────────────── */
+function render(b){
+  $('empty').style.display='none';
+  $('board').style.display='grid';
+
+  // sync controls (only if the user isn't actively editing)
+  if(b.shift?.shiftDate && document.activeElement!==$('shiftDate')) $('shiftDate').value=b.shift.shiftDate;
+  if(b.shift && document.activeElement!==$('useMET')) $('useMET').value = b.shift.includeMET ? 'true':'false';
+  const includeMET = $('useMET').value==='true' || b.shift?.includeMET;
+
+  // NEO
+  const neo=b.neo||{};
+  $('neo-fl').textContent=fmt(neo.fluidLoadJobs);
+  $('neo-mp').textContent=fmt(neo.manualPalletizeJobs);
+  $('neo-rwc').textContent=fmt(neo.rwcJobs);
+  $('neo-rate').textContent=fmt(neo.fluidLoadRate);
+  $('neo-hc').textContent=fmt(neo.fluidLoadHC);
+  $('neo-ssd').textContent=fmt(neo.shipSortDiverts);
+  setAge('age-neo', neo.updatedAt);
+
+  // Roster
+  const r=b.roster?.fluid||{};
+  $('r-hc').textContent=fmt(r.headcount);
+  $('r-target').textContent = isFinite(num(r.target)) && r.target ? ('Target '+fmt(r.target)) : '';
+  const gap=num(r.gap);
+  const gapEl=$('r-gap'); gapEl.textContent = isFinite(gap) ? (gap>=0?'+':'')+fmt(gap) : '--';
+  gapEl.className = 'val ' + (isFinite(gap) ? (gap>=0?'pos':'neg') : '');
+  const rrows=$('r-rows');
+  if(r.groups && r.groups.length){
+    rrows.innerHTML = r.groups.map(g=>{
+      const gg=num(g.gap);
+      return `<tr><td class="k">${esc(g.label)}</td><td>${fmt(g.current)}</td><td>${fmt(g.target)}</td>
+        <td class="${isFinite(gg)?(gg>=0?'pos':'neg'):''}">${isFinite(gg)?(gg>=0?'+':'')+fmt(gg):'--'}</td></tr>`;
+    }).join('');
+  } else rrows.innerHTML='<tr><td colspan="4" class="muted">No roster data yet.</td></tr>';
+  setAge('age-roster', r.updatedAt);
+
+  // FCLM JPLH
+  const fp=b.fclmPeriods||{};
+  const fperiods=PERIOD_ORDER.filter(k=>k!=='met'||includeMET);
+  let fnewest=0, fhtml='';
+  for(const k of fperiods){
+    const d=fp[k]||{}; fnewest=Math.max(fnewest, Number(d.updatedAt||0));
+    fhtml+=`<tr><td class="k">${PERIOD_LABEL[k]}</td><td>${fmt(d.totesJobs)}</td><td>${fmt(d.casesJobs)}</td>
+      <td class="big">${fmt(d.totalJobs)}</td><td>${fmt(d.wallBuilderRate,2)}</td>
+      <td class="big">${fmt(d.jplh,2)}</td><td class="${freshClass(d.updatedAt)}">${ageStr(d.updatedAt)}</td></tr>`;
+  }
+  const ff=b.fclmFull||{};
+  fhtml+=`<tr class="total"><td>Full</td><td>${fmt(ff.totesJobs)}</td><td>${fmt(ff.casesJobs)}</td>
+    <td>${fmt(ff.totalJobs)}</td><td>${fmt(ff.wallBuilderRate,2)}</td><td>${fmt(ff.jplh,2)}</td>
+    <td class="${freshClass(ff.updatedAt)}">${ageStr(ff.updatedAt)}</td></tr>`;
+  $('fclm-rows').innerHTML=fhtml;
+  setAge('age-fclm', Math.max(fnewest, Number(ff.updatedAt||0)));
+
+  // FL Utilization
+  const mp=b.monitorPeriods||{};
+  const mperiods=PERIOD_ORDER.filter(k=>k!=='met'||includeMET);
+  let unewest=0, uhtml='', tot={mp:0,fl:0,rwc:0,seen:false};
+  for(const k of mperiods){
+    const d=(mp[k]||{}).flUtil||{}; unewest=Math.max(unewest, Number(d.updatedAt||0));
+    const a=num(d.mp),f=num(d.fl),w=num(d.rwc);
+    const t=(isFinite(a)?a:0)+(isFinite(f)?f:0)+(isFinite(w)?w:0);
+    const flPct = t>0 && isFinite(f) ? (f/t*100) : NaN;
+    if(isFinite(a)||isFinite(f)||isFinite(w)){ tot.mp+=(a||0); tot.fl+=(f||0); tot.rwc+=(w||0); tot.seen=true; }
+    uhtml+=`<tr><td class="k">${PERIOD_LABEL[k]}</td><td>${fmt(d.mp)}</td><td class="big">${fmt(d.fl)}</td>
+      <td>${fmt(d.rwc)}</td><td>${t?fmt(t):'--'}</td><td>${isFinite(flPct)?flPct.toFixed(1)+'%':'--'}</td>
+      <td class="${freshClass(d.updatedAt)}">${ageStr(d.updatedAt)}</td></tr>`;
+  }
+  $('flutil-rows').innerHTML=uhtml;
+  // Shift-total bar
+  const gt=tot.mp+tot.fl+tot.rwc;
+  if(tot.seen && gt>0){
+    $('flutil-bar').style.display='flex';
+    $('flutil-bar').innerHTML =
+      `<span style="width:${tot.fl/gt*100}%;background:var(--green)"></span>`+
+      `<span style="width:${tot.mp/gt*100}%;background:var(--blue)"></span>`+
+      `<span style="width:${tot.rwc/gt*100}%;background:var(--amber)"></span>`;
+    $('flutil-legend').innerHTML =
+      `<span class="pos">■</span> FL ${fmt(tot.fl)} (${(tot.fl/gt*100).toFixed(1)}%) &nbsp; `+
+      `<span style="color:var(--blue2)">■</span> MP ${fmt(tot.mp)} (${(tot.mp/gt*100).toFixed(1)}%) &nbsp; `+
+      `<span style="color:var(--amber)">■</span> RWC ${fmt(tot.rwc)} (${(tot.rwc/gt*100).toFixed(1)}%)`;
+  } else { $('flutil-bar').style.display='none'; $('flutil-legend').textContent=''; }
+  setAge('age-flutil', unewest);
+
+  // Battle of the Belt
+  let bnewest=0, bhtml='';
+  for(const k of mperiods){
+    const d=(mp[k]||{}).belt||{}; bnewest=Math.max(bnewest, Number(d.updatedAt||0));
+    const w=num(d.west),e=num(d.east);
+    const t=(isFinite(w)?w:0)+(isFinite(e)?e:0);
+    let leader='--';
+    if(isFinite(w)&&isFinite(e)) leader = w===e?'Tie':(w>e?'🟦 West':'🟥 East');
+    bhtml+=`<tr><td class="k">${PERIOD_LABEL[k]}</td>
+      <td class="${isFinite(w)&&isFinite(e)&&w>e?'big pos':''}">${fmt(d.west)}</td>
+      <td class="${isFinite(w)&&isFinite(e)&&e>w?'big pos':''}">${fmt(d.east)}</td>
+      <td>${t?fmt(t):'--'}</td><td>${leader}</td>
+      <td class="${freshClass(d.updatedAt)}">${ageStr(d.updatedAt)}</td></tr>`;
+  }
+  $('belt-rows').innerHTML=bhtml;
+  setAge('age-belt', bnewest);
+
+  // footer
+  const lp=b.lastPull;
+  $('last-pull').textContent = lp ? `${lp.label||lp.source||'pull'} — ${ageStr(lp.updatedAt)}${lp.detail?(' ('+lp.detail+')'):''}` : 'never';
+}
+
+function setAge(id, ts){ const el=$(id); if(!el) return; el.textContent=ageStr(ts); el.className='age '+freshClass(ts); }
+
+/* Re-tick the "x ago" labels without new data. */
+function refreshClocks(){
+  const o = readLocal(); if(o) render(o);
+  const m=(Date.now()-lastUpdatedAt)/60000;
+  if(bridgeSeen) markBridge(m<16?'live':'stale', m<16?'Bridge connected':`Last data ${ageStr(lastUpdatedAt)}`);
+}
+
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ─── Controls -> ask the bridge userscript to act ──────────────────────────── */
+function post(msg){ window.postMessage(msg,'*'); }
+function pullArgs(){ return { shiftDate:$('shiftDate').value||'', includeMET:$('useMET').value==='true' }; }
+
+$('btn-refresh').addEventListener('click', ()=>{ post({type:'PRC_V2_HYBRID_PULL_REQUEST'}); post(Object.assign({type:'PRC_V2_HYBRID_SOURCE_PULL', source:'fclm'}, pullArgs())); });
+$('btn-fclm').addEventListener('click',  ()=> post(Object.assign({type:'PRC_V2_HYBRID_SOURCE_PULL', source:'fclm'}, pullArgs())));
+$('btn-flutil').addEventListener('click',()=> post(Object.assign({type:'PRC_V2_HYBRID_SOURCE_PULL', source:'flUtil'}, pullArgs())));
+$('btn-belt').addEventListener('click',  ()=> post(Object.assign({type:'PRC_V2_HYBRID_SOURCE_PULL', source:'belt'}, pullArgs())));
+
+/* Default the shift date to today (the bridge recomputes if left blank). */
+(function initDate(){
+  const d=new Date();
+  $('shiftDate').value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+})();
+
+/* On load, nudge the bridge to push whatever it already has. */
+post({type:'PRC_V2_HYBRID_PULL_REQUEST'});
+const boot = readLocal(); if(boot) ingest(boot,'poll');
+</script>
+</body>
+</html>
